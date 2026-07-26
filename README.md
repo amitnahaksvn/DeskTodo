@@ -67,6 +67,14 @@ dotnet run --project src/DeskTodo.App
 dotnet test DeskTodo.sln
 ```
 
+UI tests render real windows through Avalonia's headless platform (no
+display needed). To also save a PNG of the rendered widget for manual
+inspection:
+
+```bash
+DESKTODO_SCREENSHOT_DIR=/tmp/desktodo-screenshots dotnet test DeskTodo.sln --filter "FullyQualifiedName~WidgetWindowRenderTests"
+```
+
 ## Database migrations
 
 The EF Core CLI is pinned as a local tool (`.config/dotnet-tools.json`), not

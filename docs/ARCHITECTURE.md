@@ -283,6 +283,59 @@ genuine user click. `TaskItemViewModelTests.Constructor_NeverPersistsTheJustLoad
 this with Moq (verifying `ITaskRepository.UpdateAsync` is never called
 during construction) so it can't silently regress.
 
+Relatedly, `WidgetViewModel`'s constructor originally also did `_ =
+LoadTasksAsync();` (fire-and-forget) to kick off the initial load.
+Constructors starting async work they don't own is a separate known smell
+— nothing external can await or sequence with it, which made it race
+against an explicit `await viewModel.LoadTasksAsync()` in tests. That call
+was removed from the constructor; `WidgetWindow.OnOpened` triggers the
+initial load instead (matching how Avalonia already fires `Opened` when a
+window is shown), leaving `WidgetViewModel` free of any self-initiated
+async work.
+
+## Headless visual verification
+
+This development environment has a real display attached but can't grant
+the running process macOS's Screen Recording permission (`screencapture`
+fails with "could not create image from display" regardless), so no
+amount of retrying gets a real screenshot of a live window. Instead,
+`tests/DeskTodo.Tests/Views/WidgetWindowRenderTests.cs` drives Avalonia's
+own headless rendering platform (`Avalonia.Headless`) — it renders the
+actual compiled XAML to an in-memory bitmap without touching any OS
+display/capture API at all, so it works identically whether or not a
+display (or permission to capture it) exists. This is also just a
+generally useful thing to have: it catches binding/converter/XAML errors
+that only surface at runtime — like the constructor-persistence bug above
+— automatically, in CI, on every change, which a build or a plain
+ViewModel-level unit test cannot.
+
+`Avalonia.Headless.XUnit` (the package that provides `[AvaloniaFact]`)
+is deliberately **not** used — it depends on `xunit.v3`, which conflicts
+(ambiguous `FactAttribute`) with the `xunit` v2 packages the rest of the
+test project is built on, and migrating the whole suite to v3 wasn't
+worth it just for two UI tests. `Avalonia.Headless` alone provides
+`HeadlessUnitTestSession`, which is driven manually instead:
+`HeadlessSessionFixture` starts one shared session (`[CollectionFixture]`,
+since spinning up Avalonia's platform/dispatcher thread per test would be
+wasteful) via `HeadlessUnitTestSession.StartNew(typeof(TestAppBuilder))`,
+and each `[Fact]` runs its body through `session.Dispatch(async () => {
+... }, cancellationToken)`. `TestAppBuilder.BuildAvaloniaApp()` configures
+`.UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions {
+UseHeadlessDrawing = false })` — real Skia rendering into an off-screen
+buffer, rather than the (default) drawing-free stub that only tracks
+layout without actually producing pixels — and configures against the
+real `App` class (not a minimal stand-in) specifically so `FluentTheme`
+applies; without it, controls like `CheckBox` and `ProgressBar` would
+render with no template at all.
+
+`window.CaptureRenderedFrame()` returns the rendered `WriteableBitmap`;
+the test asserts it's non-empty and, only when the `DESKTODO_SCREENSHOT_DIR`
+environment variable is set (so this has zero effect in CI or a normal
+`dotnet test` run), saves it as a PNG for manual inspection. That's how
+the widget's actual rendered appearance — header, strikethrough on
+completed tasks, priority-color dots, progress bar — was confirmed to
+match the intended design during development.
+
 ## Roadmap
 
 | Stage | Scope | Status |
