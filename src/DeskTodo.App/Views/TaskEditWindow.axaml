@@ -1,0 +1,80 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="560"
+        x:Class="DeskTodo.App.Views.TaskEditWindow"
+        x:DataType="vm:TaskEditViewModel"
+        Title="Edit Task"
+        Width="360" Height="560"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#F8FAFC">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Edit Task" FontSize="18" FontWeight="SemiBold"
+                   Margin="0,0,0,16" Foreground="#1E293B" />
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Title" FontSize="12" Foreground="#64748B" />
+                    <TextBox Text="{Binding Title}" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Description" FontSize="12" Foreground="#64748B" />
+                    <TextBox Text="{Binding Description}" AcceptsReturn="True" TextWrapping="Wrap" Height="60" />
+                </StackPanel>
+
+                <Grid ColumnDefinitions="*,*" >
+                    <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,6,0">
+                        <TextBlock Text="Priority" FontSize="12" Foreground="#64748B" />
+                        <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding Priority}"
+                                  HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="4" Margin="6,0,0,0">
+                        <TextBlock Text="Category" FontSize="12" Foreground="#64748B" />
+                        <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
+                                  HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:CategoryOption">
+                                    <TextBlock Text="{Binding Name}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                </Grid>
+
+                <!--
+                  DatePicker (month/day/year spinners) and NumericUpDown both need more
+                  width than a half-column of a 360px-wide window can give them without
+                  visually colliding — each gets its own full-width row instead.
+                -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Due date" FontSize="12" Foreground="#64748B" />
+                    <DatePicker SelectedDate="{Binding DueDate}" HorizontalAlignment="Stretch" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Estimated minutes" FontSize="12" Foreground="#64748B" />
+                    <NumericUpDown Value="{Binding EstimatedMinutes}" Minimum="0" Increment="5"
+                                   HorizontalAlignment="Stretch" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Notes" FontSize="12" Foreground="#64748B" />
+                    <TextBox Text="{Binding Notes}" AcceptsReturn="True" TextWrapping="Wrap" Height="60" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+            <Button Content="Cancel" Command="{Binding CancelCommand}" Padding="16,8" />
+            <Button Content="Save" Command="{Binding SaveCommand}" Padding="16,8"
+                    Background="#3B82F6" Foreground="White" />
+        </StackPanel>
+    </Grid>
+
+</Window>

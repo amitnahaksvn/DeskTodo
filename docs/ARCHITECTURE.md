@@ -374,18 +374,77 @@ not a window-wide command. **Not implemented**: auto-focusing the edit
 `TextBox` when edit mode begins — doing that correctly for an element
 inside a templated `ItemsControl` needs either an attached
 behavior/focus-helper or `Avalonia.Xaml.Behaviors`, neither of which
-seemed worth adding for one focus call; the user has to click into the box
-after double-clicking to reveal it. Noted here rather than silently
-shipped as if it were finished.
+seemed worth adding for one focus call at the time; solved properly in
+Phase 9 below without needing either.
 
-**Not implemented in this phase**: drag-to-reorder (the gesture itself —
-`TaskService.ReorderTasksAsync`/`ITaskRepository.ReorderAsync` already
-exist end-to-end from the persistence phase) and full multi-field editing
-(description, category, due date, notes, estimated time — only the title
-is editable inline; a proper "task details" editor is a reasonable next
-increment within this same CRUD area). Bulk select/delete/complete and
-copy/paste/undo/redo are explicitly scoped to the later Search/filter/sort
-phase per the roadmap below, not this one.
+**Not implemented in this phase**, picked up in Phase 9: drag-to-reorder
+and full multi-field editing. Bulk select/delete/complete and
+copy/paste/undo/redo remain scoped to the later Search/filter/sort phase.
+
+## Phase 9 — drag-to-reorder and the full-field task editor
+
+**Drag-to-reorder** uses Avalonia's actual `DragDrop` API (not a hand-rolled
+pointer-position tracker) for correct visual feedback and `DragOver`/`Drop`
+routing, but deliberately does *not* route the dragged task's `Guid`
+through Avalonia 12's new `IDataTransfer`/`DataFormat`/`DataTransferItem`
+payload system. That system is built for drags that can leave the
+originating control (or the process) — files onto the app, text into
+another app — which needs a serializable, format-negotiated payload. This
+drag never leaves the window it started in, so a private `Guid?
+_draggedTaskId` field on `WidgetWindow`, set before `DragDrop.DoDragDropAsync`
+and read in the `Drop` handler, is simpler and just as correct; an empty
+`DataTransfer` instance satisfies the API's required parameter without
+carrying anything. A dedicated drag-handle glyph (⠿) per row — rather than
+making the whole row draggable — avoids fighting the checkbox click,
+double-click-to-edit, and context-menu gestures already living there.
+`WidgetViewModel.ReorderAsync` removes the dragged id from its current
+position and reinserts it at the drop target's *current* index (re-found
+after removal, since it shifts down by one if the drop target originally
+came after the dragged item), then persists via the reorder plumbing that
+already existed from the persistence phase and reloads.
+
+**The full-field editor** is a separate `TaskEditWindow`/`TaskEditViewModel`
+pair, shown as a modal dialog (`ShowDialog(this)`) from `WidgetWindow`,
+rather than growing the widget's own row template further. `TaskItemViewModel`
+doesn't construct or show it directly — ViewModels constructing Views
+breaks testability — so `OpenEditorCommand` just calls a
+`requestFullEdit(Guid)` callback (mirroring `requestListRefresh`'s
+established shape), which `WidgetViewModel` re-raises as a public
+`TaskEditRequested` event for `WidgetWindow`'s code-behind to handle.
+`ITaskService` gained one addition, `GetTaskAsync(Guid)`, purely so the
+editor's ViewModel only depends on `ITaskService` for task data (it also
+depends on `ICategoryRepository` directly, but only to populate the
+category dropdown — a plain read with no business logic, so routing it
+through the service layer would just be ceremony). The context menu's
+"Edit" item now opens this full editor; double-clicking the title still
+does the lightweight inline rename from the Task CRUD phase — they're
+different weights of the same underlying action, not a redundancy.
+
+Two real bugs surfaced by actually running this rather than just building
+it:
+
+- **A headless-test threading race.** Adding two new test files pushed
+  xUnit's default cross-collection parallelism into racing against
+  `Avalonia.Headless`'s one-time, global `AppBuilder.SetupUnsafe()`
+  compositor/dispatcher initialization, intermittently throwing "the
+  calling thread cannot access this object because a different thread
+  owns it." `tests/DeskTodo.Tests/xunit.runner.json` sets
+  `parallelizeTestCollections: false` — cheap for a 49-test suite, and the
+  only correct fix for a genuinely global, non-reentrant one-time setup
+  call. Confirmed fixed by running the suite 3 times in a row after the
+  change (it wasn't flaky-not-reproducing before the fix — it failed the
+  same way twice, then reliably passed after).
+- **A DatePicker/NumericUpDown layout collision** — the editor's Due
+  date/Estimated minutes row put a 3-segment `DatePicker` (month/day/year)
+  into a half-width column of a 360px-wide window, and it visually
+  collided with the `NumericUpDown` next to it (the DatePicker's own
+  "day" segment came out blank in the rendered screenshot, with the
+  NumericUpDown's spinner arrows bleeding into where "year" should have
+  been). Neither the build nor any test caught this — it's a pure layout
+  issue, invisible to anything that doesn't actually render the window.
+  Only visible by looking at the headless-rendered screenshot, which is
+  exactly why that capability was built in the Widget UI phase. Fixed by
+  giving each control its own full-width row instead of sharing one.
 
 ## Roadmap
 
@@ -395,7 +454,8 @@ phase per the roadmap below, not this one.
 | Domain model | `TaskItem`, `Category`, `TaskPriority` | ✅ Done |
 | Persistence | EF Core `DbContext`, SQLite, migrations, repositories, `TaskService` use cases | ✅ Done |
 | Widget UI | Always-visible window: today's date + task list | ✅ Done |
-| Task CRUD | Create/rename/delete/duplicate/pin/archive (reorder gesture + full-field edit still open) | ✅ Mostly done |
+| Task CRUD | Create/rename/delete/duplicate/pin/archive | ✅ Done |
+| Reorder + full editor | Drag-to-reorder gesture, full-field task editor dialog | ✅ Done |
 | Daily planner | Per-day task lists, previous/next/today navigation, calendar picker | Planned |
 | Search / filter / sort | Multi-select, filtering by category/priority/status | Planned |
 | Settings | Theme, transparency, auto-start, backups, shortcuts, locale | Planned |

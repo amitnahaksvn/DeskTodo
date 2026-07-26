@@ -27,9 +27,7 @@
       Desktop-level attachment (sitting behind icons, above wallpaper),
       click-through view mode, opacity/transparency controls and remembering
       window position are later phases (Platform integration, Settings).
-      Drag-to-reorder and day navigation (previous/next/calendar) are the
-      next phase — TaskService.ReorderTasksAsync already exists, only the
-      drag gesture itself is missing.
+      Day navigation (previous/next/calendar) is the next phase.
     -->
     <Border Background="#F2FFFFFF" CornerRadius="16" ClipToBounds="True"
             BoxShadow="0 8 32 0 #33000000">
@@ -54,10 +52,11 @@
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:TaskItemViewModel">
-                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="12,7">
+                                <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" Margin="6,7"
+                                      DragDrop.AllowDrop="True" DragDrop.DragOver="OnRowDragOver" DragDrop.Drop="OnRowDrop">
                                     <Grid.ContextMenu>
                                         <ContextMenu>
-                                            <MenuItem Header="Edit" Command="{Binding BeginEditCommand}" />
+                                            <MenuItem Header="Edit" Command="{Binding OpenEditorCommand}" />
                                             <MenuItem Header="Duplicate" Command="{Binding DuplicateCommand}" />
                                             <MenuItem Header="Pin / Unpin" Command="{Binding TogglePinCommand}" />
                                             <Separator />
@@ -66,21 +65,26 @@
                                         </ContextMenu>
                                     </Grid.ContextMenu>
 
-                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsCompleted, Mode=OneWay}"
+                                    <TextBlock Grid.Column="0" Text="&#x283F;" FontSize="14" Margin="0,0,6,0"
+                                               VerticalAlignment="Center" Foreground="#CBD5E1" Cursor="SizeAll"
+                                               PointerPressed="OnDragHandlePointerPressed"
+                                               ToolTip.Tip="Drag to reorder" />
+
+                                    <CheckBox Grid.Column="1" IsChecked="{Binding IsCompleted, Mode=OneWay}"
                                               Command="{Binding ToggleCompleteCommand}"
                                               VerticalAlignment="Center" Margin="0,0,10,0" />
-                                    <Ellipse Grid.Column="1" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,10,0"
+                                    <Ellipse Grid.Column="2" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,10,0"
                                              Fill="{Binding PriorityColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
 
-                                    <TextBlock Grid.Column="2" Text="{Binding Title}" VerticalAlignment="Center"
+                                    <TextBlock Grid.Column="3" Text="{Binding Title}" VerticalAlignment="Center"
                                                TextWrapping="Wrap" Foreground="#1E293B"
                                                IsVisible="{Binding IsEditing, Converter={x:Static convCore:BoolConverters.Not}}"
                                                DoubleTapped="OnTitleDoubleTapped"
                                                TextDecorations="{Binding IsCompleted, Converter={x:Static conv:BoolToTextDecorationsConverter.Instance}}" />
-                                    <TextBox Grid.Column="2" Text="{Binding EditingTitle}" VerticalAlignment="Center"
+                                    <TextBox Grid.Column="3" Text="{Binding EditingTitle}" VerticalAlignment="Center"
                                               IsVisible="{Binding IsEditing}" KeyDown="OnEditTitleKeyDown" />
 
-                                    <TextBlock Grid.Column="3" Text="&#x1F4CC;" FontSize="10" Margin="6,0,0,0"
+                                    <TextBlock Grid.Column="4" Text="&#x1F4CC;" FontSize="10" Margin="6,0,0,0"
                                                VerticalAlignment="Center" IsVisible="{Binding IsPinned}"
                                                ToolTip.Tip="Pinned" />
                                 </Grid>

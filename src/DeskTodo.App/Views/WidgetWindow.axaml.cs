@@ -1,12 +1,22 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using DeskTodo.App.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DeskTodo.App.Views;
 
 public partial class WidgetWindow : Window
 {
+    // Tracks the row being dragged for reordering. A private field (rather than routing
+    // the task's Guid through Avalonia's IDataTransfer/DataFormat payload machinery) is
+    // enough because this drag never leaves the window it started in — DoDragDropAsync is
+    // still used for the actual gesture (visual feedback, DragOver/Drop routing), just not
+    // for carrying the payload.
+    private Guid? _draggedTaskId;
+
     public WidgetWindow()
     {
         InitializeComponent();
@@ -18,14 +28,41 @@ public partial class WidgetWindow : Window
 
         if (DataContext is WidgetViewModel viewModel)
         {
+            viewModel.TaskEditRequested += OnTaskEditRequested;
             _ = viewModel.LoadTasksAsync();
         }
     }
 
     protected override void OnClosed(EventArgs e)
     {
+        if (DataContext is WidgetViewModel viewModel)
+        {
+            viewModel.TaskEditRequested -= OnTaskEditRequested;
+        }
+
         (DataContext as IDisposable)?.Dispose();
         base.OnClosed(e);
+    }
+
+    private async void OnTaskEditRequested(object? sender, Guid taskId)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var editViewModel = App.Services.GetRequiredService<TaskEditViewModel>();
+        var editWindow = new TaskEditWindow { DataContext = editViewModel };
+        editViewModel.Saved += (_, _) => editWindow.Close();
+        editViewModel.CancelRequested += (_, _) => editWindow.Close();
+
+        await editViewModel.LoadAsync(taskId);
+        await editWindow.ShowDialog(this);
+
+        if (DataContext is WidgetViewModel viewModel)
+        {
+            await viewModel.LoadTasksAsync();
+        }
     }
 
     // The window has no title bar (SystemDecorations="None"), so the header
@@ -51,9 +88,25 @@ public partial class WidgetWindow : Window
 
     private void OnTitleDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (sender is Control { DataContext: TaskItemViewModel taskItem })
+        if (sender is not Control { DataContext: TaskItemViewModel taskItem } titleBlock)
         {
-            taskItem.BeginEditCommand.Execute(null);
+            return;
+        }
+
+        taskItem.BeginEditCommand.Execute(null);
+
+        // The edit TextBox becomes visible as a side effect of the command above, but
+        // toggling IsVisible doesn't detach/reattach it from the visual tree, so there's
+        // no "just appeared" lifecycle event to hook — focusing has to be deferred past
+        // this layout pass instead of attempted immediately.
+        if (titleBlock.GetVisualParent() is Control row)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                var editBox = row.GetVisualChildren().OfType<TextBox>().FirstOrDefault();
+                editBox?.Focus();
+                editBox?.SelectAll();
+            }, DispatcherPriority.Loaded);
         }
     }
 
@@ -73,5 +126,39 @@ public partial class WidgetWindow : Window
                 taskItem.CancelEditCommand.Execute(null);
                 break;
         }
+    }
+
+    private async void OnDragHandlePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Control { DataContext: TaskItemViewModel taskItem } handle)
+        {
+            return;
+        }
+
+        if (!e.GetCurrentPoint(handle).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        _draggedTaskId = taskItem.Id;
+        await DragDrop.DoDragDropAsync(e, new DataTransfer(), DragDropEffects.Move);
+        _draggedTaskId = null;
+    }
+
+    private void OnRowDragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = _draggedTaskId.HasValue ? DragDropEffects.Move : DragDropEffects.None;
+    }
+
+    private async void OnRowDrop(object? sender, DragEventArgs e)
+    {
+        if (_draggedTaskId is not { } draggedId ||
+            sender is not Control { DataContext: TaskItemViewModel targetItem } ||
+            DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        await viewModel.ReorderAsync(draggedId, targetItem.Id);
     }
 }

@@ -21,12 +21,14 @@ public sealed partial class TaskItemViewModel : ViewModelBase
     private readonly ITaskService _taskService;
     private readonly ILogger<TaskItemViewModel> _logger;
     private readonly Action _requestListRefresh;
+    private readonly Action<Guid> _requestFullEdit;
 
-    public TaskItemViewModel(TaskItem task, ITaskService taskService, ILogger<TaskItemViewModel> logger, Action requestListRefresh)
+    public TaskItemViewModel(TaskItem task, ITaskService taskService, ILogger<TaskItemViewModel> logger, Action requestListRefresh, Action<Guid> requestFullEdit)
     {
         _taskService = taskService;
         _logger = logger;
         _requestListRefresh = requestListRefresh;
+        _requestFullEdit = requestFullEdit;
 
         Id = task.Id;
         DisplayNumber = task.DayOrder + 1;
@@ -83,6 +85,10 @@ public sealed partial class TaskItemViewModel : ViewModelBase
         EditingTitle = Title;
         IsEditing = true;
     }
+
+    /// <summary>Opens the full-field editor (description/priority/category/due date/notes) — bound to the context menu's "Edit" item.</summary>
+    [RelayCommand]
+    private void OpenEditor() => _requestFullEdit(Id);
 
     [RelayCommand]
     private void CancelEdit() => IsEditing = false;

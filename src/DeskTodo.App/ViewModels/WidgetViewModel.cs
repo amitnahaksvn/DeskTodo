@@ -11,10 +11,11 @@ namespace DeskTodo.App.ViewModels;
 
 /// <summary>
 /// Backing view model for the always-visible desktop widget: today's date
-/// and today's task list, with live completion progress and per-task CRUD
+/// and today's task list, with live completion progress, per-task CRUD
 /// (create/rename/pin/archive/delete/duplicate — see <see cref="TaskItemViewModel"/>
-/// for the per-row operations). Drag-to-reorder and day navigation
-/// (previous/next/calendar) land in later phases.
+/// for the per-row operations), the full-field editor hand-off, and
+/// drag-to-reorder. Day navigation (previous/next/calendar) lands in a
+/// later phase.
 /// </summary>
 public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
 {
@@ -69,6 +70,13 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
 
     public bool HasNoTasks => !IsLoading && TotalCount == 0;
 
+    /// <summary>
+    /// Raised when a row's context menu "Edit" is chosen. WidgetWindow owns
+    /// actually showing the editor window — a ViewModel shouldn't construct
+    /// Views — so this just bubbles the request up.
+    /// </summary>
+    public event EventHandler<Guid>? TaskEditRequested;
+
     [ObservableProperty]
     public partial string NewTaskTitle { get; set; } = string.Empty;
 
@@ -111,7 +119,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
             Tasks.Clear();
             foreach (var task in tasks)
             {
-                var itemViewModel = new TaskItemViewModel(task, _taskService, _taskItemLogger, () => _ = LoadTasksAsync());
+                var itemViewModel = new TaskItemViewModel(task, _taskService, _taskItemLogger, () => _ = LoadTasksAsync(), id => TaskEditRequested?.Invoke(this, id));
                 itemViewModel.PropertyChanged += OnTaskItemPropertyChanged;
                 Tasks.Add(itemViewModel);
             }
@@ -141,6 +149,40 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     {
         TotalCount = Tasks.Count;
         CompletedCount = Tasks.Count(t => t.IsCompleted);
+    }
+
+    /// <summary>
+    /// Moves <paramref name="draggedTaskId"/> to sit at <paramref name="targetTaskId"/>'s
+    /// current position and persists the resulting order. Called from the view's
+    /// drag-drop handlers (see <c>WidgetWindow.axaml.cs</c>).
+    /// </summary>
+    public async Task ReorderAsync(Guid draggedTaskId, Guid targetTaskId)
+    {
+        if (draggedTaskId == targetTaskId)
+        {
+            return;
+        }
+
+        var orderedIds = Tasks.Select(t => t.Id).ToList();
+        if (!orderedIds.Contains(draggedTaskId) || !orderedIds.Contains(targetTaskId))
+        {
+            return;
+        }
+
+        // Re-find targetTaskId's index after removal (it shifts down by one if it
+        // originally came after draggedTaskId) rather than reusing the pre-removal index.
+        orderedIds.Remove(draggedTaskId);
+        orderedIds.Insert(orderedIds.IndexOf(targetTaskId), draggedTaskId);
+
+        try
+        {
+            await _taskService.ReorderTasksAsync(PlanDate, orderedIds);
+            await LoadTasksAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to reorder tasks for {PlanDate}", PlanDate);
+        }
     }
 
     private void OnDayRolloverTick(object? sender, EventArgs e)

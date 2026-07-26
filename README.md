@@ -8,15 +8,18 @@ full application window.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the layering, the
 dependency graph, and the design decisions behind the current codebase.
+See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the phase-by-phase progress
+checklist — kept up to date as each phase completes.
 
 ## Status
 
 Solution scaffold, DI/logging/config infrastructure, the Domain task model,
-EF Core/SQLite persistence, and the widget UI — today's date, live task
-list, complete/reopen, add/rename (inline)/duplicate/pin/archive/delete,
-progress bar — are in place and verified end-to-end. Drag-to-reorder, a
-full-field task editor (description/category/due date/notes), day
-navigation, search, settings, and notifications are not implemented yet.
+EF Core/SQLite persistence, and the widget UI are in place and verified
+end-to-end — today's date, live task list, complete/reopen, add/rename
+(inline)/duplicate/pin/archive/delete, drag-to-reorder, a full-field task
+editor (description/priority/category/due date/estimated time/notes), and
+the progress bar. Day navigation, search, settings, notifications, and
+import/export are not implemented yet.
 
 ## Tech stack
 

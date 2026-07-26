@@ -13,6 +13,9 @@ public interface ITaskService
 {
     Task<IReadOnlyList<TaskItem>> GetTasksForDateAsync(DateOnly planDate, CancellationToken cancellationToken = default);
 
+    /// <summary>Fetches a single task for the full-field editor to populate its form from.</summary>
+    Task<TaskItem?> GetTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
+
     Task<TaskItem> CreateTaskAsync(
         DateOnly planDate,
         string title,

@@ -21,6 +21,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      Disables cross-collection parallelism (see xunit.runner.json): Avalonia.Headless's
+      AppBuilder.SetupUnsafe() does one-time global compositor/dispatcher initialization
+      that isn't safe to race against other test collections running concurrently.
+    -->
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\DeskTodo.Domain\DeskTodo.Domain.csproj" />
     <ProjectReference Include="..\..\src\DeskTodo.Application\DeskTodo.Application.csproj" />
     <ProjectReference Include="..\..\src\DeskTodo.Infrastructure\DeskTodo.Infrastructure.csproj" />
