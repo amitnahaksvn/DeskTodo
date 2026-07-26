@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Globalization;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using DeskTodo.Application.Services;
 using Microsoft.Extensions.Logging;
 
@@ -10,9 +11,10 @@ namespace DeskTodo.App.ViewModels;
 
 /// <summary>
 /// Backing view model for the always-visible desktop widget: today's date
-/// and today's task list, with live completion progress. Editing (create,
-/// delete, pin, archive, reorder) and day navigation land in later phases —
-/// this phase is the read/complete-toggle widget itself.
+/// and today's task list, with live completion progress and per-task CRUD
+/// (create/rename/pin/archive/delete/duplicate — see <see cref="TaskItemViewModel"/>
+/// for the per-row operations). Drag-to-reorder and day navigation
+/// (previous/next/calendar) land in later phases.
 /// </summary>
 public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
 {
@@ -67,6 +69,31 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
 
     public bool HasNoTasks => !IsLoading && TotalCount == 0;
 
+    [ObservableProperty]
+    public partial string NewTaskTitle { get; set; } = string.Empty;
+
+    /// <summary>Bound to the "add task" row's Enter key. A blank title is a no-op rather than an error.</summary>
+    [RelayCommand]
+    private async Task AddTaskAsync()
+    {
+        var title = NewTaskTitle.Trim();
+        if (string.IsNullOrEmpty(title))
+        {
+            return;
+        }
+
+        try
+        {
+            await _taskService.CreateTaskAsync(PlanDate, title);
+            NewTaskTitle = string.Empty;
+            await LoadTasksAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to add task '{Title}' for {PlanDate}", title, PlanDate);
+        }
+    }
+
     public async Task LoadTasksAsync(CancellationToken cancellationToken = default)
     {
         IsLoading = true;
@@ -84,7 +111,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
             Tasks.Clear();
             foreach (var task in tasks)
             {
-                var itemViewModel = new TaskItemViewModel(task, _taskService, _taskItemLogger);
+                var itemViewModel = new TaskItemViewModel(task, _taskService, _taskItemLogger, () => _ = LoadTasksAsync());
                 itemViewModel.PropertyChanged += OnTaskItemPropertyChanged;
                 Tasks.Add(itemViewModel);
             }

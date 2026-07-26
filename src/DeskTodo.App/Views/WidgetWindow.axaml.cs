@@ -40,4 +40,38 @@ public partial class WidgetWindow : Window
     }
 
     private void OnCloseButtonClick(object? sender, RoutedEventArgs e) => Close();
+
+    private void OnAddTaskKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && DataContext is WidgetViewModel viewModel)
+        {
+            viewModel.AddTaskCommand.Execute(null);
+        }
+    }
+
+    private void OnTitleDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is Control { DataContext: TaskItemViewModel taskItem })
+        {
+            taskItem.BeginEditCommand.Execute(null);
+        }
+    }
+
+    private void OnEditTitleKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not Control { DataContext: TaskItemViewModel taskItem })
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.Enter:
+                taskItem.CommitEditCommand.Execute(null);
+                break;
+            case Key.Escape:
+                taskItem.CancelEditCommand.Execute(null);
+                break;
+        }
+    }
 }

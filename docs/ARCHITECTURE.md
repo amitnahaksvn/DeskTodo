@@ -333,8 +333,59 @@ the test asserts it's non-empty and, only when the `DESKTODO_SCREENSHOT_DIR`
 environment variable is set (so this has zero effect in CI or a normal
 `dotnet test` run), saves it as a PNG for manual inspection. That's how
 the widget's actual rendered appearance — header, strikethrough on
-completed tasks, priority-color dots, progress bar — was confirmed to
-match the intended design during development.
+completed tasks, priority-color dots, progress bar, the pin glyph's emoji
+font fallback, the "Add a task…" row — was confirmed to match the intended
+design during development, not just assumed from the XAML.
+
+## Task CRUD
+
+Builds directly on the Widget UI phase's `TaskItemViewModel`/`WidgetViewModel`
+rather than introducing new ones. New per-task operations — rename,
+duplicate, pin/unpin, archive, delete — are `[RelayCommand]`s on
+`TaskItemViewModel`, following the same "component owns persisting its own
+state" shape as the existing `ToggleCompleteCommand`. Creating a task is a
+`[RelayCommand]` on `WidgetViewModel` instead, since there's no existing
+row to own it (an "Add a task…" `TextBox` at the top of the list, Enter to
+submit).
+
+**Delete/duplicate/archive change *which* tasks belong on today's list**
+(a deleted or archived task should disappear from view; a duplicated task
+introduces a new row) — `TaskItemViewModel` doesn't try to patch
+`WidgetViewModel.Tasks` itself for these. It calls a `requestListRefresh`
+callback (injected via constructor: `() => _ = LoadTasksAsync()`) that
+triggers a full reload from `ITaskService` instead. This trades a bit of
+efficiency (a full re-query instead of a targeted collection edit) for
+correctness and simplicity — no risk of the ObservableCollection drifting
+out of sync with the database, no manual index-tracking bugs. For a
+personal-scale todo list (dozens, not thousands, of tasks per day) that
+trade-off is the right one; complete/reopen/pin/rename don't need it since
+those never change list *membership*, only in-place row state.
+
+Inline title editing (double-click the title, matching the "Double click
+to edit / Enter confirms / Escape cancels" requirement) is implemented as
+two overlapping elements in the row template — a `TextBlock` (`IsVisible`
+bound to `!IsEditing`) and a `TextBox` (`IsVisible` bound to `IsEditing`)
+— rather than a single element that swaps its own editability, since
+Avalonia's `TextBox` and `TextBlock` are different control types. Commit
+(Enter) and cancel (Escape) are wired via a `KeyDown` handler in
+`WidgetWindow.axaml.cs` rather than `KeyBinding`s, since the binding needs
+to reach the specific row's `TaskItemViewModel` (`sender`'s `DataContext`),
+not a window-wide command. **Not implemented**: auto-focusing the edit
+`TextBox` when edit mode begins — doing that correctly for an element
+inside a templated `ItemsControl` needs either an attached
+behavior/focus-helper or `Avalonia.Xaml.Behaviors`, neither of which
+seemed worth adding for one focus call; the user has to click into the box
+after double-clicking to reveal it. Noted here rather than silently
+shipped as if it were finished.
+
+**Not implemented in this phase**: drag-to-reorder (the gesture itself —
+`TaskService.ReorderTasksAsync`/`ITaskRepository.ReorderAsync` already
+exist end-to-end from the persistence phase) and full multi-field editing
+(description, category, due date, notes, estimated time — only the title
+is editable inline; a proper "task details" editor is a reasonable next
+increment within this same CRUD area). Bulk select/delete/complete and
+copy/paste/undo/redo are explicitly scoped to the later Search/filter/sort
+phase per the roadmap below, not this one.
 
 ## Roadmap
 
@@ -344,7 +395,7 @@ match the intended design during development.
 | Domain model | `TaskItem`, `Category`, `TaskPriority` | ✅ Done |
 | Persistence | EF Core `DbContext`, SQLite, migrations, repositories, `TaskService` use cases | ✅ Done |
 | Widget UI | Always-visible window: today's date + task list | ✅ Done |
-| Task CRUD | Create/edit/delete/complete/undo/pin/archive/reorder | Planned |
+| Task CRUD | Create/rename/delete/duplicate/pin/archive (reorder gesture + full-field edit still open) | ✅ Mostly done |
 | Daily planner | Per-day task lists, previous/next/today navigation, calendar picker | Planned |
 | Search / filter / sort | Multi-select, filtering by category/priority/status | Planned |
 | Settings | Theme, transparency, auto-start, backups, shortcuts, locale | Planned |

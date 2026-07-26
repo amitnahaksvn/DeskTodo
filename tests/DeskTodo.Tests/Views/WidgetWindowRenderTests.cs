@@ -35,6 +35,7 @@ public class WidgetWindowRenderTests(HeadlessSessionFixture fixture)
                 CreateTask(today, 4, "Drink Water", TaskPriority.Low, completed: true),
                 CreateTask(today, 5, "Team Meeting", TaskPriority.Critical, completed: false),
             };
+            tasks[5].Pin();
 
             var taskRepository = new Mock<ITaskRepository>();
             taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync(tasks);
@@ -46,6 +47,7 @@ public class WidgetWindowRenderTests(HeadlessSessionFixture fixture)
             Assert.Equal(6, viewModel.Tasks.Count);
             Assert.Equal(3, viewModel.CompletedCount);
             Assert.Equal(50, viewModel.ProgressPercentage);
+            Assert.True(viewModel.Tasks[5].IsPinned);
 
             var window = new WidgetWindow { DataContext = viewModel };
             window.Show();

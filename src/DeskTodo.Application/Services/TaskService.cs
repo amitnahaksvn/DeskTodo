@@ -43,6 +43,9 @@ public sealed class TaskService(ITaskRepository taskRepository) : ITaskService
         await taskRepository.UpdateAsync(task, cancellationToken);
     }
 
+    public Task RenameTaskAsync(Guid taskId, string newTitle, CancellationToken cancellationToken = default) =>
+        MutateAsync(taskId, task => { task.Title = newTitle; task.Touch(); }, cancellationToken);
+
     public async Task<TaskItem> DuplicateTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
         var source = await GetRequiredAsync(taskId, cancellationToken);

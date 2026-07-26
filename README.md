@@ -12,10 +12,11 @@ dependency graph, and the design decisions behind the current codebase.
 ## Status
 
 Solution scaffold, DI/logging/config infrastructure, the Domain task model,
-EF Core/SQLite persistence, and the widget UI (today's date, live task
-list, complete/reopen, progress bar) are in place and verified end-to-end.
-Editing (create/edit/delete/pin/archive/reorder), day navigation, search,
-settings, and notifications are not implemented yet.
+EF Core/SQLite persistence, and the widget UI — today's date, live task
+list, complete/reopen, add/rename (inline)/duplicate/pin/archive/delete,
+progress bar — are in place and verified end-to-end. Drag-to-reorder, a
+full-field task editor (description/category/due date/notes), day
+navigation, search, settings, and notifications are not implemented yet.
 
 ## Tech stack
 

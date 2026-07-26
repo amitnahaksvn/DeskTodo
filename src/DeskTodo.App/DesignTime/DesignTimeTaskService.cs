@@ -26,6 +26,8 @@ internal sealed class DesignTimeTaskService : ITaskService
 
     public Task UpdateTaskAsync(TaskItem task, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+    public Task RenameTaskAsync(Guid taskId, string newTitle, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
     public Task<TaskItem> DuplicateTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
         Task.FromResult(new TaskItem { PlanDate = DateOnly.FromDateTime(DateTime.Now), Title = string.Empty });
 

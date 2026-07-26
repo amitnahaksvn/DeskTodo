@@ -25,6 +25,9 @@ public interface ITaskService
     /// <summary>Persists edits already applied to a fetched <see cref="TaskItem"/> (title, notes, priority, etc.).</summary>
     Task UpdateTaskAsync(TaskItem task, CancellationToken cancellationToken = default);
 
+    /// <summary>Renames a task in place — used by the widget's inline (double-click) title edit, which doesn't hold a full fetched <see cref="TaskItem"/>.</summary>
+    Task RenameTaskAsync(Guid taskId, string newTitle, CancellationToken cancellationToken = default);
+
     Task<TaskItem> DuplicateTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
 
     Task CompleteTaskAsync(Guid taskId, CancellationToken cancellationToken = default);

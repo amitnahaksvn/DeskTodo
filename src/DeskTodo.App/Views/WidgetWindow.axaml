@@ -2,14 +2,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:DeskTodo.App.ViewModels"
         xmlns:conv="using:DeskTodo.App.Converters"
+        xmlns:convCore="using:Avalonia.Data.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="440"
+        mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="480"
         x:Class="DeskTodo.App.Views.WidgetWindow"
         x:DataType="vm:WidgetViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="DeskTodo"
-        Width="320" Height="440"
+        Width="320" Height="480"
         MinWidth="260" MinHeight="320"
         CanResize="True"
         WindowDecorations="None"
@@ -25,12 +26,14 @@
 
       Desktop-level attachment (sitting behind icons, above wallpaper),
       click-through view mode, opacity/transparency controls and remembering
-      window position are later phases (Platform integration, Settings) —
-      this is the borderless/rounded/draggable widget shell plus live data.
+      window position are later phases (Platform integration, Settings).
+      Drag-to-reorder and day navigation (previous/next/calendar) are the
+      next phase — TaskService.ReorderTasksAsync already exists, only the
+      drag gesture itself is missing.
     -->
     <Border Background="#F2FFFFFF" CornerRadius="16" ClipToBounds="True"
             BoxShadow="0 8 32 0 #33000000">
-        <Grid RowDefinitions="Auto,*,Auto">
+        <Grid RowDefinitions="Auto,Auto,*,Auto">
 
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Background="Transparent"
                   Margin="20,16,12,4" PointerPressed="OnHeaderPointerPressed">
@@ -43,20 +46,43 @@
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" />
             </Grid>
 
-            <Panel Grid.Row="1" Margin="8,4">
+            <TextBox Grid.Row="1" Margin="20,4,20,8" PlaceholderText="Add a task…"
+                     Text="{Binding NewTaskTitle}" KeyDown="OnAddTaskKeyDown" />
+
+            <Panel Grid.Row="2" Margin="8,0">
                 <ScrollViewer>
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:TaskItemViewModel">
-                                <Grid ColumnDefinitions="Auto,Auto,*" Margin="12,7">
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="12,7">
+                                    <Grid.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Edit" Command="{Binding BeginEditCommand}" />
+                                            <MenuItem Header="Duplicate" Command="{Binding DuplicateCommand}" />
+                                            <MenuItem Header="Pin / Unpin" Command="{Binding TogglePinCommand}" />
+                                            <Separator />
+                                            <MenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
+                                            <MenuItem Header="Delete" Command="{Binding DeleteCommand}" />
+                                        </ContextMenu>
+                                    </Grid.ContextMenu>
+
                                     <CheckBox Grid.Column="0" IsChecked="{Binding IsCompleted, Mode=OneWay}"
                                               Command="{Binding ToggleCompleteCommand}"
                                               VerticalAlignment="Center" Margin="0,0,10,0" />
                                     <Ellipse Grid.Column="1" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,10,0"
                                              Fill="{Binding PriorityColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
+
                                     <TextBlock Grid.Column="2" Text="{Binding Title}" VerticalAlignment="Center"
                                                TextWrapping="Wrap" Foreground="#1E293B"
+                                               IsVisible="{Binding IsEditing, Converter={x:Static convCore:BoolConverters.Not}}"
+                                               DoubleTapped="OnTitleDoubleTapped"
                                                TextDecorations="{Binding IsCompleted, Converter={x:Static conv:BoolToTextDecorationsConverter.Instance}}" />
+                                    <TextBox Grid.Column="2" Text="{Binding EditingTitle}" VerticalAlignment="Center"
+                                              IsVisible="{Binding IsEditing}" KeyDown="OnEditTitleKeyDown" />
+
+                                    <TextBlock Grid.Column="3" Text="&#x1F4CC;" FontSize="10" Margin="6,0,0,0"
+                                               VerticalAlignment="Center" IsVisible="{Binding IsPinned}"
+                                               ToolTip.Tip="Pinned" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -68,7 +94,7 @@
                            Foreground="#94A3B8" FontSize="13" />
             </Panel>
 
-            <StackPanel Grid.Row="2" Margin="20,8,20,18" Spacing="8">
+            <StackPanel Grid.Row="3" Margin="20,8,20,18" Spacing="8">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Text="{Binding ProgressSummaryText}" FontSize="12" Foreground="#64748B" />
                     <TextBlock Grid.Column="1" FontSize="12" FontWeight="SemiBold" Foreground="#1E293B">
