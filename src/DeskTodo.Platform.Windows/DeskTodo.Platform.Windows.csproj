@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>DeskTodo.Platform.Windows</RootNamespace>
+    <Description>Windows-specific implementations of Application-layer abstractions: auto-start/login registration, native notification integration, and desktop-level widget window placement/DPI handling. Kept on the plain net10.0 TFM (not net10.0-windows) so it can be referenced unconditionally from the cross-platform App project; all interop is guarded with OperatingSystem.IsWindows().</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DeskTodo.Application\DeskTodo.Application.csproj" />
+    <ProjectReference Include="..\DeskTodo.Domain\DeskTodo.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

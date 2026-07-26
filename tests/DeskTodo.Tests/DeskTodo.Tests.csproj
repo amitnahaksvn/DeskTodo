@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>DeskTodo.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="Avalonia.Headless" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DeskTodo.Domain\DeskTodo.Domain.csproj" />
+    <ProjectReference Include="..\..\src\DeskTodo.Application\DeskTodo.Application.csproj" />
+    <ProjectReference Include="..\..\src\DeskTodo.Infrastructure\DeskTodo.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\DeskTodo.App\DeskTodo.App.csproj" />
+  </ItemGroup>
+
+</Project>

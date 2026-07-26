@@ -1,0 +1,85 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:conv="using:DeskTodo.App.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="440"
+        x:Class="DeskTodo.App.Views.WidgetWindow"
+        x:DataType="vm:WidgetViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="DeskTodo"
+        Width="320" Height="440"
+        MinWidth="260" MinHeight="320"
+        CanResize="True"
+        WindowDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        WindowStartupLocation="CenterScreen">
+
+    <!--
+      No Design.DataContext here: WidgetViewModel now takes DI dependencies
+      (ITaskService, loggers), so it can't be constructed inline by the XAML
+      previewer. App.axaml.cs supplies a DesignTimeTaskService-backed
+      instance instead when App.Services is null.
+
+      Desktop-level attachment (sitting behind icons, above wallpaper),
+      click-through view mode, opacity/transparency controls and remembering
+      window position are later phases (Platform integration, Settings) —
+      this is the borderless/rounded/draggable widget shell plus live data.
+    -->
+    <Border Background="#F2FFFFFF" CornerRadius="16" ClipToBounds="True"
+            BoxShadow="0 8 32 0 #33000000">
+        <Grid RowDefinitions="Auto,*,Auto">
+
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Background="Transparent"
+                  Margin="20,16,12,4" PointerPressed="OnHeaderPointerPressed">
+                <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="{Binding DayOfWeekText}" FontSize="20" FontWeight="SemiBold" Foreground="#1E293B" />
+                    <TextBlock Text="{Binding DateText}" FontSize="13" Foreground="#64748B" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="&#x2715;" Click="OnCloseButtonClick"
+                        Background="Transparent" BorderThickness="0" Padding="6" FontSize="11"
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" />
+            </Grid>
+
+            <Panel Grid.Row="1" Margin="8,4">
+                <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding Tasks}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TaskItemViewModel">
+                                <Grid ColumnDefinitions="Auto,Auto,*" Margin="12,7">
+                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsCompleted, Mode=OneWay}"
+                                              Command="{Binding ToggleCompleteCommand}"
+                                              VerticalAlignment="Center" Margin="0,0,10,0" />
+                                    <Ellipse Grid.Column="1" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,10,0"
+                                             Fill="{Binding PriorityColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Title}" VerticalAlignment="Center"
+                                               TextWrapping="Wrap" Foreground="#1E293B"
+                                               TextDecorations="{Binding IsCompleted, Converter={x:Static conv:BoolToTextDecorationsConverter.Instance}}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <TextBlock Text="No tasks for today" IsVisible="{Binding HasNoTasks}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="#94A3B8" FontSize="13" />
+            </Panel>
+
+            <StackPanel Grid.Row="2" Margin="20,8,20,18" Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{Binding ProgressSummaryText}" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Grid.Column="1" FontSize="12" FontWeight="SemiBold" Foreground="#1E293B">
+                        <Run Text="{Binding ProgressPercentage}" /><Run Text="%" />
+                    </TextBlock>
+                </Grid>
+                <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercentage}"
+                             Height="6" CornerRadius="3" />
+            </StackPanel>
+
+        </Grid>
+    </Border>
+
+</Window>

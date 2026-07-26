@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>DeskTodo.Platform.Mac</RootNamespace>
+    <Description>macOS-specific implementations of Application-layer abstractions: login-item (auto-start) registration, native notification integration, and NSWindow level/collection-behavior interop for desktop-level widget placement across Spaces. All interop is guarded with OperatingSystem.IsMacOS().</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DeskTodo.Application\DeskTodo.Application.csproj" />
+    <ProjectReference Include="..\DeskTodo.Domain\DeskTodo.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

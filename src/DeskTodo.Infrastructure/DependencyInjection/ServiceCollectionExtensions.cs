@@ -1,0 +1,53 @@
+using DeskTodo.Application.Abstractions;
+using DeskTodo.Application.Options;
+using DeskTodo.Application.Services;
+using DeskTodo.Infrastructure.Data;
+using DeskTodo.Infrastructure.Repositories;
+using DeskTodo.Infrastructure.Storage;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+
+namespace DeskTodo.Infrastructure.DependencyInjection;
+
+/// <summary>
+/// Registers Infrastructure-layer services (options binding, EF Core/SQLite
+/// persistence, settings persistence, file watching) into the composition
+/// root's container.
+/// </summary>
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<AppStorageOptions>()
+            .Bind(configuration.GetSection(AppStorageOptions.SectionName))
+            .PostConfigure(options =>
+            {
+                if (string.IsNullOrWhiteSpace(options.RootDirectory))
+                {
+                    options.RootDirectory = AppStoragePaths.ResolveDefaultRootDirectory();
+                }
+
+                Directory.CreateDirectory(options.RootDirectory);
+            });
+
+        // A factory (rather than a single shared DbContext) is used because this is
+        // a long-running desktop process, not a per-request web app: EF Core's own
+        // guidance for WPF/Avalonia-style apps is to create a short-lived context per
+        // unit of work via IDbContextFactory, since one context shared for the app's
+        // whole lifetime is neither thread-safe nor bounded in change-tracker growth.
+        services.AddDbContextFactory<DeskTodoDbContext>((serviceProvider, optionsBuilder) =>
+        {
+            var storage = serviceProvider.GetRequiredService<IOptions<AppStorageOptions>>().Value;
+            var databasePath = Path.Combine(storage.RootDirectory, storage.DatabaseFileName);
+            optionsBuilder.UseSqlite($"Data Source={databasePath}");
+        });
+
+        services.AddScoped<ITaskRepository, TaskRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<ITaskService, TaskService>();
+
+        return services;
+    }
+}
