@@ -32,8 +32,13 @@ public sealed partial class TaskItemViewModel : ViewModelBase
 
         Id = task.Id;
         DisplayNumber = task.DayOrder + 1;
+        Priority = task.Priority;
         PriorityColorHex = GetPriorityColorHex(task.Priority);
+        CategoryId = task.CategoryId;
         CategoryColorHex = task.Category?.ColorHex;
+        Notes = task.Notes;
+        Description = task.Description;
+        DueDate = task.DueDate;
         Title = task.Title;
         IsCompleted = task.IsCompleted;
         IsPinned = task.IsPinned;
@@ -43,9 +48,38 @@ public sealed partial class TaskItemViewModel : ViewModelBase
 
     public int DisplayNumber { get; }
 
+    /// <summary>Raw priority, for the search bar's priority filter and "sort by priority" — <see cref="PriorityColorHex"/> is what the row itself displays.</summary>
+    public TaskPriority Priority { get; }
+
     public string PriorityColorHex { get; }
 
+    /// <summary>For the search bar's category filter — <see cref="CategoryColorHex"/> is what the row itself displays.</summary>
+    public Guid? CategoryId { get; }
+
     public string? CategoryColorHex { get; }
+
+    /// <summary>Not shown in the row itself — searched against by the search bar.</summary>
+    public string? Notes { get; }
+
+    /// <summary>Not shown in the row itself — searched against by the search bar.</summary>
+    public string? Description { get; }
+
+    /// <summary>For "sort by due date" — the row itself doesn't display this yet (full-field details aren't shown inline).</summary>
+    public DateTime? DueDate { get; }
+
+    // Multi-select state. Display-only, like IsCompleted/IsPinned above — never triggers
+    // persistence, since selection is a pure view-state concept with nothing to save.
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; }
+
+    /// <summary>
+    /// Mirrors <c>WidgetViewModel.IsSelectMode</c> — cascaded down (see
+    /// <c>WidgetViewModel.ToggleSelectMode</c>/<c>LoadTasksAsync</c>) rather than reached
+    /// via an ancestor XAML binding, so the row template can swap its drag-handle for a
+    /// selection checkbox with a plain same-DataContext binding.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsSelectModeActive { get; set; }
 
     // These display-only properties never trigger persistence from their setters — an
     // On<Property>Changed hook would also fire from this class's own constructor

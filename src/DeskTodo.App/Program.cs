@@ -33,6 +33,7 @@ internal static class Program
                 {
                     services.AddInfrastructure(context.Configuration);
                     services.AddDeskTodoApp();
+                    services.AddDeskTodoPlatform();
                 })
                 .Build();
 

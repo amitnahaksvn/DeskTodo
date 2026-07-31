@@ -13,6 +13,9 @@ public interface ITaskService
 {
     Task<IReadOnlyList<TaskItem>> GetTasksForDateAsync(DateOnly planDate, CancellationToken cancellationToken = default);
 
+    /// <summary>Every non-deleted task, across every day — for export.</summary>
+    Task<IReadOnlyList<TaskItem>> GetAllTasksAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Fetches a single task for the full-field editor to populate its form from.</summary>
     Task<TaskItem?> GetTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
 

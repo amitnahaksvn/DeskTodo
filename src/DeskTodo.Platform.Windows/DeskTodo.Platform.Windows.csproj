@@ -4,7 +4,16 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>DeskTodo.Platform.Windows</RootNamespace>
     <Description>Windows-specific implementations of Application-layer abstractions: auto-start/login registration, native notification integration, and desktop-level widget window placement/DPI handling. Kept on the plain net10.0 TFM (not net10.0-windows) so it can be referenced unconditionally from the cross-platform App project; all interop is guarded with OperatingSystem.IsWindows().</Description>
+    <!-- NU1510 ("will not be pruned") fires because package pruning can't see that
+         Microsoft.Win32.Registry is genuinely needed here — it's runtime-guarded by
+         OperatingSystem.IsWindows(), not referenced by this TFM's RID graph. -->
+    <NoWarn>$(NoWarn);NU1510</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Win32.Registry" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\DeskTodo.Application\DeskTodo.Application.csproj" />

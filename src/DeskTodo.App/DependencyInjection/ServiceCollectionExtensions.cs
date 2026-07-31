@@ -11,8 +11,11 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDeskTodoApp(this IServiceCollection services)
     {
+        services.AddSingleton(TimeProvider.System);
         services.AddTransient<WidgetViewModel>();
         services.AddTransient<TaskEditViewModel>();
+        services.AddTransient<SettingsViewModel>();
+        services.AddTransient<ImportExportViewModel>();
 
         return services;
     }

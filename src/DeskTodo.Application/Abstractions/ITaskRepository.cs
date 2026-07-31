@@ -21,6 +21,9 @@ public interface ITaskRepository
     /// <summary>Non-deleted, non-archived tasks for a given day, ordered by <see cref="TaskItem.DayOrder"/>.</summary>
     Task<IReadOnlyList<TaskItem>> GetByDateAsync(DateOnly planDate, CancellationToken cancellationToken = default);
 
+    /// <summary>Every non-deleted task (including archived), across every day — for export, not the day-scoped widget view.</summary>
+    Task<IReadOnlyList<TaskItem>> GetAllAsync(CancellationToken cancellationToken = default);
+
     Task<TaskItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<TaskItem>> GetArchivedAsync(CancellationToken cancellationToken = default);

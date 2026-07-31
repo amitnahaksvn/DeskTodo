@@ -19,6 +19,18 @@ public sealed class TaskRepository(IDbContextFactory<DeskTodoDbContext> contextF
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<TaskItem>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await context.Tasks
+            .AsNoTracking()
+            .Include(t => t.Category)
+            .Where(t => !t.IsDeleted)
+            .OrderBy(t => t.PlanDate).ThenBy(t => t.DayOrder)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<TaskItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);

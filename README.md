@@ -13,13 +13,25 @@ checklist — kept up to date as each phase completes.
 
 ## Status
 
-Solution scaffold, DI/logging/config infrastructure, the Domain task model,
-EF Core/SQLite persistence, and the widget UI are in place and verified
-end-to-end — today's date, live task list, complete/reopen, add/rename
-(inline)/duplicate/pin/archive/delete, drag-to-reorder, a full-field task
-editor (description/priority/category/due date/estimated time/notes), and
-the progress bar. Day navigation, search, settings, notifications, and
-import/export are not implemented yet.
+All 16 planned phases are complete. The widget: today's date, live task
+list, complete/reopen, add/rename (inline)/duplicate/pin/archive/delete,
+drag-to-reorder, a full-field task editor (description/priority/category/
+due date/estimated time/notes), the progress bar, previous/today/next/
+calendar day navigation, search/status-filter/category-filter/sort with
+multi-select bulk complete/delete, a Settings window (accent color, widget
+background opacity, remembered window position/size, notifications
+toggle, start-at-login toggle), native notifications (overdue-task alerts,
+a once-daily summary), and CSV/JSON/Markdown/Excel import/export.
+
+macOS-specific pieces (notifications, auto-start, DMG packaging) are built
+and verified live in a real macOS environment. The equivalent
+Windows-specific pieces are authored to the same standard but **not
+runtime-verified** — this project has been developed on macOS only, with no
+Windows machine available to test against. Each Windows-only file says so
+explicitly in its own doc comment. Theme (light/dark) and desktop-level
+window placement (sitting behind desktop icons) are deliberately out of
+scope — see docs/ARCHITECTURE.md's "Phase 12" and "Phase 15" sections for
+why.
 
 ## Tech stack
 
@@ -29,6 +41,7 @@ import/export are not implemented yet.
 - Serilog (logging)
 - Microsoft.Extensions.DependencyInjection / Options (DI, configuration)
 - System.Text.Json (settings persistence)
+- ClosedXML (Excel export)
 - xUnit + Moq (testing)
 
 ## Solution layout
@@ -47,6 +60,9 @@ src/
   DeskTodo.App/               # Avalonia MVVM UI + composition root (DI, tray, views/viewmodels)
 tests/
   DeskTodo.Tests/             # xUnit — mirrors Domain/Application/Infrastructure/ViewModels
+scripts/                      # package-macos.sh, package-windows.ps1
+packaging/
+  windows/                    # AppxManifest.xml + logo assets for the MSIX build
 ```
 
 ## Building
@@ -97,7 +113,29 @@ database update` step is needed to run the app.
 
 ## Packaging
 
-Windows (MSIX) and macOS (DMG) packaging pipelines are a later-stage
-deliverable; this section will be filled in with `dotnet publish` /
-packaging tool invocations once the app itself is feature-complete enough
-to package.
+**macOS** — builds a self-contained `.app` bundle and packs it into a
+`.dmg`. Verified end-to-end in this repo: publish → bundle → `hdiutil` →
+mount → launch the packaged binary.
+
+```bash
+./scripts/package-macos.sh            # defaults to the host's own arch (osx-arm64 / osx-x64)
+```
+
+Output: `artifacts/macos/DeskTodo-<version>-<rid>.dmg`. Not code-signed or
+notarized — that needs a real Apple Developer ID certificate. Sign +
+notarize (`codesign`, `xcrun notarytool`) before distributing outside your
+own machine, or Gatekeeper will require a right-click-Open the first time.
+
+**Windows** — packs a self-contained `win-x64` publish into an unsigned
+`.msix` via `makeappx.exe`. **Authored but not run** — this repo has been
+developed on macOS only, with no Windows SDK to test against. Needs real
+DeskTodo logo assets in `packaging/windows/Assets/` first (see that
+folder's `README.md`) and a "Developer PowerShell" prompt with the Windows
+SDK tools on `PATH`:
+
+```powershell
+.\scripts\package-windows.ps1
+```
+
+Output: `artifacts\windows\DeskTodo-<version>-win-x64.msix`, unsigned —
+`signtool.exe sign` with a real certificate before Windows will install it.

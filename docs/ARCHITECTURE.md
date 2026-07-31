@@ -446,6 +446,357 @@ it:
   exactly why that capability was built in the Widget UI phase. Fixed by
   giving each control its own full-width row instead of sharing one.
 
+## Phase 10 — daily planner and calendar navigation
+
+No data-layer changes were needed: `TaskItem.PlanDate` already scopes
+tasks to a day (see the persistence phase's "no separate day entity"
+decision), so "navigate to a different day" is just "call
+`GetTasksForDateAsync` with a different `DateOnly`" — the same method the
+widget already called for "today."
+
+**Previous/Today/Next** are plain `[RelayCommand]`s on `WidgetViewModel`
+that funnel into one `NavigateToAsync(DateOnly)` helper — it updates
+`PlanDate`, raises `PropertyChanged` for every property derived from it
+(`DayOfWeekText`, `DateText`, `IsToday`, `EmptyStateText`, `SelectedDate`),
+and reloads. **Jump to any date** uses `CalendarDatePicker` (not a plain
+`Calendar` control in a hand-rolled popup) specifically because it already
+*is* a compact "click to open a calendar, shows the picked date" widget —
+building that combination manually would have just reimplemented what the
+control already does. Its `SelectedDate` (`DateTime?`) is bound two-way to
+a `WidgetViewModel.SelectedDate` property; unlike the command-driven
+buttons, this can't be a `[RelayCommand]` because Avalonia's data-binding
+engine needs a plain synchronous CLR property setter, so the setter starts
+`NavigateToAsync` fire-and-forget.
+
+**Midnight rollover now distinguishes "was showing today" from "was
+showing some other day."** The original Widget UI phase's rollover timer
+simply compared `PlanDate` to the current date and jumped whenever they
+differed — correct when the widget could only ever show today, wrong now
+that the user can deliberately navigate to yesterday or next week: at
+midnight, `PlanDate` (yesterday) and the new "today" would differ, and the
+old logic would incorrectly yank the view back to today out from under
+someone reviewing history or planning ahead. Fixed by tracking
+`_lastKnownToday` separately from `PlanDate` — the timer only forces
+`PlanDate` forward when it still equals the *previous* `_lastKnownToday`
+(i.e. the widget was actually following today, not parked somewhere
+else). This exact interaction — a real-time timer callback whose behavior
+depends on `DateTime.Now` — was also, at the time, the one piece of this
+phase without a unit test: there was no injected clock (`TimeProvider`) to
+fake against, and adding one felt disproportionate for one `if`-branch in
+isolation. Closed out afterward, once it was worth doing properly — see
+Phase 12 below for the actual `TimeProvider` migration and the tests it
+unlocked.
+
+## Phase 11 — search / filter / sort / multi-select
+
+**`VisibleTasks` is a derived view over `Tasks`, not a second source of
+truth.** `Tasks` stays the full day's list loaded from the database (in
+`DayOrder`); `RefreshVisibleTasks()` filters/sorts it into `VisibleTasks`
+on every change to search text, status filter, category filter, or sort
+option — the row `ItemsControl` binds to `VisibleTasks`. This keeps every
+keystroke and filter change a pure in-memory recompute instead of a fresh
+DB query, appropriate at personal-task-list scale. Drag-to-reorder's
+`ReorderAsync(draggedId, targetId)` already worked by task ID against
+`Tasks`, not list index, so pointing the row list at `VisibleTasks` instead
+needed no changes there — ID-based lookup is filter/sort-agnostic.
+Completion progress (`CompletedCount`/`TotalCount`/`ProgressPercentage`)
+deliberately still reflects the *whole* day (`Tasks`), not the filtered
+subset — the point of the progress bar is "how much of today is done,"
+which shouldn't wobble depending on what's currently being searched for.
+
+**`IsSelectModeActive` is cascaded onto each row, not ancestor-bound.**
+The row template's `DataContext` is `TaskItemViewModel`, but "is the widget
+currently in multi-select mode" is `WidgetViewModel` state. Rather than
+reach across with Avalonia's `$parent[Window]` ancestor-binding syntax (a
+fragile last resort), `TaskItemViewModel` gets its own `IsSelectModeActive`
+property, and `WidgetViewModel.ToggleSelectMode()` (and `LoadTasksAsync`'s
+row construction) pushes the flag down onto every row. The row template
+then does a plain same-DataContext binding to decide whether to show the
+drag-handle glyph or the selection checkbox in its first column.
+
+**A real bug, only catchable by actually rendering the window.** Loading
+categories (`RefreshCategoriesAsync`, called on every `LoadTasksAsync` —
+i.e. every day-navigation) originally rebuilt the `Categories`
+`ObservableCollection` by calling `Clear()` and then re-`Add()`-ing each
+entry. ViewModel-level tests couldn't see any problem — by the time
+`RefreshCategoriesAsync` returned, `SelectedCategoryFilter` was correctly
+re-set to a valid item, and `Categories` correctly contained it. But the
+`Clear()` call momentarily removes the *currently-selected* item from the
+collection the search bar's category `ComboBox` is bound to. Avalonia's
+`ComboBox` reacts to that by desyncing its two-way `SelectedItem` binding —
+`SelectedIndex` sticks at `-1` and the closed box renders with no text,
+*even after* the list is repopulated with an equal item and the ViewModel
+property is correctly reassigned. The fix updates `Categories` in place
+(add anything new, remove anything stale, replace anything renamed)
+instead of ever clearing it outright, so the selected item is never
+observably absent from the bound collection. This was invisible to every
+ViewModel-only test and only surfaced via a headless-render test asserting
+`ComboBox.SelectedIndex != -1` after a second load (simulating
+day-navigation) — now a permanent regression test
+(`WidgetWindow_CategoryFilterComboBox_StaysSelected_AcrossReloads`) since a
+plain visual screenshot comparison wouldn't reliably catch a state that's
+merely "no visible text," and a ViewModel test structurally can't see it at
+all (the bug lives entirely in the View-layer `ComboBox`'s internal
+selection state).
+
+## Phase 12 — settings
+
+**Scoped to what the widget can concretely apply today, not the phase's
+full original wishlist.** IMPLEMENTATION.md's Phase 12 entry originally
+listed theme (light/dark/auto), accent color, transparency, font/widget
+size, auto-start, notifications, database location, backups, shortcuts,
+language and date/time format. Most of those need a *system* that doesn't
+exist yet: light/dark theme needs every hardcoded hex color in
+`WidgetWindow.axaml`/`TaskEditWindow.axaml` turned into a themed resource
+(a real, separate pass, not settings plumbing); auto-start needs Phase 15's
+platform integration; notifications need Phase 13; backups need Phase 14;
+shortcuts need a hotkey system that doesn't exist; language needs i18n
+infrastructure. Shipping settings for features that don't do anything yet
+is just dead UI. This pass covers accent color, background opacity, and
+remembered window position/size — three settings with a real, already-
+existing piece of UI to attach to.
+
+**Accent color is a resource override, not a XAML binding.** Avalonia's
+Fluent theme threads `SystemAccentColor` through default control accenting
+(the progress bar fill, checkbox checked state) automatically, with zero
+per-control styling needed in `WidgetWindow.axaml`. `App.ApplyAccentColor`
+sets `Application.Current.Resources["SystemAccentColor"]` directly — an
+app-wide side effect, so it lives in the App/View layer (`App.axaml.cs`,
+called again from `WidgetWindow`'s Settings-dialog handler after Save),
+never in a ViewModel, which shouldn't reference Avalonia types. This was
+verified empirically via headless screenshot (not assumed) before trusting
+it: the checkbox and progress bar both visibly picked up a custom pink
+accent with no other changes, confirming the resource cascades correctly
+in this Avalonia version/theme.
+
+**Widget opacity only fades the background, not the text**, matching how
+desktop widgets like Rainmeter/Sticky Notes handle transparency: it's
+blended into the outer `Border`'s alpha channel
+(`WidgetViewModel.WidgetBackgroundHex`, reusing the existing
+`HexColorToBrushConverter`) rather than the whole `Window.Opacity`, which
+would fade foreground text along with the background and make it
+progressively less readable. Verified via headless screenshot at 45%
+opacity — secondary gray text (`#64748B`/`#94A3B8`) does get harder to read
+against the artificial flat-gray test backdrop at low opacity, an inherent
+tradeoff of fixed-color text on a translucent surface (not unique to this
+implementation), noted rather than "fixed" with adaptive text color, which
+would need the same themed-resource work theme support is deferred for.
+
+**Window bounds are restored *before* the window's first paint, not in
+`OnOpened`.** Settings (including window position/size) are loaded
+synchronously (`LoadSettingsAsync().GetAwaiter().GetResult()`) in
+`App.axaml.cs`, before `WidgetWindow` is even constructed — the same
+blocking-async-during-startup pattern `Program.cs` already uses for the
+database migration. Doing this later, in `WidgetWindow.OnOpened`, would
+show the window at its default center-screen position and default accent
+color first, then visibly jump/flash once the (asynchronous, real file I/O)
+settings load completed. Saving bounds back happens in `OnClosing` (not
+`OnClosed`, where `Position`/`Width`/`Height` are no longer meaningful to
+read), also blocking briefly rather than fire-and-forget, since a
+fire-and-forget write during shutdown risks losing the write to process
+exit.
+
+**Avoiding a sibling of Phase 11's `Categories`-collection bug by design.**
+Given Phase 11's `Categories`-`Clear()`-desyncs-a-`ComboBox`
+lesson, `SaveWindowBoundsAsync` and `SettingsViewModel.SaveAsync` both
+reload the full `AppSettings` from disk immediately before mutating and
+resaving it, rather than serializing a ViewModel's own partial in-memory
+copy — so a concurrent edit in one window (e.g. accent color changed in
+Settings while the widget itself is about to persist window bounds on
+close) can't silently clobber the other's field. Two independent windows
+writing to the same JSON file is a small-scale version of the same
+"don't let a write blow away state it doesn't own" problem.
+
+### Closing two verification gaps
+
+**The "window-bounds-on-close needs a real display" assumption was wrong.**
+It was first written off as untestable — surely triggering a window's
+native close gesture needs either a real display or accessibility
+automation, neither available in this sandbox. That assumption turned out
+to be about the wrong layer: `WidgetWindow.OnClosing`/`OnClosed` are
+Avalonia's own C# lifecycle methods, invoked by `Window.Close()` itself —
+they run identically whether `Close()` is triggered by a real OS close
+button or called programmatically, and headless already runs that same
+lifecycle for `Show()`/`OnOpened` (that's how earlier phases tested
+initial-load behavior at all). Verified with a throwaway test before
+trusting it: constructing a `WidgetWindow`, setting `Width`/`Height`, and
+calling `window.Close()` under headless did invoke `OnClosing` and read
+back the exact values set (`Position` was the one exception — the headless
+backend overrides whatever is explicitly assigned to its own placement, so
+the permanent test captures whatever `Position` actually is right before
+`Close()` rather than asserting a hardcoded value, to not couple the test
+to that backend detail). `WidgetWindow_OnClosing_PersistsCurrentWindowBounds`
+now exercises the real close path end-to-end — confirmed to actually catch
+a regression, not just pass trivially, by temporarily gutting the
+`OnClosing` override and watching the test fail before restoring it.
+
+**The midnight-rollover test gap (from Phase 10) is now closed the way
+that section originally said it should be: a `TimeProvider` migration.**
+Every "what day is it right now" query in `WidgetViewModel`
+(`_lastKnownToday`'s initial value, `IsToday`, `GoToToday`,
+`OnDayRolloverTick`) now goes through one `Today()` helper backed by an
+injected `TimeProvider`, registered as `TimeProvider.System` in DI —
+`DateTime.Now` no longer appears anywhere in the class. `OnDayRolloverTick`
+became `internal` (with a matching `InternalsVisibleTo` in
+`src/DeskTodo.App/AssemblyInfo.cs`) specifically so tests can invoke it
+directly against a fake `TimeProvider`, rather than needing to wait on the
+real 30-second `DispatcherTimer` or the actual wall clock. The fake
+provider pins `LocalTimeZone` to UTC (overriding the virtual property
+Avalonia — and the BCL's `TimeProvider` base class — expose for exactly
+this) so the tests' chosen date/time literals can't land on a different
+calendar date depending on the machine's local timezone; `Today()` calls
+`GetLocalNow()`, not `GetUtcNow()`, matching what a real desktop widget
+should show (the user's local day). Three tests now cover the logic
+directly: advances when the widget was following today, stays put when
+parked on a different day (verified to catch the original bug — the
+`wasFollowingToday` check specifically — by breaking it and watching the
+test fail), and no-ops when the date hasn't actually changed between polls.
+
+## Phase 13 — notifications
+
+**Shelling out beats P/Invoke here, and the Mac half proves it.** Both
+platform notification services (`MacNotificationService`,
+`WindowsNotificationService`) launch a short script via `Process.Start`
+(`osascript`/PowerShell) rather than binding native notification APIs
+directly. The alternative — `Shell_NotifyIcon` on Windows,
+`NSUserNotificationCenter`/`UNUserNotificationCenter` on macOS — needs
+either a persistent message-only window (Win32) or Objective-C runtime
+interop and, for the modern `UNUserNotificationCenter` API, a registered app
+bundle identity that an unpackaged dev build doesn't have. Shelling out to
+an OS-provided scripting facility sidesteps all of that, at the cost of a
+process-launch per notification — negligible for "a few times a day."
+This wasn't just assumed to be fine: `osascript -e 'display notification'`
+was run for real in this dev environment *before* any of
+`MacNotificationService` was written, confirming it needs no permission
+prompt from a plain unsigned process. The equivalent Windows path is
+authored the same way for consistency but is **not** runtime-verified —
+see "What's genuinely verified vs. authored-only" below.
+
+**AppleScript/PowerShell string construction gets the same injection
+scrutiny as SQL.** A task title becomes part of a script's source text
+(`display notification {title} with title {title}`), so
+`MacNotificationService.AppleScriptString` escapes backslashes and double
+quotes before interpolating — otherwise a title like
+`" & do shell script "..."` would let arbitrary shell commands run via
+AppleScript's `do shell script`. This is exercised by a real test
+(`NotifyAsync_AttemptedAppleScriptInjection_IsTreatedAsLiteralText`) that
+attempts exactly that and asserts the injected command's side effect (a
+canary file) never happens — not just that the call doesn't throw.
+
+**The daily summary and overdue-check share one timer, not two.**
+`WidgetViewModel`'s existing 30-second `DispatcherTimer` (originally just
+for midnight rollover, see Phase 10) gets a second `Tick` subscriber,
+`OnNotificationCheckTick` — event delegates are multicast, so this needed
+no new timer or restructuring of the existing rollover logic. The overdue
+check runs every tick (independent of whether the day actually rolled
+over); the daily summary is checked from `LoadTasksAsync` instead (so it
+also fires on a normal morning app-open, not only if the app happens to
+already be running at midnight) and is guarded by
+`_lastDailySummaryDate`/`_notifiedOverdueTaskIds` — both session-only, reset
+on restart, which is an acceptable simplification since re-notifying once
+after a restart isn't harmful and persisting them would need their own
+storage for little benefit.
+
+## Phase 14 — import / export
+
+**One flat DTO (`TaskExportRecord`), not the EF entity, crosses the
+format boundary.** CSV/JSON/Markdown/Excel writers and the CSV/JSON readers
+all consume/produce `TaskExportRecord`, never `TaskItem` directly — category
+is carried by *name*, not `CategoryId`, since a Guid means nothing once it
+leaves this specific SQLite file (re-importing into a different DeskTodo
+install matches by name instead, falling back to uncategorized on no
+match). This also means the export/import services have zero dependency on
+the Domain layer.
+
+**A hand-rolled CSV parser, not `Split(',')`, and not a new dependency.**
+Notes/Description fields can contain the commas, quotes and newlines that a
+naive split would corrupt — exactly the characters
+`TaskExportService`'s writer quotes for that reason. Rather than pull in a
+CSV library for ~130 lines of parsing, `TaskImportService.ParseCsv` is a
+small explicit state machine (quoted-field tracking, doubled-quote
+escaping). Verified with a real round-trip test using a title containing a
+comma *and* a multi-line Notes field with embedded quotes — not just typed
+by inspection.
+
+**ClosedXML over EPPlus for the one format that does need a library.**
+EPPlus's license changed to require a paid commercial license for anything
+beyond noncommercial use as of v5 — ClosedXML (MIT) has no such
+restriction. The Excel writer test doesn't just check "did `SaveAs` throw"
+— it re-opens the saved stream with `ClosedXML.Excel.XLWorkbook` and reads
+specific cells back, proving the file is a genuinely valid, readable
+workbook, not merely non-empty bytes.
+
+**Known verification gap, structurally unavoidable, not just unattempted:**
+`ImportExportWindow`'s file-picker code-behind
+(`StorageProvider.SaveFilePickerAsync`/`OpenFilePickerAsync`) can't be
+exercised under Avalonia's headless test platform — unlike the `OnClosing`
+gap from Phase 12 (which turned out testable once the wrong assumption was
+found and corrected), this one is real: headless has no fake
+`IStorageProvider` to inject a picked file into, so there's no way to drive
+a native OS dialog without an actual display and user interaction. Every
+piece on either side of that dialog — `ImportExportViewModel`'s methods
+(given a real `Stream`) and the export/import services (given a real file)
+— is fully tested; only the thin glue that hands a picked file's stream
+to the ViewModel is not.
+
+## Phase 15 — platform integration
+
+**`IAutoStartService.IsEnabled` reads the real OS state, not a persisted
+flag.** `AppSettings` deliberately has no `AutoStartEnabled` field — the
+LaunchAgent plist's presence (macOS) or the registry value's presence
+(Windows) *is* the state, and `SettingsViewModel.LoadAsync` reads it
+directly from `IAutoStartService.IsEnabled` each time the Settings window
+opens. A persisted duplicate flag could drift from reality (e.g. if the
+user deleted the LaunchAgent by hand, or a previous version's registration
+got corrupted); reading the actual OS state can't drift, by construction.
+
+**`MacAutoStartService.Enable()` is a plain file write, deliberately not a
+`launchctl load` call — which is exactly what keeps it safely testable.**
+Actually activating a LaunchAgent for the *current* login session would
+need `launchctl bootstrap`/`load` against the real user's session — real,
+live system state outside this repo that a test run has no business
+touching. Writing the plist file alone is enough for the durable outcome
+that matters ("will auto-start at next login"; macOS auto-loads any
+LaunchAgent plist present at login with no extra registration step) and
+means `MacAutoStartServiceTests` can safely construct the service against
+a scratch temp path (via an `internal` constructor overload,
+`InternalsVisibleTo`-exposed to the test assembly) and exercise real
+`Enable()`/`Disable()`/`IsEnabled` file I/O without ever touching the real
+`~/Library/LaunchAgents`. The tradeoff — enabling auto-start doesn't take
+effect until the next login, not immediately — is stated in the toggle's
+doc comment, not hidden.
+
+**Desktop-level widget window placement was scoped out, and that call was
+put to the user rather than made silently.** Sitting the widget behind
+desktop icons (like Rainmeter) needs raw native interop on both platforms —
+Objective-C runtime calls to set `NSWindow.level` on macOS, reparenting to
+the desktop's hidden `WorkerW` window via Win32 messaging on Windows — with
+no way to verify either here: no live compositor/display session to
+visually confirm placement even exists in this sandbox, and a wrong
+selector or window-level constant risks crashing the window outright rather
+than just failing quietly (unlike, say, a notification call that just
+silently doesn't show anything if slightly wrong). Given the explicit
+"complete all the phases" instruction this diverges from, this was framed
+as a direct question rather than a unilateral scoping call the way smaller
+decisions (e.g. Phase 11's "search by date") were — the user confirmed
+skipping it.
+
+## What's genuinely verified vs. authored-only (Phases 13–16)
+
+This dev environment is macOS-only with no Windows machine and no
+Windows SDK. Every macOS-specific piece below was actually exercised — real
+`osascript` notification calls, real LaunchAgent plist read/write/delete
+(against scratch paths), a real self-contained publish → `.app` bundle →
+`.dmg` → mount → launch of the packaged binary. Every Windows-specific
+piece (the PowerShell-based notification balloon, the registry-based
+auto-start, the `makeappx.exe`-based MSIX packaging) is authored to the
+same standard of care — correct, documented, defensively error-handled —
+but has never actually run. Each Windows-only file's doc comment says so
+explicitly (`<b>Authored but not runtime-verified</b>`) rather than reading
+identically to its tested macOS counterpart. Don't take "the code compiles
+and looks right" as equivalent to "this was confirmed working" for those
+paths — that distinction is the whole point of stating it this plainly.
+
 ## Roadmap
 
 | Stage | Scope | Status |
@@ -456,11 +807,11 @@ it:
 | Widget UI | Always-visible window: today's date + task list | ✅ Done |
 | Task CRUD | Create/rename/delete/duplicate/pin/archive | ✅ Done |
 | Reorder + full editor | Drag-to-reorder gesture, full-field task editor dialog | ✅ Done |
-| Daily planner | Per-day task lists, previous/next/today navigation, calendar picker | Planned |
-| Search / filter / sort | Multi-select, filtering by category/priority/status | Planned |
-| Settings | Theme, transparency, auto-start, backups, shortcuts, locale | Planned |
-| Notifications | Reminders, daily summary, missed-task alerts | Planned |
-| Import/Export | CSV, Excel, JSON, Markdown | Planned |
-| Platform integration | Auto-start, native notifications, widget window placement | Planned |
-| Testing | Broader unit/integration/ViewModel/performance coverage | Planned |
-| Packaging | MSIX (Windows) / DMG (macOS) | Planned |
+| Daily planner | Per-day task lists, previous/next/today navigation, calendar picker | ✅ Done |
+| Search / filter / sort | Search, status/category filters, sort options, multi-select bulk actions | ✅ Done |
+| Settings | Accent color, widget opacity, remembered window bounds | ✅ Done |
+| Notifications | Overdue alerts, daily summary (macOS verified live; Windows authored-only) | ✅ Done |
+| Import/Export | CSV, JSON, Markdown, Excel (via ClosedXML) | ✅ Done |
+| Platform integration | Auto-start (macOS verified live; Windows authored-only); desktop-level placement deliberately out of scope | ✅ Done |
+| Testing | Broader unit/integration/ViewModel/performance coverage | Ongoing |
+| Packaging | macOS DMG (built + verified end-to-end); Windows MSIX (authored, unverified — no Windows SDK here) | 🚧 Partial |

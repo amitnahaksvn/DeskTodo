@@ -1,8 +1,11 @@
+using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using DeskTodo.App.DesignTime;
 using DeskTodo.App.ViewModels;
 using DeskTodo.App.Views;
+using DeskTodo.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -35,14 +38,46 @@ public partial class App : global::Avalonia.Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var widgetViewModel = Services?.GetRequiredService<WidgetViewModel>()
-                ?? new WidgetViewModel(new DesignTimeTaskService(), NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+                ?? new WidgetViewModel(new DesignTimeTaskService(), new DesignTimeCategoryRepository(), new DesignTimeSettingsService(), new NullNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
-            desktop.MainWindow = new WidgetWindow
+            // Loaded synchronously (blocking on a local JSON file read, same pattern as
+            // Program.cs's database migration) so the window's first frame already has the
+            // right accent color and position — doing this later in OnOpened would show the
+            // window at its default bounds/color first, then visibly jump/flash.
+            widgetViewModel.LoadSettingsAsync().GetAwaiter().GetResult();
+
+            var widgetWindow = new WidgetWindow { DataContext = widgetViewModel };
+
+            if (widgetViewModel.WindowWidth is { } width && widgetViewModel.WindowHeight is { } height)
             {
-                DataContext = widgetViewModel,
-            };
+                widgetWindow.Width = width;
+                widgetWindow.Height = height;
+            }
+
+            if (widgetViewModel.WindowLeft is { } left && widgetViewModel.WindowTop is { } top)
+            {
+                widgetWindow.Position = new PixelPoint((int)left, (int)top);
+            }
+
+            ApplyAccentColor(widgetViewModel.AccentColorHex);
+
+            desktop.MainWindow = widgetWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// Overrides Avalonia's <c>SystemAccentColor</c> resource, which the Fluent theme
+    /// threads through default control accenting (e.g. the progress bar fill) — called
+    /// at startup here and again from <c>WidgetWindow</c> after the Settings window saves
+    /// a new color, so the running widget re-colors without needing a restart.
+    /// </summary>
+    public static void ApplyAccentColor(string hex)
+    {
+        if (Color.TryParse(hex, out var color))
+        {
+            Current!.Resources["SystemAccentColor"] = color;
+        }
     }
 }

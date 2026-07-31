@@ -29,8 +29,25 @@ public partial class WidgetWindow : Window
         if (DataContext is WidgetViewModel viewModel)
         {
             viewModel.TaskEditRequested += OnTaskEditRequested;
+            viewModel.SettingsRequested += OnSettingsRequested;
             _ = viewModel.LoadTasksAsync();
         }
+    }
+
+    // Bounds are captured here (before the window actually closes) rather than in
+    // OnClosed, since Position/Width/Height are meaningless to read once the window has
+    // torn down. Saved with GetAwaiter().GetResult() — blocking briefly on a local JSON
+    // write during shutdown, the same pattern Program.cs uses for the database migration —
+    // rather than fire-and-forget, since fire-and-forget here could easily lose the write
+    // to process exit.
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        if (DataContext is WidgetViewModel viewModel)
+        {
+            viewModel.SaveWindowBoundsAsync(Position.X, Position.Y, Width, Height).GetAwaiter().GetResult();
+        }
+
+        base.OnClosing(e);
     }
 
     protected override void OnClosed(EventArgs e)
@@ -38,10 +55,37 @@ public partial class WidgetWindow : Window
         if (DataContext is WidgetViewModel viewModel)
         {
             viewModel.TaskEditRequested -= OnTaskEditRequested;
+            viewModel.SettingsRequested -= OnSettingsRequested;
         }
 
         (DataContext as IDisposable)?.Dispose();
         base.OnClosed(e);
+    }
+
+    private async void OnSettingsRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var settingsViewModel = App.Services.GetRequiredService<SettingsViewModel>();
+        var settingsWindow = new SettingsWindow { DataContext = settingsViewModel };
+        settingsViewModel.Saved += (_, _) => settingsWindow.Close();
+        settingsViewModel.CancelRequested += (_, _) => settingsWindow.Close();
+
+        await settingsViewModel.LoadAsync();
+        await settingsWindow.ShowDialog(this);
+
+        // Re-applies live even on Cancel — cheap, and correct either way: Cancel didn't
+        // persist anything, so this just reloads the same settings that were already active.
+        await viewModel.LoadSettingsAsync();
+        App.ApplyAccentColor(viewModel.AccentColorHex);
+
+        // Also reloads tasks: an Import/Export round trip through Settings (see
+        // SettingsWindow's "Import / Export tasks…" button) may have added tasks for the
+        // day currently being viewed.
+        await viewModel.LoadTasksAsync();
     }
 
     private async void OnTaskEditRequested(object? sender, Guid taskId)

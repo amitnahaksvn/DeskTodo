@@ -1,0 +1,45 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="320"
+        x:Class="DeskTodo.App.Views.ImportExportWindow"
+        x:DataType="vm:ImportExportViewModel"
+        Title="Import / Export"
+        Width="320" Height="320"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#F8FAFC">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Import / Export" FontSize="18" FontWeight="SemiBold"
+                   Margin="0,0,0,16" Foreground="#1E293B" />
+
+        <StackPanel Grid.Row="1" Spacing="18">
+            <StackPanel Spacing="6">
+                <TextBlock Text="Export all tasks" FontSize="12" Foreground="#64748B" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <ComboBox Grid.Column="0" ItemsSource="{Binding ExportFormats}" SelectedItem="{Binding SelectedExportFormat}"
+                              HorizontalAlignment="Stretch" />
+                    <Button Grid.Column="1" Content="Export…" Click="OnExportClick" IsEnabled="{Binding IsBusy, Converter={x:Static convCore:BoolConverters.Not}}" />
+                </Grid>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Text="Import tasks" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="From a CSV or JSON file previously exported from DeskTodo (or matching the same columns/shape)."
+                           FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                <Button Content="Import…" Click="OnImportClick" IsEnabled="{Binding IsBusy, Converter={x:Static convCore:BoolConverters.Not}}" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#1E293B" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Close" Click="OnCloseClick" Padding="16,8" />
+        </StackPanel>
+    </Grid>
+
+</Window>

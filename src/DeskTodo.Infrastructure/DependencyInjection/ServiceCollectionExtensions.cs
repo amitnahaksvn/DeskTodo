@@ -2,6 +2,7 @@ using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Options;
 using DeskTodo.Application.Services;
 using DeskTodo.Infrastructure.Data;
+using DeskTodo.Infrastructure.ImportExport;
 using DeskTodo.Infrastructure.Repositories;
 using DeskTodo.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
@@ -47,6 +48,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITaskRepository, TaskRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<ITaskService, TaskService>();
+        services.AddSingleton<ISettingsService, SettingsService>();
+        services.AddSingleton<ITaskExportService, TaskExportService>();
+        services.AddSingleton<ITaskImportService, TaskImportService>();
 
         return services;
     }

@@ -11,6 +11,9 @@ public sealed class TaskService(ITaskRepository taskRepository) : ITaskService
     public Task<IReadOnlyList<TaskItem>> GetTasksForDateAsync(DateOnly planDate, CancellationToken cancellationToken = default) =>
         taskRepository.GetByDateAsync(planDate, cancellationToken);
 
+    public Task<IReadOnlyList<TaskItem>> GetAllTasksAsync(CancellationToken cancellationToken = default) =>
+        taskRepository.GetAllAsync(cancellationToken);
+
     public Task<TaskItem?> GetTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
         taskRepository.GetByIdAsync(taskId, cancellationToken);
 

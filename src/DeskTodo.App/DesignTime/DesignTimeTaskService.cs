@@ -14,6 +14,9 @@ internal sealed class DesignTimeTaskService : ITaskService
     public Task<IReadOnlyList<TaskItem>> GetTasksForDateAsync(DateOnly planDate, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<TaskItem>>([]);
 
+    public Task<IReadOnlyList<TaskItem>> GetAllTasksAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<TaskItem>>([]);
+
     public Task<TaskItem?> GetTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
         Task.FromResult<TaskItem?>(null);
 
