@@ -76,8 +76,8 @@ public class ImportExportViewModelTests
             .ReturnsAsync([new Category { Id = categoryId, Name = "Work", ColorHex = "#3B82F6" }]);
         var taskService = new Mock<ITaskService>();
         taskService.Setup(s => s.CreateTaskAsync(
-                It.IsAny<DateOnly>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<TaskPriority>(), It.IsAny<Guid?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((DateOnly planDate, string title, string? _, TaskPriority _, Guid? _, DateTime? _, CancellationToken _) => new TaskItem { PlanDate = planDate, Title = title });
+                It.IsAny<DateOnly>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<TaskPriority>(), It.IsAny<Guid?>(), It.IsAny<DateTime?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DateOnly planDate, string title, string? _, TaskPriority _, Guid? _, DateTime? _, Guid? _, CancellationToken _) => new TaskItem { PlanDate = planDate, Title = title });
         var importService = new Mock<ITaskImportService>();
         importService.Setup(i => i.ImportAsync(It.IsAny<Stream>(), TaskImportFormat.Csv, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new TaskExportRecord { Title = "Imported task", PlanDate = new DateOnly(2026, 7, 31), Category = "work", Priority = "High" }]);
@@ -87,7 +87,7 @@ public class ImportExportViewModelTests
         await sut.ImportFromAsync(stream, TaskImportFormat.Csv);
 
         taskService.Verify(s => s.CreateTaskAsync(
-            new DateOnly(2026, 7, 31), "Imported task", null, TaskPriority.High, categoryId, null, It.IsAny<CancellationToken>()),
+            new DateOnly(2026, 7, 31), "Imported task", null, TaskPriority.High, categoryId, null, null, It.IsAny<CancellationToken>()),
             Times.Once);
         Assert.Equal("Imported 1 of 1 task.", sut.StatusMessage);
     }
@@ -98,7 +98,7 @@ public class ImportExportViewModelTests
         var createdTask = new TaskItem { PlanDate = new DateOnly(2026, 7, 31), Title = "Imported task" };
         var taskService = new Mock<ITaskService>();
         taskService.Setup(s => s.CreateTaskAsync(
-                It.IsAny<DateOnly>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<TaskPriority>(), It.IsAny<Guid?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
+                It.IsAny<DateOnly>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<TaskPriority>(), It.IsAny<Guid?>(), It.IsAny<DateTime?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(createdTask);
         var importService = new Mock<ITaskImportService>();
         importService.Setup(i => i.ImportAsync(It.IsAny<Stream>(), TaskImportFormat.Csv, It.IsAny<CancellationToken>()))
@@ -128,7 +128,7 @@ public class ImportExportViewModelTests
     {
         var taskService = new Mock<ITaskService>();
         taskService.SetupSequence(s => s.CreateTaskAsync(
-                It.IsAny<DateOnly>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<TaskPriority>(), It.IsAny<Guid?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
+                It.IsAny<DateOnly>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<TaskPriority>(), It.IsAny<Guid?>(), It.IsAny<DateTime?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("boom"))
             .ReturnsAsync(new TaskItem { PlanDate = new DateOnly(2026, 7, 31), Title = "Second task" });
         var importService = new Mock<ITaskImportService>();

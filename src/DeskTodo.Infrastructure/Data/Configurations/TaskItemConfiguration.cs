@@ -21,12 +21,24 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
             .HasForeignKey(t => t.CategoryId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // Self-referencing one-level parent/child (Subtasks). Restrict rather than Cascade:
+        // no code path ever hard-deletes a Tasks row (deletion is always the IsDeleted soft
+        // flag), so the delete behavior is moot in practice, but Restrict is the safer
+        // no-surprises default for a self-referencing FK on the rare provider where it isn't.
+        builder.HasOne(t => t.ParentTask)
+            .WithMany(t => t.Subtasks)
+            .HasForeignKey(t => t.ParentTaskId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Drives "today's list" / calendar-day lookups — the most frequent query pattern.
         builder.HasIndex(t => new { t.PlanDate, t.DayOrder });
         builder.HasIndex(t => t.IsDeleted);
         builder.HasIndex(t => t.IsArchived);
+        builder.HasIndex(t => t.IsFavorite);
+        builder.HasIndex(t => t.ParentTaskId);
 
-        // Computed at read time from DueDate + IsCompleted; not persisted.
+        // Computed at read time; not persisted.
         builder.Ignore(t => t.IsOverdue);
+        builder.Ignore(t => t.IsBlocked);
     }
 }

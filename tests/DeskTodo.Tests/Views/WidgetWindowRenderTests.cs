@@ -44,7 +44,7 @@ public class WidgetWindowRenderTests(HeadlessSessionFixture fixture)
             var taskRepository = new Mock<ITaskRepository>();
             taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync(tasks);
             var taskService = new TaskService(taskRepository.Object);
-            using var viewModel = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+            using var viewModel = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
             await viewModel.LoadTasksAsync();
 
@@ -93,7 +93,7 @@ public class WidgetWindowRenderTests(HeadlessSessionFixture fixture)
             var taskRepository = new Mock<ITaskRepository>();
             taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([]);
             var taskService = new TaskService(taskRepository.Object);
-            using var viewModel = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+            using var viewModel = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
             await viewModel.LoadTasksAsync();
 
@@ -130,7 +130,7 @@ public class WidgetWindowRenderTests(HeadlessSessionFixture fixture)
             var categoryRepository = new Mock<ICategoryRepository>();
             categoryRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([category]);
             var taskService = new TaskService(taskRepository.Object);
-            using var viewModel = new WidgetViewModel(taskService, categoryRepository.Object, CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+            using var viewModel = new WidgetViewModel(taskService, categoryRepository.Object, CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
             viewModel.IsSearchBarVisible = true;
 
             var window = new WidgetWindow { DataContext = viewModel };
@@ -170,7 +170,7 @@ public class WidgetWindowRenderTests(HeadlessSessionFixture fixture)
             var settingsService = new Mock<ISettingsService>();
             settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
             var taskService = new TaskService(taskRepository.Object);
-            using var viewModel = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), settingsService.Object, CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+            using var viewModel = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
             var window = new WidgetWindow { DataContext = viewModel, Width = 401, Height = 601 };
             window.Show();
@@ -220,4 +220,19 @@ public class WidgetWindowRenderTests(HeadlessSessionFixture fixture)
     }
 
     private static INotificationService CreateDefaultNotificationService() => new NullNotificationService();
+
+    private static ITagService CreateEmptyTagService()
+    {
+        var mock = new Mock<ITagService>();
+        mock.Setup(s => s.GetAllTagsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Tag>());
+        mock.Setup(s => s.GetTagsForTaskAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Tag>());
+        return mock.Object;
+    }
+
+    private static ITaskTemplateService CreateEmptyTemplateService()
+    {
+        var mock = new Mock<ITaskTemplateService>();
+        mock.Setup(s => s.GetTemplatesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<TaskTemplate>());
+        return mock.Object;
+    }
 }

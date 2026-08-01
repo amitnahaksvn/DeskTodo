@@ -32,10 +32,26 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
 
             var taskRepository = new Mock<ITaskRepository>();
             taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+            taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<TaskItem>());
             var categoryRepository = new Mock<ICategoryRepository>();
             categoryRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([category]);
             var taskService = new TaskService(taskRepository.Object);
-            var viewModel = new TaskEditViewModel(taskService, categoryRepository.Object, NullLogger<TaskEditViewModel>.Instance);
+            var checklistService = new Mock<IChecklistService>();
+            var tagService = new Mock<ITagService>();
+            var templateService = new Mock<ITaskTemplateService>();
+            var taskDependencyService = new Mock<ITaskDependencyService>();
+            var attachmentService = new Mock<IAttachmentService>();
+            attachmentService.Setup(s => s.GetAttachmentsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Attachment>());
+            var viewModel = new TaskEditViewModel(
+                taskService,
+                categoryRepository.Object,
+                checklistService.Object,
+                tagService.Object,
+                templateService.Object,
+                taskDependencyService.Object,
+                attachmentService.Object,
+                NullLogger<TaskEditViewModel>.Instance,
+                NullLogger<ChecklistItemRowViewModel>.Instance);
 
             await viewModel.LoadAsync(task.Id);
 
@@ -73,10 +89,26 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
             var task = new TaskItem { PlanDate = DateOnly.FromDateTime(DateTime.Now), Title = "Original title" };
             var taskRepository = new Mock<ITaskRepository>();
             taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+            taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<TaskItem>());
             var categoryRepository = new Mock<ICategoryRepository>();
             categoryRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
             var taskService = new TaskService(taskRepository.Object);
-            var viewModel = new TaskEditViewModel(taskService, categoryRepository.Object, NullLogger<TaskEditViewModel>.Instance);
+            var checklistService = new Mock<IChecklistService>();
+            var tagService = new Mock<ITagService>();
+            var templateService = new Mock<ITaskTemplateService>();
+            var taskDependencyService = new Mock<ITaskDependencyService>();
+            var attachmentService = new Mock<IAttachmentService>();
+            attachmentService.Setup(s => s.GetAttachmentsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Attachment>());
+            var viewModel = new TaskEditViewModel(
+                taskService,
+                categoryRepository.Object,
+                checklistService.Object,
+                tagService.Object,
+                templateService.Object,
+                taskDependencyService.Object,
+                attachmentService.Object,
+                NullLogger<TaskEditViewModel>.Instance,
+                NullLogger<ChecklistItemRowViewModel>.Instance);
             await viewModel.LoadAsync(task.Id);
 
             var saved = false;

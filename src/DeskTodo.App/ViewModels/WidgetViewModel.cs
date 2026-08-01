@@ -25,6 +25,8 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
 {
     private readonly ITaskService _taskService;
     private readonly ICategoryRepository _categoryRepository;
+    private readonly ITagService _tagService;
+    private readonly ITaskTemplateService _templateService;
     private readonly ISettingsService _settingsService;
     private readonly INotificationService _notificationService;
     private readonly TimeProvider _timeProvider;
@@ -37,16 +39,29 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     private DateOnly _lastKnownToday;
 
     // Session-only (not persisted): which overdue tasks have already fired a notification,
-    // and which calendar day the "N tasks today" summary was last sent for. Both reset on
-    // app restart — acceptable, since re-notifying once after a restart isn't harmful, and
+    // which calendar day the "N tasks today" summary was last sent for, and which calendar
+    // day overdue tasks were last auto-rescheduled for. All reset on app restart —
+    // acceptable, since re-doing any of these once after a restart isn't harmful, and
     // persisting them would need its own storage for little benefit.
     private readonly HashSet<Guid> _notifiedOverdueTaskIds = [];
     private DateOnly? _lastDailySummaryDate;
+    private DateOnly? _lastRescheduleCheckDate;
 
-    public WidgetViewModel(ITaskService taskService, ICategoryRepository categoryRepository, ISettingsService settingsService, INotificationService notificationService, TimeProvider timeProvider, ILogger<WidgetViewModel> logger, ILogger<TaskItemViewModel> taskItemLogger)
+    public WidgetViewModel(
+        ITaskService taskService,
+        ICategoryRepository categoryRepository,
+        ITagService tagService,
+        ITaskTemplateService templateService,
+        ISettingsService settingsService,
+        INotificationService notificationService,
+        TimeProvider timeProvider,
+        ILogger<WidgetViewModel> logger,
+        ILogger<TaskItemViewModel> taskItemLogger)
     {
         _taskService = taskService;
         _categoryRepository = categoryRepository;
+        _tagService = tagService;
+        _templateService = templateService;
         _settingsService = settingsService;
         _notificationService = notificationService;
         _timeProvider = timeProvider;
@@ -132,6 +147,11 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<CategoryFilterOption> Categories { get; } = [CategoryFilterOption.All];
 
+    public ObservableCollection<TagFilterOption> Tags { get; } = [TagFilterOption.All];
+
+    /// <summary>Saved templates for the "New from template" picker — a plain ComboBox rather than a separate picker window, since selecting an item is the whole interaction.</summary>
+    public ObservableCollection<TemplateOption> Templates { get; } = [];
+
     public IReadOnlyList<TaskStatusFilter> StatusFilters { get; } = Enum.GetValues<TaskStatusFilter>();
 
     public IReadOnlyList<TaskSortOption> SortOptions { get; } = Enum.GetValues<TaskSortOption>();
@@ -154,6 +174,13 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     public partial CategoryFilterOption SelectedCategoryFilter { get; set; } = CategoryFilterOption.All;
 
+    [ObservableProperty]
+    public partial TagFilterOption SelectedTagFilter { get; set; } = TagFilterOption.All;
+
+    /// <summary>Null = no selection (the ComboBox's placeholder state). Picking a template creates a task from it, then this resets to null so the same template can be re-picked later.</summary>
+    [ObservableProperty]
+    public partial TemplateOption? SelectedTemplateToApply { get; set; }
+
     // These On<Property>Changed hooks are safe from the constructor-persistence footgun
     // TaskItemViewModel's doc comments warn about: property *initializers* (the "= ..."
     // above) set the backing field directly and don't invoke the setter, so they never
@@ -166,6 +193,33 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     partial void OnSelectedSortOptionChanged(TaskSortOption value) => RefreshVisibleTasks();
 
     partial void OnSelectedCategoryFilterChanged(CategoryFilterOption value) => RefreshVisibleTasks();
+
+    partial void OnSelectedTagFilterChanged(TagFilterOption value) => RefreshVisibleTasks();
+
+    partial void OnSelectedTemplateToApplyChanged(TemplateOption? value)
+    {
+        if (value is not null)
+        {
+            _ = CreateTaskFromTemplateAsync(value);
+        }
+    }
+
+    private async Task CreateTaskFromTemplateAsync(TemplateOption template)
+    {
+        try
+        {
+            await _templateService.CreateTaskFromTemplateAsync(template.Id, PlanDate);
+            await LoadTasksAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create a task from template {TemplateId}", template.Id);
+        }
+        finally
+        {
+            SelectedTemplateToApply = null;
+        }
+    }
 
     [RelayCommand]
     private void ToggleSearchBar() => IsSearchBarVisible = !IsSearchBarVisible;
@@ -200,6 +254,33 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     /// </summary>
     public event EventHandler<Guid>? TaskEditRequested;
 
+    private const int MaxRecentlyViewed = 5;
+
+    /// <summary>
+    /// The last few tasks opened in the full-field editor, most-recent-first — shown as a
+    /// chip row in the search bar. Deliberately session-only (reset on restart, like
+    /// <c>_notifiedOverdueTaskIds</c> above): re-showing an empty list once after a restart
+    /// isn't harmful, and persisting it would need its own storage for very little benefit.
+    /// </summary>
+    public ObservableCollection<RecentTaskOption> RecentlyViewed { get; } = [];
+
+    private void RequestTaskEdit(Guid taskId, string title)
+    {
+        var existing = RecentlyViewed.FirstOrDefault(r => r.Id == taskId);
+        if (existing is not null)
+        {
+            RecentlyViewed.Remove(existing);
+        }
+
+        RecentlyViewed.Insert(0, new RecentTaskOption(taskId, title, option => RequestTaskEdit(option.Id, option.Title)));
+        while (RecentlyViewed.Count > MaxRecentlyViewed)
+        {
+            RecentlyViewed.RemoveAt(RecentlyViewed.Count - 1);
+        }
+
+        TaskEditRequested?.Invoke(this, taskId);
+    }
+
     [ObservableProperty]
     public partial string NewTaskTitle { get; set; } = string.Empty;
 
@@ -233,6 +314,9 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         try
         {
             await RefreshCategoriesAsync(cancellationToken);
+            await RefreshTagsAsync(cancellationToken);
+            await RefreshTemplatesAsync(cancellationToken);
+            await MaybeRescheduleOverdueTasksAsync(cancellationToken);
 
             var tasks = await _taskService.GetTasksForDateAsync(PlanDate, cancellationToken);
 
@@ -244,7 +328,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
             Tasks.Clear();
             foreach (var task in tasks)
             {
-                var itemViewModel = new TaskItemViewModel(task, _taskService, _taskItemLogger, () => _ = LoadTasksAsync(), id => TaskEditRequested?.Invoke(this, id))
+                var itemViewModel = new TaskItemViewModel(task, _taskService, _taskItemLogger, () => _ = LoadTasksAsync(), id => RequestTaskEdit(id, task.Title))
                 {
                     IsSelectModeActive = IsSelectMode,
                 };
@@ -323,6 +407,100 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>Same in-place-update reasoning as <see cref="RefreshCategoriesAsync"/> — see its doc comment.</summary>
+    private async Task RefreshTagsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var tags = await _tagService.GetAllTagsAsync(cancellationToken);
+            var previousSelectionId = SelectedTagFilter.Id;
+
+            var desired = new List<TagFilterOption> { TagFilterOption.All };
+            desired.AddRange(tags
+                .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(t => new TagFilterOption(t.Id, t.Name)));
+
+            foreach (var item in desired)
+            {
+                if (!Tags.Any(t => t.Id == item.Id))
+                {
+                    Tags.Add(item);
+                }
+            }
+
+            for (var i = Tags.Count - 1; i >= 0; i--)
+            {
+                if (!desired.Any(d => d.Id == Tags[i].Id))
+                {
+                    Tags.RemoveAt(i);
+                }
+            }
+
+            for (var i = 0; i < Tags.Count; i++)
+            {
+                var renamed = desired.FirstOrDefault(d => d.Id == Tags[i].Id && d.Name != Tags[i].Name);
+                if (renamed is not null)
+                {
+                    Tags[i] = renamed;
+                }
+            }
+
+            SelectedTagFilter = Tags.FirstOrDefault(t => t.Id == previousSelectionId) ?? TagFilterOption.All;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load tags for the filter dropdown");
+        }
+    }
+
+    private async Task RefreshTemplatesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var templates = await _templateService.GetTemplatesAsync(cancellationToken);
+
+            Templates.Clear();
+            foreach (var template in templates)
+            {
+                Templates.Add(new TemplateOption(template.Id, template.Name));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load templates for the \"New from template\" picker");
+        }
+    }
+
+    /// <summary>
+    /// Only runs while actually viewing today (browsing a past/future day to plan ahead
+    /// shouldn't trigger it) and only once per calendar day the app stays open — same
+    /// guard shape as <see cref="MaybeSendDailySummaryAsync"/>. Runs before this method's
+    /// caller (<see cref="LoadTasksAsync"/>) fetches today's list, so any just-rescheduled
+    /// tasks show up immediately rather than needing a second reload.
+    /// </summary>
+    private async Task MaybeRescheduleOverdueTasksAsync(CancellationToken cancellationToken)
+    {
+        if (!AutoRescheduleOverdueTasks || PlanDate != Today() || _lastRescheduleCheckDate == PlanDate)
+        {
+            return;
+        }
+
+        _lastRescheduleCheckDate = PlanDate;
+
+        try
+        {
+            var movedCount = await _taskService.RescheduleOverdueTasksAsync(PlanDate, cancellationToken);
+            if (movedCount > 0)
+            {
+                _logger.LogInformation("Auto-rescheduled {Count} overdue task(s) onto {PlanDate}", movedCount, PlanDate);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to auto-reschedule overdue tasks");
+        }
+    }
+
     /// <summary>Recomputes <see cref="VisibleTasks"/> from <see cref="Tasks"/> using the current search text, filters and sort — called whenever any of those change, or the underlying task list reloads.</summary>
     private void RefreshVisibleTasks()
     {
@@ -350,11 +528,20 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
             query = query.Where(t => t.CategoryId == categoryId);
         }
 
+        if (SelectedTagFilter.Id.HasValue)
+        {
+            var tagId = SelectedTagFilter.Id.Value;
+            query = query.Where(t => t.TagIds.Contains(tagId));
+        }
+
         query = SelectedSortOption switch
         {
             TaskSortOption.Priority => query.OrderByDescending(t => t.Priority),
             TaskSortOption.DueDate => query.OrderBy(t => t.DueDate ?? DateTime.MaxValue),
             TaskSortOption.Title => query.OrderBy(t => t.Title, StringComparer.OrdinalIgnoreCase),
+            // "Group by category": same-category tasks cluster together since equal sort keys
+            // preserve their relative order; uncategorized tasks (null) sort last.
+            TaskSortOption.Category => query.OrderBy(t => t.CategoryName is null).ThenBy(t => t.CategoryName, StringComparer.OrdinalIgnoreCase),
             // Manual: Tasks is already DayOrder-ordered and Where() preserves source order, so no explicit sort is needed.
             _ => query,
         };
@@ -497,11 +684,21 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     public partial bool ShowInTaskbar { get; set; } = true;
 
+    /// <summary>See <see cref="Application.Settings.AppSettings.AutoRescheduleOverdueTasks"/>.</summary>
+    [ObservableProperty]
+    public partial bool AutoRescheduleOverdueTasks { get; set; }
+
     /// <summary>Raised when the header's gear icon is clicked. Mirrors <see cref="TaskEditRequested"/> — a ViewModel shouldn't construct Views, so this just bubbles the request up to <c>WidgetWindow</c>.</summary>
     public event EventHandler? SettingsRequested;
 
     [RelayCommand]
     private void OpenSettings() => SettingsRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised when the header's grid icon is clicked (Phase 20's Excel-style all-tasks view). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? GridViewRequested;
+
+    [RelayCommand]
+    private void OpenGridView() => GridViewRequested?.Invoke(this, EventArgs.Empty);
 
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
@@ -516,6 +713,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
             WindowHeight = settings.WindowHeight;
             NotificationsEnabled = settings.NotificationsEnabled;
             ShowInTaskbar = settings.ShowInTaskbar;
+            AutoRescheduleOverdueTasks = settings.AutoRescheduleOverdueTasks;
         }
         catch (Exception ex)
         {

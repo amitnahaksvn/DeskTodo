@@ -24,7 +24,11 @@ public interface ITaskRepository
     /// <summary>Every non-deleted task (including archived), across every day — for export, not the day-scoped widget view.</summary>
     Task<IReadOnlyList<TaskItem>> GetAllAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Includes <see cref="TaskItem.ChecklistItems"/> (ordered) and <see cref="TaskItem.Tags"/> — the full-field editor's data source.</summary>
     Task<TaskItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>Incomplete, non-archived, non-deleted tasks whose <see cref="TaskItem.PlanDate"/> is before <paramref name="date"/> — feeds the "auto-reschedule overdue tasks" setting.</summary>
+    Task<IReadOnlyList<TaskItem>> GetIncompleteBeforeDateAsync(DateOnly date, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<TaskItem>> GetArchivedAsync(CancellationToken cancellationToken = default);
 

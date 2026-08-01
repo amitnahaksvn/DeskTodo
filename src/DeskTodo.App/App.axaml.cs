@@ -38,7 +38,16 @@ public partial class App : global::Avalonia.Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var widgetViewModel = Services?.GetRequiredService<WidgetViewModel>()
-                ?? new WidgetViewModel(new DesignTimeTaskService(), new DesignTimeCategoryRepository(), new DesignTimeSettingsService(), new NullNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+                ?? new WidgetViewModel(
+                    new DesignTimeTaskService(),
+                    new DesignTimeCategoryRepository(),
+                    new DesignTimeTagService(),
+                    new DesignTimeTaskTemplateService(),
+                    new DesignTimeSettingsService(),
+                    new NullNotificationService(),
+                    TimeProvider.System,
+                    NullLogger<WidgetViewModel>.Instance,
+                    NullLogger<TaskItemViewModel>.Instance);
 
             // Loaded synchronously (blocking on a local JSON file read, same pattern as
             // Program.cs's database migration) so the window's first frame already has the

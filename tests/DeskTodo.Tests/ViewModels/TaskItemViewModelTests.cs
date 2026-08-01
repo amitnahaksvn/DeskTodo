@@ -201,6 +201,41 @@ public class TaskItemViewModelTests
     }
 
     [Fact]
+    public async Task ToggleFavoriteCommand_TogglesIsFavorite()
+    {
+        var task = CreateTask(completed: false);
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        var taskService = new TaskService(taskRepository.Object);
+        var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
+
+        await sut.ToggleFavoriteCommand.ExecuteAsync(null);
+        Assert.True(sut.IsFavorite);
+
+        await sut.ToggleFavoriteCommand.ExecuteAsync(null);
+        Assert.False(sut.IsFavorite);
+    }
+
+    [Fact]
+    public void DisplayColorHex_WhenTaskHasNoColor_FallsBackToPriorityColor()
+    {
+        var task = CreateTask(completed: false);
+        var sut = new TaskItemViewModel(task, Mock.Of<ITaskService>(), NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
+
+        Assert.Equal(sut.PriorityColorHex, sut.DisplayColorHex);
+    }
+
+    [Fact]
+    public void DisplayColorHex_WhenTaskHasAColor_UsesIt()
+    {
+        var task = CreateTask(completed: false);
+        task.ColorHex = "#8B5CF6";
+        var sut = new TaskItemViewModel(task, Mock.Of<ITaskService>(), NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
+
+        Assert.Equal("#8B5CF6", sut.DisplayColorHex);
+    }
+
+    [Fact]
     public void OpenEditorCommand_InvokesRequestFullEditWithTheTaskId()
     {
         var task = CreateTask(completed: false);
@@ -210,5 +245,43 @@ public class TaskItemViewModelTests
         sut.OpenEditorCommand.Execute(null);
 
         Assert.Equal(task.Id, requestedId);
+    }
+
+    [Fact]
+    public void IsSubtask_ReflectsWhetherTheTaskHasAParent()
+    {
+        var withParent = CreateTask(completed: false);
+        withParent.ParentTaskId = Guid.NewGuid();
+        var withoutParent = CreateTask(completed: false);
+
+        var sutWithParent = new TaskItemViewModel(withParent, Mock.Of<ITaskService>(), NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
+        var sutWithoutParent = new TaskItemViewModel(withoutParent, Mock.Of<ITaskService>(), NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
+
+        Assert.True(sutWithParent.IsSubtask);
+        Assert.False(sutWithoutParent.IsSubtask);
+    }
+
+    [Fact]
+    public void SubtaskCount_ReflectsTheNumberOfSubtasks()
+    {
+        var task = CreateTask(completed: false);
+        task.Subtasks.Add(new TaskItem { PlanDate = task.PlanDate, Title = "Child 1", ParentTaskId = task.Id });
+        task.Subtasks.Add(new TaskItem { PlanDate = task.PlanDate, Title = "Child 2", ParentTaskId = task.Id });
+
+        var sut = new TaskItemViewModel(task, Mock.Of<ITaskService>(), NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
+
+        Assert.Equal(2, sut.SubtaskCount);
+    }
+
+    [Fact]
+    public void IsBlocked_ReflectsTheTasksBlockedState()
+    {
+        var task = CreateTask(completed: false);
+        var blocker = CreateTask(completed: false);
+        task.BlockedByDependencies.Add(new TaskDependency { BlockingTaskId = blocker.Id, BlockingTask = blocker, BlockedTaskId = task.Id });
+
+        var sut = new TaskItemViewModel(task, Mock.Of<ITaskService>(), NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
+
+        Assert.True(sut.IsBlocked);
     }
 }

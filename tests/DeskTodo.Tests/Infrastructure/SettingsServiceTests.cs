@@ -43,6 +43,7 @@ public class SettingsServiceTests : IDisposable
             WindowHeight = 560,
             NotificationsEnabled = false,
             ShowInTaskbar = false,
+            AutoRescheduleOverdueTasks = true,
         };
 
         await sut.SaveAsync(settings);
@@ -56,6 +57,7 @@ public class SettingsServiceTests : IDisposable
         Assert.Equal(settings.WindowHeight, loaded.WindowHeight);
         Assert.Equal(settings.NotificationsEnabled, loaded.NotificationsEnabled);
         Assert.Equal(settings.ShowInTaskbar, loaded.ShowInTaskbar);
+        Assert.Equal(settings.AutoRescheduleOverdueTasks, loaded.AutoRescheduleOverdueTasks);
     }
 
     [Fact]

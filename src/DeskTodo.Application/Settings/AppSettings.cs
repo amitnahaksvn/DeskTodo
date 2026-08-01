@@ -41,4 +41,22 @@ public sealed class AppSettings
     /// separate, deliberately out-of-scope feature (see docs/ARCHITECTURE.md's "Phase 15").
     /// </summary>
     public bool ShowInTaskbar { get; set; } = true;
+
+    /// <summary>
+    /// When true, every incomplete task left behind on a past day is bumped to today the
+    /// next time the widget loads today's list (see <c>ITaskService.RescheduleOverdueTasksAsync</c>).
+    /// Defaults to <c>false</c> — moving a task's <see cref="Domain.Entities.TaskItem.PlanDate"/>
+    /// is a real data change (not just a display preference), so it stays opt-in rather than
+    /// silently altering existing users' task history the first time this ships.
+    /// </summary>
+    public bool AutoRescheduleOverdueTasks { get; set; }
+
+    /// <summary>
+    /// Names of grid-view columns (Category/Due/Notes — the ones the user can hide) currently
+    /// hidden, restored the next time the grid opens. A single persisted layout rather than
+    /// multiple named "saved views" — column width/order aren't included, only visibility,
+    /// to keep this to the one thing worth remembering across sessions without needing a
+    /// dedicated saved-views concept.
+    /// </summary>
+    public List<string> HiddenGridColumns { get; set; } = [];
 }

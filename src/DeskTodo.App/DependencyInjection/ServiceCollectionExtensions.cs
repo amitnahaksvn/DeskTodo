@@ -16,6 +16,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<TaskEditViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<ImportExportViewModel>();
+        services.AddTransient<GridViewModel>();
 
         return services;
     }

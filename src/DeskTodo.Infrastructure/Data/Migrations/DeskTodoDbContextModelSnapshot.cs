@@ -17,6 +17,38 @@ namespace DeskTodo.Infrastructure.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
 
+            modelBuilder.Entity("DeskTodo.Domain.Entities.Attachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StoredRelativePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("Attachments", (string)null);
+                });
+
             modelBuilder.Entity("DeskTodo.Domain.Entities.Category", b =>
                 {
                     b.Property<Guid>("Id")
@@ -105,6 +137,80 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DeskTodo.Domain.Entities.ChecklistItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsChecked")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId", "Order");
+
+                    b.ToTable("ChecklistItems", (string)null);
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.Tag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Tags", (string)null);
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.TaskDependency", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BlockedTaskId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BlockingTaskId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlockedTaskId");
+
+                    b.HasIndex("BlockingTaskId", "BlockedTaskId")
+                        .IsUnique();
+
+                    b.ToTable("TaskDependencies", (string)null);
+                });
+
             modelBuilder.Entity("DeskTodo.Domain.Entities.TaskItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -149,6 +255,9 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsFavorite")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsPinned")
                         .HasColumnType("INTEGER");
 
@@ -159,10 +268,22 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("ParentTaskId")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateOnly>("PlanDate")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Priority")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly?>("RecurrenceEndDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RecurrenceFrequency")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RecurrenceInterval")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Title")
@@ -178,9 +299,116 @@ namespace DeskTodo.Infrastructure.Data.Migrations
 
                     b.HasIndex("IsDeleted");
 
+                    b.HasIndex("IsFavorite");
+
+                    b.HasIndex("ParentTaskId");
+
                     b.HasIndex("PlanDate", "DayOrder");
 
                     b.ToTable("Tasks", (string)null);
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.TaskTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ChecklistItems")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("EstimatedMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TaskTitle")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.ToTable("TaskTemplates", (string)null);
+                });
+
+            modelBuilder.Entity("TagTaskItem", b =>
+                {
+                    b.Property<Guid>("TagsId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TasksId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TagsId", "TasksId");
+
+                    b.HasIndex("TasksId");
+
+                    b.ToTable("TaskTags", (string)null);
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.Attachment", b =>
+                {
+                    b.HasOne("DeskTodo.Domain.Entities.TaskItem", "Task")
+                        .WithMany("Attachments")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.ChecklistItem", b =>
+                {
+                    b.HasOne("DeskTodo.Domain.Entities.TaskItem", "Task")
+                        .WithMany("ChecklistItems")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.TaskDependency", b =>
+                {
+                    b.HasOne("DeskTodo.Domain.Entities.TaskItem", "BlockedTask")
+                        .WithMany("BlockedByDependencies")
+                        .HasForeignKey("BlockedTaskId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DeskTodo.Domain.Entities.TaskItem", "BlockingTask")
+                        .WithMany("BlockingDependencies")
+                        .HasForeignKey("BlockingTaskId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BlockedTask");
+
+                    b.Navigation("BlockingTask");
                 });
 
             modelBuilder.Entity("DeskTodo.Domain.Entities.TaskItem", b =>
@@ -190,7 +418,52 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("DeskTodo.Domain.Entities.TaskItem", "ParentTask")
+                        .WithMany("Subtasks")
+                        .HasForeignKey("ParentTaskId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Category");
+
+                    b.Navigation("ParentTask");
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.TaskTemplate", b =>
+                {
+                    b.HasOne("DeskTodo.Domain.Entities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("TagTaskItem", b =>
+                {
+                    b.HasOne("DeskTodo.Domain.Entities.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("TagsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DeskTodo.Domain.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TasksId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.TaskItem", b =>
+                {
+                    b.Navigation("Attachments");
+
+                    b.Navigation("BlockedByDependencies");
+
+                    b.Navigation("BlockingDependencies");
+
+                    b.Navigation("ChecklistItems");
+
+                    b.Navigation("Subtasks");
                 });
 #pragma warning restore 612, 618
         }

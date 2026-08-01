@@ -37,7 +37,7 @@
             CornerRadius="16" ClipToBounds="True" BoxShadow="0 8 32 0 #33000000">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
 
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto,Auto" Background="Transparent"
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" Background="Transparent"
                   Margin="20,16,12,4" PointerPressed="OnHeaderPointerPressed">
                 <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Text="{Binding DayOfWeekText}" FontSize="20" FontWeight="SemiBold" Foreground="#1E293B" />
@@ -49,10 +49,13 @@
                 <Button Grid.Column="2" Content="&#x2611;" Command="{Binding ToggleSelectModeCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Select multiple" />
-                <Button Grid.Column="3" Content="&#x2699;" Command="{Binding OpenSettingsCommand}"
+                <Button Grid.Column="3" Content="&#x25A6;" Command="{Binding OpenGridViewCommand}"
+                        Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Grid view (all tasks)" />
+                <Button Grid.Column="4" Content="&#x2699;" Command="{Binding OpenSettingsCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Settings" />
-                <Button Grid.Column="4" Content="&#x2715;" Click="OnCloseButtonClick"
+                <Button Grid.Column="5" Content="&#x2715;" Click="OnCloseButtonClick"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="11"
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" />
             </Grid>
@@ -70,6 +73,20 @@
             </Grid>
 
             <StackPanel Grid.Row="2" Margin="20,0,20,8" Spacing="6" IsVisible="{Binding IsSearchBarVisible}">
+                <ItemsControl ItemsSource="{Binding RecentlyViewed}" IsVisible="{Binding RecentlyViewed.Count, Converter={x:Static conv:IntGreaterThanZeroConverter.Instance}}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:RecentTaskOption">
+                            <Button Content="{Binding Title}" Command="{Binding OpenCommand}"
+                                    FontSize="10" Padding="8,3" Margin="0,0,4,4"
+                                    Background="#EEF2FF" Foreground="#4338CA" BorderThickness="0" CornerRadius="10" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
                 <TextBox Text="{Binding SearchText}" PlaceholderText="Search title, notes, description…" />
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
                     <ComboBox Grid.Column="0" ItemsSource="{Binding StatusFilters}" SelectedItem="{Binding SelectedStatusFilter}"
@@ -84,11 +101,17 @@
                 -->
                 <ComboBox x:Name="CategoryFilterComboBox" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategoryFilter}"
                           HorizontalAlignment="Stretch" ToolTip.Tip="Filter by category" />
+                <ComboBox x:Name="TagFilterComboBox" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTagFilter}"
+                          HorizontalAlignment="Stretch" ToolTip.Tip="Filter by tag" />
             </StackPanel>
 
             <Panel Grid.Row="3" Margin="20,4,20,8">
-                <TextBox IsVisible="{Binding IsSelectMode, Converter={x:Static convCore:BoolConverters.Not}}"
-                         PlaceholderText="Add a task…" Text="{Binding NewTaskTitle}" KeyDown="OnAddTaskKeyDown" />
+                <Grid IsVisible="{Binding IsSelectMode, Converter={x:Static convCore:BoolConverters.Not}}"
+                      ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                    <TextBox Grid.Column="0" PlaceholderText="Add a task…" Text="{Binding NewTaskTitle}" KeyDown="OnAddTaskKeyDown" />
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplateToApply}"
+                              PlaceholderText="From template…" Width="130" ToolTip.Tip="Create a task from a saved template" />
+                </Grid>
                 <Grid IsVisible="{Binding IsSelectMode}" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
                     <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="12" Foreground="#64748B">
                         <Run Text="{Binding SelectedCount}" /><Run Text=" selected" />
@@ -108,13 +131,15 @@
                     <ItemsControl ItemsSource="{Binding VisibleTasks}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:TaskItemViewModel">
-                                <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" Margin="6,7"
+                                <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto"
+                                      Margin="{Binding IsSubtask, Converter={x:Static conv:IsSubtaskToRowMarginConverter.Instance}}"
                                       DragDrop.AllowDrop="True" DragDrop.DragOver="OnRowDragOver" DragDrop.Drop="OnRowDrop">
                                     <Grid.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="Edit" Command="{Binding OpenEditorCommand}" />
                                             <MenuItem Header="Duplicate" Command="{Binding DuplicateCommand}" />
                                             <MenuItem Header="Pin / Unpin" Command="{Binding TogglePinCommand}" />
+                                            <MenuItem Header="Favorite / Unfavorite" Command="{Binding ToggleFavoriteCommand}" />
                                             <Separator />
                                             <MenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
                                             <MenuItem Header="Delete" Command="{Binding DeleteCommand}" />
@@ -134,7 +159,7 @@
                                               Command="{Binding ToggleCompleteCommand}"
                                               VerticalAlignment="Center" Margin="0,0,10,0" />
                                     <Ellipse Grid.Column="2" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,10,0"
-                                             Fill="{Binding PriorityColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
+                                             Fill="{Binding DisplayColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
 
                                     <TextBlock Grid.Column="3" Text="{Binding Title}" VerticalAlignment="Center"
                                                TextWrapping="Wrap" Foreground="#1E293B"
@@ -144,9 +169,21 @@
                                     <TextBox Grid.Column="3" Text="{Binding EditingTitle}" VerticalAlignment="Center"
                                               IsVisible="{Binding IsEditing}" KeyDown="OnEditTitleKeyDown" />
 
-                                    <TextBlock Grid.Column="4" Text="&#x1F4CC;" FontSize="10" Margin="6,0,0,0"
-                                               VerticalAlignment="Center" IsVisible="{Binding IsPinned}"
-                                               ToolTip.Tip="Pinned" />
+                                    <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="6,0,0,0" Spacing="2">
+                                        <TextBlock Text="{Binding SubtaskCount}" FontSize="9" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" Foreground="#64748B"
+                                                   IsVisible="{Binding SubtaskCount, Converter={x:Static conv:IntGreaterThanZeroConverter.Instance}}"
+                                                   ToolTip.Tip="Subtasks" />
+                                        <TextBlock Text="&#x1F512;" FontSize="10"
+                                                   VerticalAlignment="Center" IsVisible="{Binding IsBlocked}"
+                                                   ToolTip.Tip="Blocked by an incomplete task" />
+                                        <TextBlock Text="&#x2B50;" FontSize="10"
+                                                   VerticalAlignment="Center" IsVisible="{Binding IsFavorite}"
+                                                   ToolTip.Tip="Favorite" />
+                                        <TextBlock Text="&#x1F4CC;" FontSize="10"
+                                                   VerticalAlignment="Center" IsVisible="{Binding IsPinned}"
+                                                   ToolTip.Tip="Pinned" />
+                                    </StackPanel>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

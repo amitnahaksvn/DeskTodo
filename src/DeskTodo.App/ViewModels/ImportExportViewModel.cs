@@ -125,7 +125,7 @@ public sealed partial class ImportExportViewModel : ViewModelBase
         var categoryId = record.Category is { } categoryName && categoryIdByName.TryGetValue(categoryName, out var id) ? id : (Guid?)null;
         var priority = Enum.TryParse<TaskPriority>(record.Priority, ignoreCase: true, out var parsedPriority) ? parsedPriority : TaskPriority.Medium;
 
-        var task = await _taskService.CreateTaskAsync(record.PlanDate, record.Title, record.Description, priority, categoryId, record.DueDate, cancellationToken);
+        var task = await _taskService.CreateTaskAsync(record.PlanDate, record.Title, record.Description, priority, categoryId, record.DueDate, cancellationToken: cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(record.Notes) || record.EstimatedMinutes.HasValue)
         {

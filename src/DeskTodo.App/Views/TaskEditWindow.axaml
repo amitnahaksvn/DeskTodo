@@ -1,15 +1,17 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:conv="using:DeskTodo.App.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="560"
+        mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="760"
         x:Class="DeskTodo.App.Views.TaskEditWindow"
         x:DataType="vm:TaskEditViewModel"
         Title="Edit Task"
-        Width="360" Height="560"
+        Width="360" Height="720"
+        MinWidth="340" MinHeight="480"
         WindowStartupLocation="CenterOwner"
-        CanResize="False"
+        CanResize="True"
         Background="#F8FAFC">
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="20">
@@ -64,8 +66,212 @@
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Notes" FontSize="12" Foreground="#64748B" />
-                    <TextBox Text="{Binding Notes}" AcceptsReturn="True" TextWrapping="Wrap" Height="60" />
+                    <TextBlock Text="Parent task" FontSize="12" Foreground="#64748B" />
+                    <ComboBox ItemsSource="{Binding SameDayTasks}" SelectedItem="{Binding SelectedParentTask}"
+                              HorizontalAlignment="Stretch" ToolTip.Tip="Nest this task under another task from the same day" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="Notes" FontSize="12" Foreground="#64748B" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="{Binding IsNotesPreview, Converter={x:Static conv:BoolToNotesToggleLabelConverter.Instance}}"
+                                Command="{Binding ToggleNotesPreviewCommand}" FontSize="10" Padding="6,2" />
+                    </Grid>
+                    <TextBox Text="{Binding Notes}" AcceptsReturn="True" TextWrapping="Wrap" Height="60"
+                             IsVisible="{Binding !IsNotesPreview}" />
+                    <Border IsVisible="{Binding IsNotesPreview}" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="4" Padding="8" MinHeight="60">
+                        <TextBlock x:Name="NotesPreviewBlock" TextWrapping="Wrap" />
+                    </Border>
+                </StackPanel>
+
+                <!--
+                  A fixed 8-swatch palette (plus "None" to fall back to the category color)
+                  rather than a full color picker — enough choice for visually grouping tasks
+                  at a glance, and no extra dependency. Each swatch is its own Button with an
+                  explicit CommandParameter rather than an ItemsControl bound to ColorPresets,
+                  since a nested DataTemplate's Button would need an ambient parent-DataContext
+                  lookup to reach SelectColorCommand — this is simpler and more robust.
+                -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Color" FontSize="12" Foreground="#64748B" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button Width="22" Height="22" CornerRadius="11" Padding="0" Background="#EF4444" Cursor="Hand"
+                                Command="{Binding SelectColorCommand}" CommandParameter="#EF4444" ToolTip.Tip="#EF4444" />
+                        <Button Width="22" Height="22" CornerRadius="11" Padding="0" Background="#F97316" Cursor="Hand"
+                                Command="{Binding SelectColorCommand}" CommandParameter="#F97316" ToolTip.Tip="#F97316" />
+                        <Button Width="22" Height="22" CornerRadius="11" Padding="0" Background="#F59E0B" Cursor="Hand"
+                                Command="{Binding SelectColorCommand}" CommandParameter="#F59E0B" ToolTip.Tip="#F59E0B" />
+                        <Button Width="22" Height="22" CornerRadius="11" Padding="0" Background="#22C55E" Cursor="Hand"
+                                Command="{Binding SelectColorCommand}" CommandParameter="#22C55E" ToolTip.Tip="#22C55E" />
+                        <Button Width="22" Height="22" CornerRadius="11" Padding="0" Background="#3B82F6" Cursor="Hand"
+                                Command="{Binding SelectColorCommand}" CommandParameter="#3B82F6" ToolTip.Tip="#3B82F6" />
+                        <Button Width="22" Height="22" CornerRadius="11" Padding="0" Background="#8B5CF6" Cursor="Hand"
+                                Command="{Binding SelectColorCommand}" CommandParameter="#8B5CF6" ToolTip.Tip="#8B5CF6" />
+                        <Button Width="22" Height="22" CornerRadius="11" Padding="0" Background="#EC4899" Cursor="Hand"
+                                Command="{Binding SelectColorCommand}" CommandParameter="#EC4899" ToolTip.Tip="#EC4899" />
+                        <Button Width="22" Height="22" CornerRadius="11" Padding="0" Background="#64748B" Cursor="Hand"
+                                Command="{Binding SelectColorCommand}" CommandParameter="#64748B" ToolTip.Tip="#64748B" />
+                        <Button Content="&#x2715;" Width="22" Height="22" Padding="0" FontSize="10"
+                                Background="Transparent" BorderThickness="1" BorderBrush="#CBD5E1" Cursor="Hand"
+                                Command="{Binding SelectColorCommand}" ToolTip.Tip="None (use category color)" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Checklist" FontSize="12" Foreground="#64748B" />
+                    <ItemsControl ItemsSource="{Binding ChecklistItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ChecklistItemRowViewModel">
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked, Mode=OneWay}"
+                                              Command="{Binding ToggleCommand}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Text}" VerticalAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               TextDecorations="{Binding IsChecked, Converter={x:Static conv:BoolToTextDecorationsConverter.Instance}}" />
+                                    <Button Grid.Column="2" Content="&#x2715;" Command="{Binding RemoveCommand}"
+                                            Background="Transparent" BorderThickness="0" Padding="4" FontSize="10"
+                                            Foreground="#94A3B8" Cursor="Hand" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <TextBox Grid.Column="0" Text="{Binding NewChecklistItemText}" PlaceholderText="Add checklist item…"
+                                 KeyDown="OnNewChecklistItemKeyDown" />
+                        <Button Grid.Column="1" Content="Add" Command="{Binding AddChecklistItemCommand}" Padding="10,4" />
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Subtasks" FontSize="12" Foreground="#64748B" />
+                    <ItemsControl ItemsSource="{Binding Subtasks}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SubtaskRowViewModel">
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsCompleted, Mode=OneWay}"
+                                              Command="{Binding ToggleCommand}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               TextDecorations="{Binding IsCompleted, Converter={x:Static conv:BoolToTextDecorationsConverter.Instance}}" />
+                                    <Button Grid.Column="2" Content="&#x2715;" Command="{Binding RemoveCommand}"
+                                            Background="Transparent" BorderThickness="0" Padding="4" FontSize="10"
+                                            Foreground="#94A3B8" Cursor="Hand" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <TextBox Grid.Column="0" Text="{Binding NewSubtaskTitle}" PlaceholderText="Add a subtask…"
+                                 KeyDown="OnNewSubtaskKeyDown" />
+                        <Button Grid.Column="1" Content="Add" Command="{Binding AddSubtaskCommand}" Padding="10,4" />
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Tags" FontSize="12" Foreground="#64748B" />
+                    <ItemsControl ItemsSource="{Binding Tags}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TagChip">
+                                <Border Background="#E0E7FF" CornerRadius="10" Padding="8,3" Margin="0,0,6,6">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="{Binding Name}" FontSize="11" Foreground="#3730A3" VerticalAlignment="Center" />
+                                        <Button Content="&#x2715;" FontSize="9" Padding="2" Background="Transparent" BorderThickness="0"
+                                                Foreground="#3730A3" Cursor="Hand" Command="{Binding RemoveCommand}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <TextBox Grid.Column="0" Text="{Binding NewTagText}" PlaceholderText="Add a tag…"
+                                 KeyDown="OnNewTagKeyDown" />
+                        <Button Grid.Column="1" Content="Add" Command="{Binding AddTagCommand}" Padding="10,4" />
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="Blocked by" FontSize="12" Foreground="#64748B" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="Blocked" FontSize="10" FontWeight="SemiBold" Foreground="#DC2626"
+                                   IsVisible="{Binding IsBlocked}" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding Blockers}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:BlockerChip">
+                                <Border Background="#FEE2E2" CornerRadius="10" Padding="8,3" Margin="0,0,6,6">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="{Binding Title}" FontSize="11" Foreground="#991B1B" VerticalAlignment="Center"
+                                                   TextDecorations="{Binding IsComplete, Converter={x:Static conv:BoolToTextDecorationsConverter.Instance}}" />
+                                        <Button Content="&#x2715;" FontSize="9" Padding="2" Background="Transparent" BorderThickness="0"
+                                                Foreground="#991B1B" Cursor="Hand" Command="{Binding RemoveCommand}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <ComboBox Grid.Column="0" ItemsSource="{Binding SameDayTasks}" SelectedItem="{Binding SelectedBlockerToAdd}"
+                                  HorizontalAlignment="Stretch" PlaceholderText="Pick a task…" />
+                        <Button Grid.Column="1" Content="Add" Command="{Binding AddBlockerCommand}" Padding="10,4" />
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Repeat" FontSize="12" Foreground="#64748B" />
+                    <ComboBox ItemsSource="{Binding RecurrenceFrequencies}" SelectedItem="{Binding SelectedRecurrenceFrequency}"
+                              HorizontalAlignment="Stretch" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Margin="0,4,0,0"
+                          IsEnabled="{Binding SelectedRecurrenceFrequency, Converter={x:Static conv:RecurrenceFrequencyToBoolConverter.Instance}}">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="Every" FontSize="11" Foreground="#94A3B8" />
+                            <NumericUpDown Value="{Binding RecurrenceInterval}" Minimum="1" Increment="1"
+                                           HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="4">
+                            <TextBlock Text="Ends (optional)" FontSize="11" Foreground="#94A3B8" />
+                            <DatePicker SelectedDate="{Binding RecurrenceEndDate}" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Attachments" FontSize="12" Foreground="#64748B" />
+                    <ItemsControl ItemsSource="{Binding Attachments}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:AttachmentRowViewModel">
+                                <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap">
+                                        <Run Text="{Binding FileName}" /><Run Text=" (" /><Run Text="{Binding SizeDisplay}" /><Run Text=")" />
+                                    </TextBlock>
+                                    <Button Grid.Column="1" Content="Open" Command="{Binding OpenCommand}"
+                                            FontSize="10" Padding="6,2" Margin="4,0" />
+                                    <Button Grid.Column="2" Content="&#x2715;" Command="{Binding RemoveCommand}"
+                                            Background="Transparent" BorderThickness="0" Padding="4" FontSize="10"
+                                            Foreground="#94A3B8" Cursor="Hand" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="Attach a file…" Click="OnAttachFileClick" HorizontalAlignment="Left" Padding="10,4" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Save as template" FontSize="12" Foreground="#64748B" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <TextBox Grid.Column="0" Text="{Binding TemplateNameToSave}" PlaceholderText="Template name…" />
+                        <Button Grid.Column="1" Content="Save" Command="{Binding SaveAsTemplateCommand}" Padding="10,4" />
+                    </Grid>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

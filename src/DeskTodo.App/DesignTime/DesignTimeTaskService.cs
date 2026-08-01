@@ -27,6 +27,7 @@ internal sealed class DesignTimeTaskService : ITaskService
         TaskPriority priority = TaskPriority.Medium,
         Guid? categoryId = null,
         DateTime? dueDate = null,
+        Guid? parentTaskId = null,
         CancellationToken cancellationToken = default) =>
         Task.FromResult(new TaskItem { PlanDate = planDate, Title = title });
 
@@ -45,6 +46,10 @@ internal sealed class DesignTimeTaskService : ITaskService
 
     public Task UnpinTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+    public Task FavoriteTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public Task UnfavoriteTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
     public Task ArchiveTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public Task RestoreTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -53,4 +58,7 @@ internal sealed class DesignTimeTaskService : ITaskService
 
     public Task ReorderTasksAsync(DateOnly planDate, IReadOnlyList<Guid> orderedTaskIds, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
+
+    public Task<int> RescheduleOverdueTasksAsync(DateOnly today, CancellationToken cancellationToken = default) =>
+        Task.FromResult(0);
 }

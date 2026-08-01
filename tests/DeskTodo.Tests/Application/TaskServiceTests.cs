@@ -1,6 +1,7 @@
 using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Services;
 using DeskTodo.Domain.Entities;
+using DeskTodo.Domain.Enums;
 using DeskTodo.Domain.Exceptions;
 using Moq;
 
@@ -103,5 +104,153 @@ public class TaskServiceTests
         await _sut.ArchiveTaskAsync(task.Id);
 
         Assert.True(task.IsArchived);
+    }
+
+    [Fact]
+    public async Task FavoriteTaskAsync_SetsIsFavorite()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Big Goal" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.FavoriteTaskAsync(task.Id);
+
+        Assert.True(task.IsFavorite);
+    }
+
+    [Fact]
+    public async Task UnfavoriteTaskAsync_ClearsIsFavorite()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Big Goal" };
+        task.MarkFavorite();
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.UnfavoriteTaskAsync(task.Id);
+
+        Assert.False(task.IsFavorite);
+    }
+
+    [Fact]
+    public async Task CompleteTaskAsync_OnANonRecurringTask_DoesNotCreateAnyNewTask()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "One-off" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.CompleteTaskAsync(task.Id);
+
+        Assert.True(task.IsCompleted);
+        _taskRepository.Verify(r => r.AddAsync(It.IsAny<TaskItem>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CompleteTaskAsync_WhenBlocked_ThrowsTaskBlockedException_AndDoesNotComplete()
+    {
+        var blocker = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Blocker" };
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Blocked task" };
+        task.BlockedByDependencies.Add(new TaskDependency { BlockingTaskId = blocker.Id, BlockingTask = blocker, BlockedTaskId = task.Id });
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        var exception = await Assert.ThrowsAsync<TaskBlockedException>(() => _sut.CompleteTaskAsync(task.Id));
+
+        Assert.Equal(task.Id, exception.TaskId);
+        Assert.False(task.IsCompleted);
+        _taskRepository.Verify(r => r.UpdateAsync(It.IsAny<TaskItem>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CompleteTaskAsync_WhenTheBlockerIsAlreadyComplete_Succeeds()
+    {
+        var blocker = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Blocker" };
+        blocker.Complete();
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Formerly blocked task" };
+        task.BlockedByDependencies.Add(new TaskDependency { BlockingTaskId = blocker.Id, BlockingTask = blocker, BlockedTaskId = task.Id });
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.CompleteTaskAsync(task.Id);
+
+        Assert.True(task.IsCompleted);
+    }
+
+    [Fact]
+    public async Task CreateTaskAsync_WithParentTaskId_SetsIt()
+    {
+        var planDate = new DateOnly(2026, 7, 27);
+        var parentId = Guid.NewGuid();
+        _taskRepository.Setup(r => r.GetMaxDayOrderAsync(planDate, It.IsAny<CancellationToken>())).ReturnsAsync(-1);
+
+        var subtask = await _sut.CreateTaskAsync(planDate, "Write changelog", parentTaskId: parentId);
+
+        Assert.Equal(parentId, subtask.ParentTaskId);
+    }
+
+    [Fact]
+    public async Task CompleteTaskAsync_OnARecurringTask_CreatesTheNextOccurrence()
+    {
+        var task = new TaskItem
+        {
+            PlanDate = new DateOnly(2026, 7, 27),
+            Title = "Water plants",
+            CategoryId = Guid.NewGuid(),
+            RecurrenceFrequency = RecurrenceFrequency.Daily,
+            RecurrenceInterval = 1,
+        };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        _taskRepository.Setup(r => r.GetMaxDayOrderAsync(new DateOnly(2026, 7, 28), It.IsAny<CancellationToken>())).ReturnsAsync(-1);
+
+        await _sut.CompleteTaskAsync(task.Id);
+
+        Assert.True(task.IsCompleted);
+        _taskRepository.Verify(r => r.AddAsync(
+            It.Is<TaskItem>(t => t.Title == "Water plants" && t.PlanDate == new DateOnly(2026, 7, 28) && t.CategoryId == task.CategoryId && !t.IsCompleted),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CompleteTaskAsync_OnARecurringTaskPastItsEndDate_DoesNotCreateANextOccurrence()
+    {
+        var task = new TaskItem
+        {
+            PlanDate = new DateOnly(2026, 7, 27),
+            Title = "Last one",
+            RecurrenceFrequency = RecurrenceFrequency.Daily,
+            RecurrenceEndDate = new DateOnly(2026, 7, 27),
+        };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.CompleteTaskAsync(task.Id);
+
+        _taskRepository.Verify(r => r.AddAsync(It.IsAny<TaskItem>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RescheduleOverdueTasksAsync_MovesEachOverdueTaskToTodayAtTheEndOfTheList()
+    {
+        var today = new DateOnly(2026, 7, 27);
+        var overdueA = new TaskItem { PlanDate = today.AddDays(-3), Title = "A" };
+        var overdueB = new TaskItem { PlanDate = today.AddDays(-1), Title = "B" };
+        _taskRepository.Setup(r => r.GetIncompleteBeforeDateAsync(today, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([overdueA, overdueB]);
+        _taskRepository.Setup(r => r.GetMaxDayOrderAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var movedCount = await _sut.RescheduleOverdueTasksAsync(today);
+
+        Assert.Equal(2, movedCount);
+        Assert.Equal(today, overdueA.PlanDate);
+        Assert.Equal(2, overdueA.DayOrder);
+        Assert.Equal(today, overdueB.PlanDate);
+        Assert.Equal(3, overdueB.DayOrder);
+        _taskRepository.Verify(r => r.UpdateAsync(It.IsAny<TaskItem>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task RescheduleOverdueTasksAsync_WhenNothingIsOverdue_ReturnsZero_AndDoesNotQueryMaxDayOrder()
+    {
+        var today = new DateOnly(2026, 7, 27);
+        _taskRepository.Setup(r => r.GetIncompleteBeforeDateAsync(today, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var movedCount = await _sut.RescheduleOverdueTasksAsync(today);
+
+        Assert.Equal(0, movedCount);
+        _taskRepository.Verify(r => r.GetMaxDayOrderAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

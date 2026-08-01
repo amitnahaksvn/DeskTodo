@@ -9,6 +9,16 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<Category> Categories => Set<Category>();
 
+    public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
+
+    public DbSet<TaskTemplate> TaskTemplates => Set<TaskTemplate>();
+
+    public DbSet<Tag> Tags => Set<Tag>();
+
+    public DbSet<Attachment> Attachments => Set<Attachment>();
+
+    public DbSet<TaskDependency> TaskDependencies => Set<TaskDependency>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeskTodoDbContext).Assembly);

@@ -84,6 +84,105 @@ public class TaskRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task GetByIdAsync_IncludesChecklistItemsOrderedAndTags()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Plan trip" };
+        task.ChecklistItems.Add(new ChecklistItem { TaskId = task.Id, Text = "Second", Order = 1 });
+        task.ChecklistItems.Add(new ChecklistItem { TaskId = task.Id, Text = "First", Order = 0 });
+        await _sut.AddAsync(task);
+
+        var fetched = await _sut.GetByIdAsync(task.Id);
+
+        Assert.NotNull(fetched);
+        Assert.Equal(["First", "Second"], fetched.ChecklistItems.Select(c => c.Text));
+    }
+
+    [Fact]
+    public async Task GetAllAsync_IncludesChecklistItems()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Plan trip" };
+        task.ChecklistItems.Add(new ChecklistItem { TaskId = task.Id, Text = "Pack bags", IsChecked = true });
+        task.ChecklistItems.Add(new ChecklistItem { TaskId = task.Id, Text = "Book flights", IsChecked = false });
+        await _sut.AddAsync(task);
+
+        var results = await _sut.GetAllAsync();
+
+        var fetched = Assert.Single(results);
+        Assert.Equal(2, fetched.ChecklistItems.Count);
+        Assert.Equal(1, fetched.ChecklistItems.Count(c => c.IsChecked));
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_IncludesSubtasksAndBlockers()
+    {
+        var parent = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Ship release" };
+        await _sut.AddAsync(parent);
+        var subtask = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Write changelog", ParentTaskId = parent.Id };
+        await _sut.AddAsync(subtask);
+        var blocker = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Finish tests" };
+        await _sut.AddAsync(blocker);
+
+        await using (var context = _fixture.ContextFactory.CreateDbContext())
+        {
+            context.TaskDependencies.Add(new DeskTodo.Domain.Entities.TaskDependency { BlockingTaskId = blocker.Id, BlockedTaskId = parent.Id });
+            await context.SaveChangesAsync();
+        }
+
+        var fetched = await _sut.GetByIdAsync(parent.Id);
+
+        Assert.NotNull(fetched);
+        Assert.Equal(["Write changelog"], fetched.Subtasks.Select(t => t.Title));
+        Assert.True(fetched.IsBlocked);
+    }
+
+    [Fact]
+    public async Task GetByDateAsync_IncludesSubtasksAndBlockers()
+    {
+        var planDate = new DateOnly(2026, 7, 27);
+        var parent = new TaskItem { PlanDate = planDate, Title = "Ship release" };
+        await _sut.AddAsync(parent);
+        var subtask = new TaskItem { PlanDate = planDate, Title = "Write changelog", ParentTaskId = parent.Id };
+        await _sut.AddAsync(subtask);
+        var blocker = new TaskItem { PlanDate = planDate, Title = "Finish tests" };
+        await _sut.AddAsync(blocker);
+
+        await using (var context = _fixture.ContextFactory.CreateDbContext())
+        {
+            context.TaskDependencies.Add(new DeskTodo.Domain.Entities.TaskDependency { BlockingTaskId = blocker.Id, BlockedTaskId = parent.Id });
+            await context.SaveChangesAsync();
+        }
+
+        var results = await _sut.GetByDateAsync(planDate);
+
+        var fetchedParent = results.Single(t => t.Id == parent.Id);
+        Assert.Single(fetchedParent.Subtasks);
+        Assert.True(fetchedParent.IsBlocked);
+    }
+
+    [Fact]
+    public async Task GetIncompleteBeforeDateAsync_ReturnsOnlyIncompleteNonArchivedNonDeletedPastTasks()
+    {
+        var past = new DateOnly(2026, 7, 20);
+        var today = new DateOnly(2026, 7, 27);
+
+        var overdue = new TaskItem { PlanDate = past, Title = "Overdue" };
+        var completed = new TaskItem { PlanDate = past, Title = "Completed" };
+        completed.Complete();
+        var archived = new TaskItem { PlanDate = past, Title = "Archived" };
+        archived.Archive();
+        var futureTask = new TaskItem { PlanDate = today, Title = "Future" };
+
+        await _sut.AddAsync(overdue);
+        await _sut.AddAsync(completed);
+        await _sut.AddAsync(archived);
+        await _sut.AddAsync(futureTask);
+
+        var results = await _sut.GetIncompleteBeforeDateAsync(today);
+
+        Assert.Equal(["Overdue"], results.Select(t => t.Title));
+    }
+
+    [Fact]
     public async Task ReorderAsync_ReassignsDayOrderToMatchTheGivenSequence()
     {
         var planDate = new DateOnly(2026, 7, 27);

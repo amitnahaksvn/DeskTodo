@@ -4,11 +4,11 @@
         xmlns:conv="using:DeskTodo.App.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="560"
+        mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="640"
         x:Class="DeskTodo.App.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="Settings"
-        Width="320" Height="560"
+        Width="320" Height="640"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         Background="#F8FAFC">
@@ -71,6 +71,14 @@
                     <TextBlock Text="Turn off to hide DeskTodo from the Dock/taskbar and app-switcher" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowInTaskbar}" OnContent="" OffContent="" VerticalAlignment="Center" />
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Auto-reschedule overdue tasks" FontSize="13" Foreground="#1E293B" />
+                    <TextBlock Text="Move incomplete tasks left on past days onto today" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoRescheduleOverdueTasks}" OnContent="" OffContent="" VerticalAlignment="Center" />
             </Grid>
 
             <StackPanel Spacing="6">

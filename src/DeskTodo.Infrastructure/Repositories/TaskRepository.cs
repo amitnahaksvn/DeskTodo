@@ -14,6 +14,8 @@ public sealed class TaskRepository(IDbContextFactory<DeskTodoDbContext> contextF
         return await context.Tasks
             .AsNoTracking()
             .Include(t => t.Category)
+            .Include(t => t.Subtasks)
+            .Include(t => t.BlockedByDependencies).ThenInclude(d => d.BlockingTask)
             .Where(t => t.PlanDate == planDate && !t.IsDeleted && !t.IsArchived)
             .OrderBy(t => t.DayOrder)
             .ToListAsync(cancellationToken);
@@ -26,6 +28,7 @@ public sealed class TaskRepository(IDbContextFactory<DeskTodoDbContext> contextF
         return await context.Tasks
             .AsNoTracking()
             .Include(t => t.Category)
+            .Include(t => t.ChecklistItems)
             .Where(t => !t.IsDeleted)
             .OrderBy(t => t.PlanDate).ThenBy(t => t.DayOrder)
             .ToListAsync(cancellationToken);
@@ -37,7 +40,23 @@ public sealed class TaskRepository(IDbContextFactory<DeskTodoDbContext> contextF
 
         return await context.Tasks
             .AsNoTracking()
+            .Include(t => t.ChecklistItems.OrderBy(c => c.Order))
+            .Include(t => t.Tags)
+            .Include(t => t.Attachments)
+            .Include(t => t.Subtasks)
+            .Include(t => t.BlockedByDependencies).ThenInclude(d => d.BlockingTask)
+            .Include(t => t.BlockingDependencies).ThenInclude(d => d.BlockedTask)
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<TaskItem>> GetIncompleteBeforeDateAsync(DateOnly date, CancellationToken cancellationToken = default)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await context.Tasks
+            .AsNoTracking()
+            .Where(t => t.PlanDate < date && !t.IsCompleted && !t.IsDeleted && !t.IsArchived)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<TaskItem>> GetArchivedAsync(CancellationToken cancellationToken = default)

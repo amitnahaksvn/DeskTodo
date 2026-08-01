@@ -47,6 +47,21 @@ public class WidgetViewModelTests
 
     private static INotificationService CreateDefaultNotificationService() => new NullNotificationService();
 
+    private static ITagService CreateEmptyTagService()
+    {
+        var mock = new Mock<ITagService>();
+        mock.Setup(s => s.GetAllTagsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Tag>());
+        mock.Setup(s => s.GetTagsForTaskAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Tag>());
+        return mock.Object;
+    }
+
+    private static ITaskTemplateService CreateEmptyTemplateService()
+    {
+        var mock = new Mock<ITaskTemplateService>();
+        mock.Setup(s => s.GetTemplatesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<TaskTemplate>());
+        return mock.Object;
+    }
+
     private static Mock<ITaskRepository> CreateRepositoryWithTasks(DateOnly planDate, IReadOnlyList<TaskItem> tasks)
     {
         var repository = new Mock<ITaskRepository>();
@@ -64,12 +79,90 @@ public class WidgetViewModelTests
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([task]);
         var taskService = new TaskService(taskRepository.Object);
-        using var sut = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         Guid? requestedId = null;
         sut.TaskEditRequested += (_, id) => requestedId = id;
         sut.Tasks[0].OpenEditorCommand.Execute(null);
+
+        Assert.Equal(task.Id, requestedId);
+    }
+
+    [Fact]
+    public async Task OpenEditorCommand_AddsTheTaskToRecentlyViewed()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var task = CreateTask(today, 0, "Read System Design");
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([task]);
+        var taskService = new TaskService(taskRepository.Object);
+        using var sut = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadTasksAsync();
+
+        sut.Tasks[0].OpenEditorCommand.Execute(null);
+
+        Assert.Single(sut.RecentlyViewed);
+        Assert.Equal(task.Id, sut.RecentlyViewed[0].Id);
+        Assert.Equal("Read System Design", sut.RecentlyViewed[0].Title);
+    }
+
+    [Fact]
+    public async Task RecentlyViewed_ReopeningTheSameTask_MovesItToTheFrontWithoutDuplicating()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var first = CreateTask(today, 0, "First");
+        var second = CreateTask(today, 1, "Second");
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([first, second]);
+        var taskService = new TaskService(taskRepository.Object);
+        using var sut = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadTasksAsync();
+
+        sut.Tasks[0].OpenEditorCommand.Execute(null);
+        sut.Tasks[1].OpenEditorCommand.Execute(null);
+        sut.Tasks[0].OpenEditorCommand.Execute(null);
+
+        Assert.Equal(2, sut.RecentlyViewed.Count);
+        Assert.Equal(first.Id, sut.RecentlyViewed[0].Id);
+        Assert.Equal(second.Id, sut.RecentlyViewed[1].Id);
+    }
+
+    [Fact]
+    public async Task RecentlyViewed_IsCappedAtFive()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var tasks = Enumerable.Range(0, 6).Select(i => CreateTask(today, i, $"Task {i}")).ToList();
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync(tasks);
+        var taskService = new TaskService(taskRepository.Object);
+        using var sut = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadTasksAsync();
+
+        foreach (var row in sut.Tasks)
+        {
+            row.OpenEditorCommand.Execute(null);
+        }
+
+        Assert.Equal(5, sut.RecentlyViewed.Count);
+        Assert.Equal("Task 5", sut.RecentlyViewed[0].Title);
+    }
+
+    [Fact]
+    public async Task RecentlyViewed_ChipsOpenCommand_ReRaisesTaskEditRequested()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var task = CreateTask(today, 0, "Read System Design");
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([task]);
+        var taskService = new TaskService(taskRepository.Object);
+        using var sut = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadTasksAsync();
+        sut.Tasks[0].OpenEditorCommand.Execute(null);
+
+        Guid? requestedId = null;
+        sut.TaskEditRequested += (_, id) => requestedId = id;
+        sut.RecentlyViewed[0].OpenCommand.Execute(null);
 
         Assert.Equal(task.Id, requestedId);
     }
@@ -83,7 +176,7 @@ public class WidgetViewModelTests
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([first, second]);
         var taskService = new TaskService(taskRepository.Object);
-        using var sut = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         await sut.ReorderAsync(second.Id, first.Id);
@@ -104,7 +197,7 @@ public class WidgetViewModelTests
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([task]);
         var taskService = new TaskService(taskRepository.Object);
-        using var sut = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         await sut.ReorderAsync(task.Id, task.Id);
@@ -117,7 +210,7 @@ public class WidgetViewModelTests
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
         var taskRepository = new Mock<ITaskRepository>();
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         Assert.Equal(today, sut.PlanDate);
         Assert.True(sut.IsToday);
@@ -130,7 +223,7 @@ public class WidgetViewModelTests
         var today = DateOnly.FromDateTime(DateTime.Now);
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         await sut.GoToPreviousDayCommand.ExecuteAsync(null);
@@ -147,7 +240,7 @@ public class WidgetViewModelTests
         var today = DateOnly.FromDateTime(DateTime.Now);
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         await sut.GoToNextDayCommand.ExecuteAsync(null);
 
@@ -161,7 +254,7 @@ public class WidgetViewModelTests
         var today = DateOnly.FromDateTime(DateTime.Now);
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.GoToNextDayCommand.ExecuteAsync(null);
         Assert.False(sut.IsToday);
 
@@ -183,7 +276,7 @@ public class WidgetViewModelTests
         // LoadTasksAsync chain finishes before the property setter returns.
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         var picked = new DateTime(2026, 12, 25);
 
         sut.SelectedDate = picked;
@@ -197,7 +290,7 @@ public class WidgetViewModelTests
     {
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         await sut.GoToTodayCommand.ExecuteAsync(null);
@@ -218,7 +311,7 @@ public class WidgetViewModelTests
             CreateTask(today, 3, "Unrelated task"),
         };
         var taskRepository = CreateRepositoryWithTasks(today, tasks);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         sut.SearchText = "groceries";
@@ -235,7 +328,7 @@ public class WidgetViewModelTests
         completed.Complete();
         var active = CreateTask(today, 1, "Still open");
         var taskRepository = CreateRepositoryWithTasks(today, [completed, active]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         sut.SelectedStatusFilter = TaskStatusFilter.Active;
@@ -261,7 +354,7 @@ public class WidgetViewModelTests
         var categoryRepository = new Mock<ICategoryRepository>();
         categoryRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([new Category { Id = categoryId, Name = "Work", ColorHex = "#3B82F6" }]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), categoryRepository.Object, CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), categoryRepository.Object, CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         var workOption = Assert.Single(sut.Categories, c => c.Id == categoryId);
@@ -269,6 +362,109 @@ public class WidgetViewModelTests
 
         Assert.Single(sut.VisibleTasks);
         Assert.Equal("Filed", sut.VisibleTasks[0].Title);
+    }
+
+    [Fact]
+    public async Task RefreshVisibleTasks_WithTagFilter_ShowsOnlyTasksWithThatTag()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var tag = new Tag { Name = "Urgent" };
+        var tagged = CreateTask(today, 0, "Tagged");
+        tagged.Tags.Add(tag);
+        var untagged = CreateTask(today, 1, "Untagged");
+        var taskRepository = CreateRepositoryWithTasks(today, [tagged, untagged]);
+        var tagService = new Mock<ITagService>();
+        tagService.Setup(s => s.GetAllTagsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([tag]);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), tagService.Object, CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadTasksAsync();
+
+        var urgentOption = Assert.Single(sut.Tags, t => t.Id == tag.Id);
+        sut.SelectedTagFilter = urgentOption;
+
+        Assert.Single(sut.VisibleTasks);
+        Assert.Equal("Tagged", sut.VisibleTasks[0].Title);
+    }
+
+    [Fact]
+    public async Task RefreshVisibleTasks_SortByCategory_GroupsSameCategoryTasksTogether_UncategorizedLast()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var work = new Category { Name = "Work", ColorHex = "#3B82F6" };
+        var home = new Category { Name = "Home", ColorHex = "#22C55E" };
+        var uncategorized = CreateTask(today, 0, "Uncategorized");
+        var homeTask = CreateTask(today, 1, "Home task", categoryId: home.Id);
+        homeTask.Category = home;
+        var workTask1 = CreateTask(today, 2, "Work task 1", categoryId: work.Id);
+        workTask1.Category = work;
+        var workTask2 = CreateTask(today, 3, "Work task 2", categoryId: work.Id);
+        workTask2.Category = work;
+        // The real TaskRepository.GetByDateAsync always Includes Category (see its doc
+        // comment); this mock has to populate the nav property itself to match, since
+        // TaskItemViewModel.CategoryName reads task.Category?.Name, not CategoryId.
+        var taskRepository = CreateRepositoryWithTasks(today, [uncategorized, homeTask, workTask1, workTask2]);
+        var categoryRepository = new Mock<ICategoryRepository>();
+        categoryRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([work, home]);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), categoryRepository.Object, CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadTasksAsync();
+
+        sut.SelectedSortOption = TaskSortOption.Category;
+
+        Assert.Equal(["Home task", "Work task 1", "Work task 2", "Uncategorized"], sut.VisibleTasks.Select(t => t.Title));
+    }
+
+    [Fact]
+    public async Task SelectedTemplateToApply_CreatesATaskFromTheTemplate_ThenResetsToNull()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var templateId = Guid.NewGuid();
+        var templateService = new Mock<ITaskTemplateService>();
+        templateService.Setup(s => s.GetTemplatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new TaskTemplate { Id = templateId, Name = "Sprint prep", TaskTitle = "Sprint planning prep" }]);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), templateService.Object, CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadTasksAsync();
+        var option = Assert.Single(sut.Templates, t => t.Id == templateId);
+
+        // Fire-and-forget from the property setter — safe to assert synchronously right after
+        // (rather than awaiting anything) since every mocked async call below is already-completed
+        // (ReturnsAsync), so the whole chain finishes before the setter returns. See
+        // SelectedDate_Setter_NavigatesToThePickedDate's doc comment for the same reasoning.
+        sut.SelectedTemplateToApply = option;
+
+        templateService.Verify(s => s.CreateTaskFromTemplateAsync(templateId, today, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Null(sut.SelectedTemplateToApply);
+    }
+
+    [Fact]
+    public async Task LoadTasksAsync_WithAutoRescheduleEnabled_ReschedulesOverdueTasksOnce()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        taskRepository.Setup(r => r.GetIncompleteBeforeDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { AutoRescheduleOverdueTasks = true });
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadSettingsAsync();
+
+        await sut.LoadTasksAsync();
+        await sut.LoadTasksAsync();
+
+        taskRepository.Verify(r => r.GetIncompleteBeforeDateAsync(today, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task LoadTasksAsync_WithAutoRescheduleDisabled_NeverChecksForOverdueTasks()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+
+        await sut.LoadTasksAsync();
+
+        taskRepository.Verify(r => r.GetIncompleteBeforeDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -282,7 +478,7 @@ public class WidgetViewModelTests
             CreateTask(today, 2, "Mango"),
         };
         var taskRepository = CreateRepositoryWithTasks(today, tasks);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         sut.SelectedSortOption = TaskSortOption.Title;
@@ -301,7 +497,7 @@ public class WidgetViewModelTests
             CreateTask(today, 2, "Medium", priority: TaskPriority.Medium),
         };
         var taskRepository = CreateRepositoryWithTasks(today, tasks);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         sut.SelectedSortOption = TaskSortOption.Priority;
@@ -319,7 +515,7 @@ public class WidgetViewModelTests
             CreateTask(today, 1, "Second", priority: TaskPriority.Critical),
         };
         var taskRepository = CreateRepositoryWithTasks(today, tasks);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         sut.SelectedSortOption = TaskSortOption.Priority;
@@ -334,7 +530,7 @@ public class WidgetViewModelTests
         var today = DateOnly.FromDateTime(DateTime.Now);
         var tasks = new List<TaskItem> { CreateTask(today, 0, "Only task") };
         var taskRepository = CreateRepositoryWithTasks(today, tasks);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         sut.ToggleSelectModeCommand.Execute(null);
@@ -355,7 +551,7 @@ public class WidgetViewModelTests
         var today = DateOnly.FromDateTime(DateTime.Now);
         var tasks = new List<TaskItem> { CreateTask(today, 0, "A"), CreateTask(today, 1, "B") };
         var taskRepository = CreateRepositoryWithTasks(today, tasks);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         sut.SelectAllVisibleCommand.Execute(null);
@@ -376,7 +572,7 @@ public class WidgetViewModelTests
         var toComplete = CreateTask(today, 1, "To complete");
         var untouched = CreateTask(today, 2, "Untouched");
         var taskRepository = CreateRepositoryWithTasks(today, [alreadyDone, toComplete, untouched]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
         sut.ToggleSelectModeCommand.Execute(null);
         sut.Tasks[0].IsSelected = true;
@@ -398,7 +594,7 @@ public class WidgetViewModelTests
         var toDelete = CreateTask(today, 0, "Delete me");
         var toKeep = CreateTask(today, 1, "Keep me");
         var taskRepository = CreateRepositoryWithTasks(today, [toDelete, toKeep]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
         sut.ToggleSelectModeCommand.Execute(null);
         sut.Tasks[0].IsSelected = true;
@@ -422,7 +618,7 @@ public class WidgetViewModelTests
                 new Category { Name = "Zeta", ColorHex = "#000000" },
                 new Category { Name = "Alpha", ColorHex = "#111111" },
             ]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), categoryRepository.Object, CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), categoryRepository.Object, CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         await sut.LoadTasksAsync();
 
@@ -445,7 +641,7 @@ public class WidgetViewModelTests
             WindowHeight = 560,
             ShowInTaskbar = false,
         });
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), settingsService.Object, CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         await sut.LoadSettingsAsync();
 
@@ -462,7 +658,7 @@ public class WidgetViewModelTests
     public void ShowInTaskbar_DefaultsToTrue_SoExistingUsersSeeNoBehaviorChange()
     {
         var taskRepository = new Mock<ITaskRepository>();
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         Assert.True(sut.ShowInTaskbar);
     }
@@ -471,7 +667,7 @@ public class WidgetViewModelTests
     public void WidgetBackgroundHex_ReflectsWidgetOpacityAsAlphaChannel()
     {
         var taskRepository = new Mock<ITaskRepository>();
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         sut.WidgetOpacity = 1.0;
         Assert.Equal("#FFFFFFFF", sut.WidgetBackgroundHex);
@@ -489,7 +685,7 @@ public class WidgetViewModelTests
         var taskRepository = new Mock<ITaskRepository>();
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { AccentColorHex = "#8B5CF6" });
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), settingsService.Object, CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         await sut.SaveWindowBoundsAsync(10, 20, 300, 500);
 
@@ -503,7 +699,7 @@ public class WidgetViewModelTests
     public void OpenSettingsCommand_RaisesSettingsRequested()
     {
         var taskRepository = new Mock<ITaskRepository>();
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         var raised = false;
         sut.SettingsRequested += (_, _) => raised = true;
@@ -529,7 +725,7 @@ public class WidgetViewModelTests
         var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 23, 0, 0, TimeSpan.Zero));
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), timeProvider, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), timeProvider, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         Assert.Equal(day1, sut.PlanDate);
 
         timeProvider.SetUtcNow(new DateTimeOffset(2026, 1, 16, 0, 5, 0, TimeSpan.Zero));
@@ -548,7 +744,7 @@ public class WidgetViewModelTests
         var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 23, 0, 0, TimeSpan.Zero));
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), timeProvider, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), timeProvider, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         sut.SelectedDate = viewedDay.ToDateTime(TimeOnly.MinValue); // Navigate away from "today" — planning ahead/reviewing history.
         Assert.Equal(viewedDay, sut.PlanDate);
 
@@ -567,7 +763,7 @@ public class WidgetViewModelTests
         var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 12, 0, 0, TimeSpan.Zero));
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), timeProvider, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), timeProvider, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         timeProvider.SetUtcNow(new DateTimeOffset(2026, 1, 15, 12, 0, 30, TimeSpan.Zero)); // 30s later, same day — one poll tick.
         sut.OnDayRolloverTick(null, EventArgs.Empty);
@@ -583,7 +779,7 @@ public class WidgetViewModelTests
         var overdueTask = CreateTask(today, 0, "Pay rent", dueDate: DateTime.Now.AddHours(-1));
         var taskRepository = CreateRepositoryWithTasks(today, [overdueTask]);
         var notificationService = new Mock<INotificationService>();
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync();
 
         await sut.CheckForOverdueTaskNotificationsAsync();
@@ -602,7 +798,7 @@ public class WidgetViewModelTests
         var noDueDate = CreateTask(today, 2, "No deadline");
         var taskRepository = CreateRepositoryWithTasks(today, [completedOverdue, notYetDue, noDueDate]);
         var notificationService = new Mock<INotificationService>();
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadTasksAsync(); // Also fires the daily summary (2 incomplete tasks) — expected, not what this test is about.
 
         await sut.CheckForOverdueTaskNotificationsAsync();
@@ -619,7 +815,7 @@ public class WidgetViewModelTests
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { NotificationsEnabled = false });
         var notificationService = new Mock<INotificationService>();
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), settingsService.Object, notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
         await sut.LoadSettingsAsync();
         await sut.LoadTasksAsync();
 
@@ -635,7 +831,7 @@ public class WidgetViewModelTests
         var tasks = new List<TaskItem> { CreateTask(today, 0, "A"), CreateTask(today, 1, "B") };
         var taskRepository = CreateRepositoryWithTasks(today, tasks);
         var notificationService = new Mock<INotificationService>();
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         await sut.LoadTasksAsync();
 
@@ -648,7 +844,7 @@ public class WidgetViewModelTests
         var today = DateOnly.FromDateTime(DateTime.Now);
         var taskRepository = CreateRepositoryWithTasks(today, [CreateTask(today, 0, "A")]);
         var notificationService = new Mock<INotificationService>();
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         await sut.LoadTasksAsync();
         await sut.LoadTasksAsync(); // e.g. a drag-reorder reload later the same day.
@@ -663,7 +859,7 @@ public class WidgetViewModelTests
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync([CreateTask(today.AddDays(-1), 0, "Yesterday's task")]);
         var notificationService = new Mock<INotificationService>();
-        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
         await sut.GoToPreviousDayCommand.ExecuteAsync(null);
 

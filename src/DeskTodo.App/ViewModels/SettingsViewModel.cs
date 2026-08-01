@@ -54,6 +54,10 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool ShowInTaskbar { get; set; } = true;
 
+    /// <summary>See <see cref="AppSettings.AutoRescheduleOverdueTasks"/>.</summary>
+    [ObservableProperty]
+    public partial bool AutoRescheduleOverdueTasks { get; set; }
+
     [ObservableProperty]
     public partial bool IsLoaded { get; set; }
 
@@ -70,6 +74,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         NotificationsEnabled = _loaded.NotificationsEnabled;
         AutoStartEnabled = _autoStartService.IsEnabled;
         ShowInTaskbar = _loaded.ShowInTaskbar;
+        AutoRescheduleOverdueTasks = _loaded.AutoRescheduleOverdueTasks;
         IsLoaded = true;
     }
 
@@ -85,6 +90,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             _loaded.WidgetOpacity = Math.Clamp(OpacityPercent / 100.0, 0.4, 1.0);
             _loaded.NotificationsEnabled = NotificationsEnabled;
             _loaded.ShowInTaskbar = ShowInTaskbar;
+            _loaded.AutoRescheduleOverdueTasks = AutoRescheduleOverdueTasks;
 
             await _settingsService.SaveAsync(_loaded);
 

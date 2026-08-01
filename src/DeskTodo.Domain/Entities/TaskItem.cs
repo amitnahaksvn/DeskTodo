@@ -67,8 +67,63 @@ public sealed class TaskItem
     /// <summary>Soft-delete flag. Deleted tasks are excluded from normal queries but remain recoverable.</summary>
     public bool IsDeleted { get; private set; }
 
+    /// <summary>
+    /// A second, independent boolean flag from <see cref="IsPinned"/> — Pin means "keep at
+    /// the top of today's list"; Favorite means "important to me across every day" (e.g. a
+    /// long-running goal-adjacent task). Deliberately not unified into one flag since they
+    /// answer different questions and a task can reasonably be either, both, or neither.
+    /// </summary>
+    public bool IsFavorite { get; private set; }
+
+    public ICollection<ChecklistItem> ChecklistItems { get; set; } = [];
+
+    public ICollection<Tag> Tags { get; set; } = [];
+
+    public ICollection<Attachment> Attachments { get; set; } = [];
+
+    /// <summary>
+    /// A lighter-weight, single-level parent/child relationship — deliberately not a
+    /// general tree (a subtask having its own subtasks isn't supported at the UI layer,
+    /// even though nothing at this layer technically prevents it). Distinct from
+    /// <see cref="ChecklistItems"/>: a subtask is a full <see cref="TaskItem"/> with its
+    /// own priority/due date/etc., for when a checklist line is too lightweight.
+    /// </summary>
+    public Guid? ParentTaskId { get; set; }
+
+    public TaskItem? ParentTask { get; set; }
+
+    public ICollection<TaskItem> Subtasks { get; set; } = [];
+
+    /// <summary>Tasks that must be completed before this one can be — see <see cref="Entities.TaskDependency"/>.</summary>
+    public ICollection<TaskDependency> BlockedByDependencies { get; set; } = [];
+
+    /// <summary>Tasks that are waiting on this one — the inverse side of <see cref="BlockedByDependencies"/>.</summary>
+    public ICollection<TaskDependency> BlockingDependencies { get; set; } = [];
+
+    /// <summary>
+    /// <see cref="Enums.RecurrenceFrequency.None"/> (the default) means this task doesn't
+    /// recur. A non-None value means completing this task creates its next occurrence —
+    /// see <see cref="GetNextOccurrencePlanDate"/>.
+    /// </summary>
+    public RecurrenceFrequency RecurrenceFrequency { get; set; } = RecurrenceFrequency.None;
+
+    /// <summary>"Every N" — e.g. <see cref="RecurrenceFrequency.Weekly"/> with Interval 2 means every other week. Meaningless when <see cref="RecurrenceFrequency"/> is None.</summary>
+    public int RecurrenceInterval { get; set; } = 1;
+
+    /// <summary>Optional cutoff — once the *next* occurrence's date would fall after this, no further occurrences are created. Null means "recur forever."</summary>
+    public DateOnly? RecurrenceEndDate { get; set; }
+
     /// <summary>True when the task has a due date in the past and is not yet completed.</summary>
     public bool IsOverdue => !IsCompleted && DueDate is { } due && due < DateTime.UtcNow;
+
+    /// <summary>
+    /// True when any of <see cref="BlockedByDependencies"/>' blocking tasks is still
+    /// incomplete. Requires <see cref="TaskDependency.BlockingTask"/> to have been loaded
+    /// (e.g. via <c>ITaskRepository.GetByIdAsync</c>'s include) — evaluates to <c>false</c>
+    /// (not blocked) rather than throwing if it wasn't, since an un-loaded navigation is
+    /// just an empty collection, not an error state.
+    /// </summary>
+    public bool IsBlocked => BlockedByDependencies.Any(d => d.BlockingTask is { IsCompleted: false });
 
     public void Complete()
     {
@@ -97,6 +152,18 @@ public sealed class TaskItem
         Touch();
     }
 
+    public void MarkFavorite()
+    {
+        IsFavorite = true;
+        Touch();
+    }
+
+    public void UnmarkFavorite()
+    {
+        IsFavorite = false;
+        Touch();
+    }
+
     public void Archive()
     {
         IsArchived = true;
@@ -117,4 +184,36 @@ public sealed class TaskItem
     }
 
     public void Touch() => ModifiedAt = DateTime.UtcNow;
+
+    /// <summary>
+    /// The <see cref="PlanDate"/> this task's next occurrence should land on, computed from
+    /// <see cref="RecurrenceFrequency"/>/<see cref="RecurrenceInterval"/> — or null when this
+    /// task doesn't recur, or the next occurrence would fall after
+    /// <see cref="RecurrenceEndDate"/>. Pure computation, no side effects; the caller
+    /// (<c>TaskService.CompleteTaskAsync</c>) is responsible for actually creating the next
+    /// occurrence's row.
+    /// </summary>
+    public DateOnly? GetNextOccurrencePlanDate()
+    {
+        if (RecurrenceFrequency == RecurrenceFrequency.None)
+        {
+            return null;
+        }
+
+        var interval = Math.Max(1, RecurrenceInterval);
+        var next = RecurrenceFrequency switch
+        {
+            RecurrenceFrequency.Daily => PlanDate.AddDays(interval),
+            RecurrenceFrequency.Weekly => PlanDate.AddDays(7 * interval),
+            RecurrenceFrequency.Monthly => PlanDate.AddMonths(interval),
+            _ => (DateOnly?)null,
+        };
+
+        if (next is null || (RecurrenceEndDate is { } end && next > end))
+        {
+            return null;
+        }
+
+        return next;
+    }
 }

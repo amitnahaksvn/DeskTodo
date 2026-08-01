@@ -47,14 +47,14 @@ that one is the reasoning.
 | 15 | [Platform-specific integration](#15-platform-specific-integration) | ✅ |
 | 16 | [Packaging (MSIX / DMG)](#16-packaging-msix--dmg) | 🚧 |
 
-## Extended Roadmap — Phase 17+ (planned, not started)
+## Extended Roadmap — Phase 17+
 
 | # | Phase | Source category (Later.Implementation.md) | Status |
 |---|-------|---------------------------------------------|--------|
-| 17 | [Subtasks, checklists, templates & rich content](#17-subtasks-checklists-templates--rich-content) | Core Task Management | ⬜ |
-| 18 | [Tags, labels & grouping](#18-tags-labels--grouping) | Core Task Management | ⬜ |
-| 19 | [Recurring tasks, dependencies & auto-reschedule](#19-recurring-tasks-dependencies--auto-reschedule) | Core Task Management, "Later" notes | ⬜ |
-| 20 | [Excel-style grid view](#20-excel-style-grid-view) | Spreadsheet / Grid View | ⬜ |
+| 17 | [Subtasks, checklists, templates & rich content](#17-subtasks-checklists-templates--rich-content) | Core Task Management | 🚧 |
+| 18 | [Tags, labels & grouping](#18-tags-labels--grouping) | Core Task Management | 🚧 |
+| 19 | [Recurring tasks, dependencies & auto-reschedule](#19-recurring-tasks-dependencies--auto-reschedule) | Core Task Management, "Later" notes | 🚧 |
+| 20 | [Excel-style grid view](#20-excel-style-grid-view) | Spreadsheet / Grid View | 🚧 |
 | 21 | [Calendar, weekly/monthly/year views & alternate layouts](#21-calendar-weeklymonthlyyear-views--alternate-layouts) | Planning | ⬜ |
 | 22 | [System tray, global shortcuts & quick add](#22-system-tray-global-shortcuts--quick-add) | Desktop Features | ⬜ |
 | 23 | [Productivity tools: timers, focus & habits](#23-productivity-tools-timers-focus--habits) | Productivity | ⬜ |
@@ -395,143 +395,168 @@ worked out at implementation time. Phases are ordered roughly by
 dependency and by how naturally they build on what already exists, not by
 priority — that's a product call for whoever picks this up next.
 
-## 17. Subtasks, checklists, templates & rich content ⬜
+## 17. Subtasks, checklists, templates & rich content 🚧
 
-Everything about a task having *more structure inside it* than a flat
-title/description/notes — the most natural next step after Phase 9's
-full-field editor, since it extends the same entity/editor rather than
-introducing a new concept.
+- [x] Checklists — an ordered, per-task list of check-off-able items
+      (`ChecklistItem`: text, checked, order), added/toggled/removed inline
+      in the full-field editor, each persisted immediately
+- [x] Task Templates — save a task's current shape (title, description,
+      priority, category, estimated minutes, notes, checklist lines) as a
+      named `TaskTemplate`; "New from template" (a picker in the widget's
+      add-task row) seeds a new task — including its checklist — from one
+- [ ] Subtasks (full parent/child `TaskItem` hierarchy) — deliberately not
+      built; Checklists cover the "smaller things inside one task" need
+      without the added complexity of a second recursive task hierarchy
+      alongside Category/Tag
+- [ ] Rich Text Notes (Markdown rendering) — not built; `Notes` is still
+      plain text
+- [ ] Attachments — not built
 
-**Deliverables:**
-- Subtasks — a task can have child tasks; completing all children could
-  optionally auto-suggest completing the parent
-- Checklists — lighter-weight than subtasks: an ordered list of
-  check-off-able items living *inside* one task (no due date/priority of
-  their own), shown inline in the row or the editor
-- Task Templates — save a task's current shape (title pattern, priority,
-  category, checklist items, estimated time) as a named template; "New from
-  template" pre-fills the add/edit flow
-- Rich Text Notes — upgrade `Notes` from plain text to Markdown (or a
-  similarly lightweight rich-text format), with a preview/edit toggle in the
-  editor
-- Attachments — attach one or more files to a task; store either a copied
-  file (under the app's data directory, alongside the SQLite database) or a
-  reference path, with a size/type cap
+Checklists and Templates were judged the highest-value, most self-contained
+items in this phase; Subtasks/Rich Text/Attachments are each a meaningfully
+sized feature of their own (a second task hierarchy, a Markdown renderer,
+file storage + size/type caps) and were left for a future pass rather than
+built shallowly just to check a box.
 
-**Approach:** Subtasks need either a self-referencing `ParentTaskId` on
-`TaskItem` or a separate lightweight `ChecklistItem` entity (cleaner,
-since subtasks/checklist items don't need the full `TaskItem` field set —
-priority, due date, etc. — most apps that support both keep them as two
-distinct concepts for exactly this reason). Templates need a new
-`TaskTemplate` entity mirroring `TaskItem`'s editable fields, plus a
-repository/service pair and a "save as template"/"create from template"
-UI entry point on the existing task row context menu and the full-field
-editor. Rich text notes only change how `Notes` is *rendered*, not stored
-(still a string, just Markdown-flavored) — needs a Markdown renderer
-control or a hand-rolled minimal one, plus deciding whether the widget's
-row-level preview shows rendered or raw text. Attachments need a new
-`Attachment` entity (task FK, file path, original filename, size, added
-date), a documents subfolder under `AppStorageOptions.RootDirectory`, and
-UI for attach/preview/remove in the full-field editor — this is the
-heaviest item in this phase and could be split out on its own if scope
-needs trimming.
+- `src/DeskTodo.Domain/Entities/{ChecklistItem,TaskTemplate}.cs`
+- `src/DeskTodo.Infrastructure/Data/Configurations/{ChecklistItemConfiguration,TaskTemplateConfiguration}.cs`
+- `src/DeskTodo.Application/Abstractions/{IChecklistRepository,ITaskTemplateRepository}.cs`,
+  `src/DeskTodo.Infrastructure/Repositories/{ChecklistRepository,TaskTemplateRepository}.cs`
+- `src/DeskTodo.Application/Services/{IChecklistService,ChecklistService,ITaskTemplateService,TaskTemplateService}.cs`
+- `src/DeskTodo.App/ViewModels/ChecklistItemRowViewModel.cs`, `TaskEditViewModel.cs`
+  (checklist add/toggle/remove, `TemplateNameToSave`/`SaveAsTemplateCommand`)
+- `src/DeskTodo.App/ViewModels/WidgetViewModel.cs` (`Templates`, `SelectedTemplateToApply`)
+- `src/DeskTodo.App/Views/TaskEditWindow.axaml` (checklist section), `WidgetWindow.axaml` ("From template…" picker)
+- Migration: `20260731190657_AddChecklistsTemplatesTagsRecurrence` (shared with Phases 18–19)
+- Tests: `ChecklistRepositoryTests`, `TaskTemplateRepositoryTests`, `ChecklistServiceTests`,
+  `TaskTemplateServiceTests`, `TaskEditViewModelTests`, `WidgetViewModelTests`
 
-## 18. Tags, labels & grouping ⬜
+## 18. Tags, labels & grouping 🚧
 
-Task Management's fields kept separate from Categories intentionally in
-the wishlist (Categories = one per task, exclusive; Tags = many per task,
-freeform) — this phase adds that second, orthogonal classification axis and
-the list-view features that make it useful.
+- [x] Tags — free-form, multi-valued, user-created (`Tag`, many-to-many with
+      `TaskItem`); add/remove chips in the full-field editor, get-or-create
+      by name (case-insensitive) so re-typing an existing tag reuses it
+      rather than duplicating
+- [x] Tag filter — a search-bar dropdown alongside the existing status/category
+      filters, mirroring `CategoryFilterOption`'s shape
+- [x] Group By — shipped as a `TaskSortOption.Category` sort mode (clusters
+      same-category rows together, uncategorized last) rather than a
+      separate grouped-list UI with header rows — see scope note below
+- [x] Favorite Tasks — a second boolean flag distinct from Pin
+      (`TaskItem.IsFavorite`/`MarkFavorite`/`UnmarkFavorite`), toggled from
+      the row context menu exactly like Pin, shown as a ⭐ row indicator
+- [x] Task Color — a per-task `ColorHex` override (8-swatch palette + "none"
+      in the full-field editor); the widget row's priority dot now shows it
+      when set, falling back to the priority color otherwise
+- [ ] Recently Viewed — not built
 
-**Deliverables:**
-- Tags/Labels — free-form, multi-valued, user-created (functionally the
-  same concept under two names in the wishlist; ship as one feature)
-- Group By — group `VisibleTasks` under headers (by category, priority,
-  tag, or due date) instead of one flat list
-- Favorite Tasks — a second boolean flag distinct from Pin (e.g. Pin =
-  "keep at the top of today," Favorite = "important across every day," or
-  whatever distinction the product actually wants — needs a product
-  decision, not just an engineering one)
-- Task Color — a per-task custom color override, independent of category
-  color, exposed in the full-field editor
-- Recently Viewed — a short-lived list of the last N tasks opened in the
-  full-field editor, shown somewhere in the search/filter bar
+**Scope note on Group By:** implemented as an additional `TaskSortOption`
+(sorting by category name visually clusters same-category rows) instead of
+a header-row grouped list. This delivers the *visual* grouping outcome
+without `RefreshVisibleTasks` needing to switch from a flat
+`ObservableCollection<TaskItemViewModel>` to a heterogeneous
+header/item collection — a meaningfully bigger change to the row list's
+shape that every consumer (drag-to-reorder, bulk-select, `HasNoTasks`, ...)
+would have had to account for. Grouping by priority/tag/due-date (only
+category was requested strongly enough to prioritize) and true header rows
+are still open if a future pass wants them.
 
-**Approach:** Tags need a many-to-many relationship — a `Tag` entity plus a
-join table (`TaskTag`), unlike the existing one-to-many `Category`
-relationship. The search/filter bar (Phase 11's `WidgetViewModel`) gains a
-tag-filter alongside the existing status/category filters, and the editor
-gains a tag-picker/tag-creator control. Group By changes `RefreshVisibleTasks`
-from producing a flat `ObservableCollection<TaskItemViewModel>` to
-something that can represent group headers — either a heterogeneous
-collection with header/item marker types, or a nested
-`ObservableCollection<GroupViewModel>` bound via an Avalonia
-`ItemsControl` with grouped `DataTemplate`s. Recently Viewed needs a
-small in-memory (or lightly persisted) ring buffer tracked wherever the
-full-field editor is opened from.
+- `src/DeskTodo.Domain/Entities/Tag.cs`, `src/DeskTodo.Infrastructure/Data/Configurations/TagConfiguration.cs`
+  (implicit many-to-many via EF Core skip navigations — no explicit join-entity class)
+- `src/DeskTodo.Application/Abstractions/ITagRepository.cs`, `src/DeskTodo.Infrastructure/Repositories/TagRepository.cs`
+- `src/DeskTodo.Application/Services/{ITagService,TagService}.cs`
+- `src/DeskTodo.Domain/Entities/TaskItem.cs` (`IsFavorite`, `MarkFavorite`/`UnmarkFavorite`, `ColorHex` already existed, now wired to UI)
+- `src/DeskTodo.App/ViewModels/TagChip.cs`, `TaskEditViewModel.cs` (tag add/remove, color swatches)
+- `src/DeskTodo.App/ViewModels/{TagFilterOption,TaskSortOption}.cs`, `WidgetViewModel.cs`
+  (`Tags`, `SelectedTagFilter`, `RefreshTagsAsync`, `TaskSortOption.Category` handling)
+- `src/DeskTodo.App/ViewModels/TaskItemViewModel.cs` (`IsFavorite`, `DisplayColorHex`, `ToggleFavoriteCommand`)
+- `src/DeskTodo.App/Views/WidgetWindow.axaml` (tag filter dropdown, ⭐ indicator, Favorite context-menu item, `DisplayColorHex` binding)
+- Migration: `20260731190657_AddChecklistsTemplatesTagsRecurrence` (shared with Phases 17, 19)
+- Tests: `TagRepositoryTests`, `TagServiceTests`, `TaskEditViewModelTests`, `TaskItemViewModelTests`, `WidgetViewModelTests`
 
-## 19. Recurring tasks, dependencies & auto-reschedule ⬜
+## 19. Recurring tasks, dependencies & auto-reschedule 🚧
 
-Three related "a task's lifecycle isn't just create → complete" features,
-including the explicit "later" note: *alert when a task isn't done within
-its timeframe, then move it to the next/a different day.*
+- [x] Recurring Tasks — `RecurrenceFrequency` (None/Daily/Weekly/Monthly) +
+      `RecurrenceInterval` + optional `RecurrenceEndDate` on `TaskItem`,
+      editable in the full-field editor; `TaskItem.GetNextOccurrencePlanDate()`
+      is a pure computation, and `TaskService.CompleteTaskAsync` creates the
+      next occurrence (copying title/description/priority/category/estimate/
+      notes/color/recurrence settings — not checklist/tags) when completing a
+      recurring task, unless the next date would fall after the end date
+- [x] Auto-reschedule overdue tasks — a Settings toggle
+      (`AppSettings.AutoRescheduleOverdueTasks`, **defaults to off** — moving
+      a task's `PlanDate` is a real data change, not a display preference, so
+      it stays opt-in). When on, `WidgetViewModel` bumps every incomplete,
+      non-archived task from a past day onto today the first time today's
+      list loads each calendar day (mirrors `MaybeSendDailySummaryAsync`'s
+      once-per-day guard), appended to the end of the day's list
+- [ ] Task Dependencies — not built
 
-**Deliverables:**
-- Recurring Tasks — daily/weekly/monthly/custom recurrence rules; when the
-  latest occurrence is completed (or its day passes), the next occurrence
-  is created automatically
-- Task Dependencies — task B can be marked blocked-by task A; the UI
-  should make a blocked task visually distinct and prevent (or at least
-  warn on) completing it before its blocker
-- Auto-reschedule overdue tasks — building on Phase 13's overdue-alert
-  notification: after alerting, offer (or automatically perform, per a
-  Settings toggle) moving an incomplete overdue task to today or the next
-  day, rather than leaving it silently stuck on a past date forever
+**Approach note:** recurrence's "create the next occurrence" logic lives in
+`TaskService.CompleteTaskAsync` rather than a separate background poller —
+completion is the only event that can produce a next occurrence, so there's
+no need for `WidgetViewModel`'s 30-second timer to also carry this check.
+Dependencies were left out: it's the one item here that's a genuinely
+separate concept (a `TaskDependency` join entity + a completion guard) with
+its own UI needs (visually marking a blocked task, warning on early
+completion) rather than an extension of an existing field, and didn't have
+enough signal to justify scoping alongside the other two.
 
-**Approach:** Recurrence needs a `RecurrenceRule` on `TaskItem` (or a
-separate `RecurrenceRule` entity referenced by it) capturing frequency,
-interval, and an optional end condition, plus a background check —
-reusing `WidgetViewModel`'s existing 30-second poll timer pattern from
-Phase 10/13 — that generates the next occurrence's `TaskItem` row when due.
-Dependencies need a `TaskDependency` join entity (blocking task ID, blocked
-task ID) and a guard in `TaskService.CompleteTaskAsync` that checks for
-incomplete blockers. Auto-reschedule is the most self-contained of the
-three: extend the existing overdue-check in `WidgetViewModel` (Phase 13)
-to, after notifying, either prompt via a small confirmation or (if a new
-"Auto-reschedule overdue tasks" Settings toggle is on) directly update the
-task's `PlanDate` and persist — no new entities needed, just new logic in
-an already-existing method.
+- `src/DeskTodo.Domain/Enums/RecurrenceFrequency.cs`
+- `src/DeskTodo.Domain/Entities/TaskItem.cs` (`RecurrenceFrequency`/`RecurrenceInterval`/`RecurrenceEndDate`, `GetNextOccurrencePlanDate`)
+- `src/DeskTodo.Application/Services/TaskService.cs` (`CompleteTaskAsync`'s next-occurrence creation, `RescheduleOverdueTasksAsync`)
+- `src/DeskTodo.Application/Abstractions/ITaskRepository.cs`, `src/DeskTodo.Infrastructure/Repositories/TaskRepository.cs` (`GetIncompleteBeforeDateAsync`)
+- `src/DeskTodo.Application/Settings/AppSettings.cs` (`AutoRescheduleOverdueTasks`), `SettingsViewModel.cs`, `Views/SettingsWindow.axaml`
+- `src/DeskTodo.App/ViewModels/TaskEditViewModel.cs` (recurrence fields), `Views/TaskEditWindow.axaml` ("Repeat" section)
+- `src/DeskTodo.App/ViewModels/WidgetViewModel.cs` (`MaybeRescheduleOverdueTasksAsync`)
+- `src/DeskTodo.App/Converters/RecurrenceFrequencyToBoolConverter.cs`
+- Migration: `20260731190657_AddChecklistsTemplatesTagsRecurrence` (shared with Phases 17–18)
+- Tests: `TaskServiceTests` (recurrence + reschedule), `TaskRepositoryTests`, `SettingsViewModelTests`,
+  `SettingsServiceTests`, `WidgetViewModelTests`, `TaskEditViewModelTests`
 
-## 20. Excel-style grid view ⬜
+## 20. Excel-style grid view 🚧
 
-The single largest item in the whole wishlist, and notably the one closest
-to this project's *original* pre-pivot concept (the "DesktopSheet"
-Excel-overlay idea from before the DeskTodo pivot) — worth calling out
-explicitly since it's effectively bringing that original direction back as
-an alternate view, not the primary one this time.
+- [x] An Excel-like grid as an alternate view of the task list — every
+      non-archived task across every day, opened from a new header icon
+      button on the widget (`GridWindow`, a separate dialog window; doesn't
+      replace the compact widget)
+- [x] Inline cell editing — Title/Notes (text), Date/Due (date pickers),
+      Priority/Category (dropdowns), Done (checkbox); each cell edit
+      persists immediately (no separate Save button, matching every other
+      immediate-persistence surface in this app)
+- [x] Multi-row selection + bulk update — a per-row selection checkbox
+      column (`DataGrid.SelectedItems` isn't two-way bindable in Avalonia's
+      `DataGrid`, so this mirrors the widget's own Phase 11 bulk-select
+      pattern instead) + a "Delete Selected" bulk action
+- [x] Resizable, reorderable, sortable columns — `DataGrid`'s own built-in
+      `CanUserResizeColumns`/`CanUserReorderColumns`/`CanUserSortColumns`,
+      not custom-built
+- [ ] Copy/paste to and from real Excel (TSV clipboard interop) — not built
+- [ ] Hideable/freezable columns, saved column-layout "views" — not built
+- [ ] Dedicated Progress/Status columns — not built (Done is a plain
+      checkbox column bound to `IsCompleted`, not a derived progress value)
 
-**Deliverables:**
-- An Excel-like grid as an alternate view of the task list (likely opened
-  from a new window/tab, not replacing the compact widget)
-- Inline cell editing, multi-row selection, bulk update across selected rows
-- Copy/paste rows within the grid, and copy/paste to and from real Excel
-  (tab-separated clipboard interop — Excel's copy format is TSV-based, not
-  the app's own CSV format)
-- Custom, hideable, freezable, resizable, reorderable columns; saved
-  column-layout "views"
-- Dedicated Progress and Status columns (computed/derived, not raw fields)
+**Scope note:** `Avalonia.Controls.DataGrid` (the official first-party
+package, version-matched to the rest of the pinned Avalonia 12.1.0 stack)
+was added rather than building a custom grid or reaching for a third-party
+package — it already provides resize/reorder/sort, editable columns, and a
+checkbox column out of the box. Column-type/API choices (`DataGridTemplateColumn`
+for date/dropdown cells, `DataGridCollectionView`-driven sort via
+`SortMemberPath`, no `DataGridComboBoxColumn` — it doesn't exist in this
+package) were confirmed against the actual compiled assembly via reflection
+before use, not assumed from general DataGrid familiarity. TSV clipboard
+interop, saved views, and hide/freeze were cut for scope — each is a
+self-contained follow-up, not a blocker for the grid being genuinely usable
+today.
 
-**Approach:** This needs a real data-grid control — Avalonia doesn't ship
-one in the base `Avalonia.Controls` set used so far in this project; either
-a community grid package or a custom `ItemsControl`-based grid would be a
-prerequisite decision. The underlying data is the same `TaskItem`s already
-modeled — this is a new *View* (and a fairly involved `GridViewModel`
-sitting alongside `WidgetViewModel`), not new Domain/Application-layer
-work, aside from possibly a "saved view" concept (column layout + filter
-state, persisted similarly to `AppSettings`). Clipboard interop with real
-Excel needs Avalonia's clipboard API read/written in TSV, separate from
-the CSV/JSON import/export already built in Phase 14 (different format,
-different transport — clipboard vs. file).
+- `Directory.Packages.props`, `src/DeskTodo.App/DeskTodo.App.csproj` (`Avalonia.Controls.DataGrid`)
+- `src/DeskTodo.App/App.axaml` (`StyleInclude` for the DataGrid's Fluent theme)
+- `src/DeskTodo.App/ViewModels/{GridViewModel,TaskGridRowViewModel}.cs`
+- `src/DeskTodo.App/Views/{GridWindow.axaml,GridWindow.axaml.cs}`
+- `src/DeskTodo.App/ViewModels/WidgetViewModel.cs` (`GridViewRequested`, `OpenGridViewCommand`),
+  `Views/WidgetWindow.axaml` (grid header icon), `Views/WidgetWindow.axaml.cs` (`OnGridViewRequested`)
+- No new migration — reads/writes the same `TaskItem` fields already modeled
+- Tests: `GridViewModelTests`, `GridWindowRenderTests` (headless, incl. a screenshot-verified render)
 
 ## 21. Calendar, weekly/monthly/year views & alternate layouts ⬜
 

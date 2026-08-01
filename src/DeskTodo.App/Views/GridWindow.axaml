@@ -1,0 +1,153 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1040" d:DesignHeight="480"
+        x:Class="DeskTodo.App.Views.GridWindow"
+        x:DataType="vm:GridViewModel"
+        Title="All Tasks — Grid View"
+        Width="1040" Height="480"
+        MinWidth="600" MinHeight="300"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        Background="#F8FAFC">
+
+    <!--
+      An Excel-style editable view of every non-archived task across every day —
+      Phase 20. Column resize/reorder/sort are the DataGrid control's own built-in
+      behavior (CanUserResizeColumns/CanUserReorderColumns/CanUserSortColumns below),
+      not anything GridViewModel drives. FrozenColumnCount is a fixed built-in default
+      (checkbox + Title always stay visible while scrolling horizontally), not a
+      user-facing toggle — building arbitrary freeze-point UI wasn't worth it for the
+      value. Each row persists its own cell edits immediately as they're made (see
+      GridViewModel's remarks) — there's no separate "Save" button, mirroring every
+      other immediate-persistence surface in this app (Pin, Complete, Delete, ...).
+    -->
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12">
+            <TextBlock Grid.Column="0" Text="All Tasks" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" />
+            <TextBlock Grid.Column="1" Text="{Binding SelectedCount, StringFormat='{}{0} selected'}"
+                       VerticalAlignment="Center" FontSize="12" Foreground="#64748B" Margin="0,0,12,0"
+                       IsVisible="{Binding HasSelection}" />
+            <Button Grid.Column="2" Content="Columns" FontSize="12" Padding="10,4">
+                <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedRight" Opened="OnColumnsFlyoutOpened">
+                        <StackPanel Spacing="6" MinWidth="140">
+                            <TextBlock Text="Show columns" FontSize="11" Foreground="#64748B" Margin="0,0,0,2" />
+                            <CheckBox x:Name="CategoryColumnCheckBox" Content="Category" Click="OnColumnVisibilityChanged" />
+                            <CheckBox x:Name="DueColumnCheckBox" Content="Due" Click="OnColumnVisibilityChanged" />
+                            <CheckBox x:Name="NotesColumnCheckBox" Content="Notes" Click="OnColumnVisibilityChanged" />
+                            <CheckBox x:Name="StatusColumnCheckBox" Content="Status" Click="OnColumnVisibilityChanged" />
+                            <CheckBox x:Name="ProgressColumnCheckBox" Content="Progress" Click="OnColumnVisibilityChanged" />
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+        </Grid>
+
+        <DataGrid x:Name="TasksGrid" Grid.Row="1" ItemsSource="{Binding Rows}"
+                  AutoGenerateColumns="False" CanUserResizeColumns="True"
+                  CanUserReorderColumns="True" CanUserSortColumns="True"
+                  FrozenColumnCount="2"
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                  SelectionMode="Extended">
+            <DataGrid.Columns>
+                <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="36" CanUserSort="False" />
+
+                <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="2*" SortMemberPath="Title" />
+
+                <DataGridTemplateColumn Header="Date" Width="130" SortMemberPath="PlanDate">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:TaskGridRowViewModel">
+                            <TextBlock Text="{Binding PlanDateDisplay}" VerticalAlignment="Center" Margin="8,0" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate x:DataType="vm:TaskGridRowViewModel">
+                            <DatePicker SelectedDate="{Binding PlanDate}" HorizontalAlignment="Stretch" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="Priority" Width="110" SortMemberPath="Priority">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:TaskGridRowViewModel">
+                            <TextBlock Text="{Binding Priority}" VerticalAlignment="Center" Margin="8,0" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate x:DataType="vm:TaskGridRowViewModel">
+                            <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding Priority}" HorizontalAlignment="Stretch" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+
+                <!--
+                  Category/Status aren't user-sortable: DataGridColumn.SortMemberPath's
+                  built-in sort resolves the path via reflection against the row, and it's
+                  unverified whether nested paths like "Category.Name" are supported, and
+                  Status is a derived multi-condition string with no single backing property
+                  that would sort meaningfully — sidestepped rather than risking a runtime
+                  error or a confusing sort order.
+                -->
+                <DataGridTemplateColumn Header="Category" Width="130" CanUserSort="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:TaskGridRowViewModel">
+                            <TextBlock Text="{Binding Category.Name}" VerticalAlignment="Center" Margin="8,0" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate x:DataType="vm:TaskGridRowViewModel">
+                            <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding Category}" HorizontalAlignment="Stretch">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CategoryOption">
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="Due" Width="130" SortMemberPath="DueDate">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:TaskGridRowViewModel">
+                            <TextBlock Text="{Binding DueDateDisplay}" VerticalAlignment="Center" Margin="8,0" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate x:DataType="vm:TaskGridRowViewModel">
+                            <DatePicker SelectedDate="{Binding DueDate}" HorizontalAlignment="Stretch" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridCheckBoxColumn Header="Done" Binding="{Binding IsCompleted}" Width="60" SortMemberPath="IsCompleted" />
+
+                <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="2*" SortMemberPath="Notes" />
+
+                <DataGridTextColumn Header="Status" Binding="{Binding StatusDisplay}" Width="100" IsReadOnly="True" CanUserSort="False" />
+
+                <DataGridTextColumn Header="Progress" Binding="{Binding ProgressDisplay}" Width="80" IsReadOnly="True" CanUserSort="False" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,16,0,0">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                <Button Content="Copy" Click="OnCopyClick" Padding="12,8"
+                        ToolTip.Tip="Copy the selection (or every row, if none selected) as tab-separated text — pastes directly into Excel" />
+                <Button Content="Paste" Click="OnPasteClick" Padding="12,8"
+                        ToolTip.Tip="Create tasks from tab-separated clipboard text — from this grid or from Excel" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                <Button Content="Delete Selected" Command="{Binding DeleteSelectedCommand}"
+                        IsEnabled="{Binding HasSelection}" Padding="16,8"
+                        Background="#FEE2E2" Foreground="#DC2626" />
+                <Button Content="Close" Command="{Binding CloseCommand}" Padding="16,8"
+                        Background="#3B82F6" Foreground="White" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+
+</Window>

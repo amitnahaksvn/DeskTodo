@@ -47,7 +47,17 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<ITaskRepository, TaskRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IChecklistRepository, ChecklistRepository>();
+        services.AddScoped<ITaskTemplateRepository, TaskTemplateRepository>();
+        services.AddScoped<ITagRepository, TagRepository>();
+        services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+        services.AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
         services.AddScoped<ITaskService, TaskService>();
+        services.AddScoped<IChecklistService, ChecklistService>();
+        services.AddScoped<ITaskTemplateService, TaskTemplateService>();
+        services.AddScoped<ITagService, TagService>();
+        services.AddScoped<IAttachmentService, AttachmentService>();
+        services.AddScoped<ITaskDependencyService, TaskDependencyService>();
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<ITaskExportService, TaskExportService>();
         services.AddSingleton<ITaskImportService, TaskImportService>();

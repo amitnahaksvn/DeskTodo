@@ -196,4 +196,30 @@ public class SettingsViewModelTests
 
         settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => !a.ShowInTaskbar), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task LoadAsync_PopulatesAutoRescheduleOverdueTasksFromSettings()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { AutoRescheduleOverdueTasks = true });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+
+        await sut.LoadAsync();
+
+        Assert.True(sut.AutoRescheduleOverdueTasks);
+    }
+
+    [Fact]
+    public async Task SaveAsync_PersistsAutoRescheduleOverdueTasks()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { AutoRescheduleOverdueTasks = false });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.AutoRescheduleOverdueTasks = true;
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.AutoRescheduleOverdueTasks), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

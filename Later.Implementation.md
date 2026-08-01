@@ -3,11 +3,14 @@
 > A cross-platform desktop productivity application for Windows & macOS built with .NET.
 
 > **Status key:** `[x]` shipped (see IMPLEMENTATION.md for which phase). `[ ]`
-> not built. Checked/unchecked below reflects the state as of Phase 16
-> completing — cross-referenced item by item against IMPLEMENTATION.md, not
-> assumed. Everything still `[ ]` here has been carried into
-> IMPLEMENTATION.md's "Extended Roadmap (Phase 17+)" as a planned,
-> not-yet-started item.
+> not built. Checked/unchecked below reflects the state as of Phases 17–20
+> completing, including their originally-deferred items (2026-08-02) —
+> cross-referenced item by item against IMPLEMENTATION.md, not assumed;
+> several `[x]` items note a partial scope inline (see IMPLEMENTATION.md's
+> Phase 17–20 sections for the full detail on what shipped vs. what's still
+> deliberately out of scope). Everything still `[ ]` here has been carried
+> into IMPLEMENTATION.md's "Extended Roadmap (Phase 17+)" as a planned,
+> not-yet-started item (Phases 21–37).
 
 ---
 
@@ -23,29 +26,29 @@
 - [ ] Due Time _(the due-date picker is date-only; no time-of-day component in the UI yet)_
 - [x] Priority (Low, Medium, High, Urgent) _(built as Low/Medium/High/Critical)_
 - [x] Categories
-- [ ] Tags
-- [ ] Labels
-- [ ] Task Color _(the field exists on the entity; no UI to set a custom per-task color)_
-- [ ] Subtasks
-- [ ] Checklists
+- [x] Tags _(free-form, many-to-many, added/removed as chips in the full-field editor)_
+- [x] Labels _(same feature as Tags — the wishlist lists them separately, shipped as one)_
+- [x] Task Color _(an 8-swatch palette + "none" in the full-field editor; the widget row's dot shows it when set)_
+- [x] Subtasks _(a single-level parent/child relationship — a subtask having its own subtasks isn't offered at the UI layer)_
+- [x] Checklists
 - [x] Task Notes
-- [ ] Rich Text Notes
-- [ ] Attachments
-- [ ] Recurring Tasks
-- [ ] Task Dependencies
+- [x] Rich Text Notes _(a hand-rolled minimal Markdown preview — bold/italic/bullet lines — not a general Markdown parser)_
+- [x] Attachments _(files copied into app storage, 20 MB cap; attach/open/remove in the full-field editor)_
+- [x] Recurring Tasks _(Daily/Weekly/Monthly + interval + optional end date; completing a recurring task creates its next occurrence)_
+- [x] Task Dependencies _(a "Blocked by" picker + a completion guard; deep transitive cycles — A blocks B blocks C blocks A — aren't detected, only direct two-task cycles)_
 - [x] Archive Tasks
-- [ ] Favorite Tasks _(distinct from Pin, which is built)_
+- [x] Favorite Tasks _(distinct from Pin — a second ⭐ flag, toggled from the row context menu)_
 - [x] Duplicate Task
-- [ ] Task Templates
+- [x] Task Templates _(save a task's shape — incl. checklist — as a named template; "New from template" in the widget's add-task row)_
 - [x] Pin Tasks
 - [x] Search Tasks
-- [x] Advanced Filters _(status/category filters; no saved filter presets or multi-criteria combos yet)_
+- [x] Advanced Filters _(status/category/tag filters; no saved filter presets or multi-criteria combos yet)_
 - [x] Sorting
-- [ ] Group By
+- [x] Group By _(shipped as a "sort by Category" mode that visually clusters same-category rows, not a separate grouped-list UI with header rows)_
 - [ ] Bulk Edit _(bulk complete/delete exist; no bulk field edit, e.g. reassign category for N selected tasks)_
 - [x] Multi Select
 - [x] Drag & Drop
-- [ ] Recently Viewed
+- [x] Recently Viewed _(session-only — resets on restart, never persisted)_
 
 ---
 
@@ -69,23 +72,23 @@
 
 # 📊 Spreadsheet / Grid View
 
-- [ ] Excel-like Grid
-- [ ] Inline Editing _(inline title-rename exists in the list view; no grid)_
+- [x] Excel-like Grid _(a separate "All Tasks" grid window, opened from the widget header, over every non-archived task across every day)_
+- [x] Inline Editing _(title/notes text, date pickers, priority/category dropdowns, a completed checkbox — each cell persists immediately)_
 - [ ] Copy Rows
 - [ ] Paste Rows
-- [ ] Copy from Excel
-- [ ] Paste from Excel
-- [ ] Bulk Update
-- [ ] Multi Row Selection
+- [x] Copy from Excel _(TSV clipboard interop — pastes a real Excel range's tab-separated cells into the grid as new tasks)_
+- [x] Paste from Excel _(same TSV interop, both directions)_
+- [x] Bulk Update _("Delete Selected" across a multi-selection; no bulk field edit — e.g. reassign category for N rows — yet)_
+- [x] Multi Row Selection _(a per-row selection checkbox column, not the grid's native selection — Avalonia's DataGrid doesn't expose a two-way-bindable SelectedItems)_
 - [ ] Custom Columns
-- [ ] Hide Columns
-- [ ] Freeze Columns
-- [ ] Resize Columns
-- [ ] Reorder Columns
-- [ ] Saved Views
+- [x] Hide Columns _(a "Columns" flyout toggle, persisted across sessions)_
+- [x] Freeze Columns _(a fixed 2-column freeze — checkbox + Title — not a user-configurable freeze point)_
+- [x] Resize Columns _(the DataGrid control's own built-in behavior)_
+- [x] Reorder Columns _(same — built-in)_
+- [ ] Saved Views _(one auto-persisted layout — column visibility only, not widths/order — not multiple named, switchable views)_
 - [ ] Filters _(list-view filters are built; grid-specific column filters are not)_
-- [ ] Progress Column
-- [ ] Status Column
+- [x] Progress Column _(checklist completion, "checked/total" — "—" for a task with no checklist)_
+- [x] Status Column _(derived: Done / Overdue / Due Today / Upcoming / No due date)_
 - [x] Import CSV
 - [ ] Import Excel _(Excel export exists; import is CSV/JSON only)_
 - [x] Export CSV
@@ -169,7 +172,7 @@
 # 🔔 Reminders
 
 - [x] One Time Reminder _(overdue-task alert)_
-- [ ] Recurring Reminder _(needs Recurring Tasks first)_
+- [ ] Recurring Reminder _(Recurring Tasks now exists; a reminder that itself repeats per-occurrence still isn't built)_
 - [x] Desktop Notification
 - [ ] Sound Notification _(relies on OS default notification sound; no custom sound)_
 - [ ] Snooze
@@ -202,7 +205,7 @@
 - [ ] Clipboard History
 - [ ] Activity Log
 - [x] Batch Actions _(bulk complete/delete on a multi-selection)_
-- [ ] Task Templates
+- [x] Task Templates _(same feature already listed under Core Task Management, above)_
 
 ---
 
@@ -437,12 +440,12 @@ prose:
 
 - [x] 📌 Always-on-top desktop widget
 - [x] 📅 Date-wise planning
-- [ ] ✅ Checklist tracking
-- [ ] 📊 Excel-style task management
+- [x] ✅ Checklist tracking
+- [x] 📊 Excel-style task management _(the grid window — see the Spreadsheet / Grid View section above for exactly what did/didn't ship)_
 - [x] 💬 Notes _(the "comments" half — a discussion thread on a task — is not built)_
 - [x] ⏰ Reminders
 - [ ] 🖥️ Native Windows & macOS experience _(macOS notifications/auto-start are verified live; the Windows equivalents are authored but not runtime-verified — no Windows machine in this dev environment)_
-- [ ] Alert when a task is overdue and move it to the next/a different day automatically
+- [x] Alert when a task is overdue and move it to the next/a different day automatically _(the existing overdue notification, plus a new opt-in "Auto-reschedule overdue tasks" Settings toggle)_
 - [ ] App version display + update-available prompt; updating must never delete existing data
 - [ ] Nicer UI polish (a "Bootstrap-like" free component/styling pass)
 - [ ] Send a task to another user, who can accept or reject it

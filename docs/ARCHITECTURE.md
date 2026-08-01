@@ -781,6 +781,301 @@ as a direct question rather than a unilateral scoping call the way smaller
 decisions (e.g. Phase 11's "search by date") were — the user confirmed
 skipping it.
 
+## Phase 17 — checklists & task templates
+
+**`TaskTemplate.ChecklistItems` is a manual JSON-string conversion, not
+EF Core's newer built-in primitive-collection-to-JSON mapping.** EF Core
+can map a `List<string>` column to JSON natively in recent versions, but
+whether that support behaves correctly against the exact SQLite provider
+version this project pins wasn't verified, and a hand-rolled
+`JsonSerializer.Serialize`/`Deserialize` `HasConversion` (with an explicit
+`ValueComparer` so EF Core's change tracker can tell when the list actually
+changed) is unambiguous and has worked in EF Core/SQLite for years — the
+same "don't take an unverified API on faith" discipline as the
+`ShowInTaskbar` investigation below, applied at design time instead of
+after the fact.
+
+**Checklist items persist immediately, per action — there's no staged
+"Save" for them the way Title/Priority/Category still work in the
+full-field editor.** Add/toggle/remove each call `IChecklistService`
+directly and update the row list in place. This matches every other
+row-level mutation in the app (Pin, Complete, Delete, ...) and avoids a
+"did my checklist edits actually save" ambiguity if the editor window is
+closed via the OS close button rather than Save/Cancel. Tags (Phase 18)
+follow the same immediate-persistence rule for the same reason.
+
+## Phase 18 — tags & task color
+
+**Tags use EF Core's implicit many-to-many (skip navigations), not an
+explicit `TaskTag` join-entity class.** `Tag.Tasks`/`TaskItem.Tags` plus
+`HasMany(...).WithMany(...).UsingEntity(j => j.ToTable("TaskTags"))` is
+enough — there's no extra data on the join itself (no "added at" timestamp
+per assignment, no ordering), so a join entity would just be ceremony EF
+Core's own modern many-to-many support already avoids needing.
+
+**Group By shipped as an extra `TaskSortOption` (`Category`), not a
+grouped-list UI with header rows.** Sorting by category name visually
+clusters same-category tasks together — the actual user-visible outcome —
+without `WidgetViewModel.RefreshVisibleTasks` needing to switch
+`VisibleTasks` from a flat `ObservableCollection<TaskItemViewModel>` to a
+heterogeneous header/item collection. That's a materially bigger change
+whose ripple effects (drag-to-reorder, bulk-select, `HasNoTasks`, the
+`ItemsControl`'s `DataTemplate`) every existing consumer of `VisibleTasks`
+would need to account for, for a feature whose actual ask — "make
+same-category tasks sit together" — the sort-mode approach already
+satisfies. True header-row grouping (and grouping by priority/tag/due-date)
+is still open if a future pass specifically wants it.
+
+**The widget row's priority-colored dot now shows `TaskItem.ColorHex` when
+set, falling back to the priority color otherwise.** `ColorHex` existed on
+`TaskItem` since an earlier phase but had no UI to set *or display* it —
+cross-referencing `Later.Implementation.md` surfaced that gap. Wiring the
+color picker without also wiring its display would have shipped a setting
+with no visible effect, so `TaskItemViewModel.DisplayColorHex` was added
+alongside the picker itself.
+
+## Phase 19 — recurrence & auto-reschedule
+
+**`TaskItem.GetNextOccurrencePlanDate()` is a pure computation; creating
+the next occurrence's row is `TaskService.CompleteTaskAsync`'s job, not the
+Domain entity's.** The Domain layer computes *what date* the next
+occurrence should land on (or `null`, if the task doesn't recur or the next
+date would fall after `RecurrenceEndDate`) with no side effects and no
+repository dependency, staying consistent with every other `TaskItem`
+method (`Complete()`, `Pin()`, ...) being a pure state mutation. Actually
+persisting a new row needs `ITaskRepository` (to add it) and — like
+`CreateTaskAsync`/`DuplicateTaskAsync` — `GetMaxDayOrderAsync` (to append it
+at the end of its target day's list), both Application-layer concerns the
+Domain entity has no business depending on.
+
+**"Auto-reschedule overdue tasks" defaults to off, and is gated behind an
+explicit Settings toggle — not automatic.** Every other Settings default
+in this app (`ShowInTaskbar`, `NotificationsEnabled`, ...) preserves
+existing behavior; this one goes further, since it's not just a display
+preference but a real, silent mutation of `TaskItem.PlanDate` — an
+existing user upgrading to this version should never find their overdue
+tasks moved without having opted in first. The check itself
+(`WidgetViewModel.MaybeRescheduleOverdueTasksAsync`) mirrors
+`MaybeSendDailySummaryAsync`'s "only while viewing today, only once per
+calendar day the app stays open" guard shape, and runs *before*
+`LoadTasksAsync` fetches today's list so any just-rescheduled tasks appear
+immediately rather than needing a second reload.
+
+**Deferred: Task Dependencies.** Unlike Recurrence and Auto-reschedule
+(each an extension of `TaskItem`'s existing lifecycle), Dependencies is a
+genuinely separate concept — a `TaskDependency` join entity, a completion
+guard, and its own UI (marking a blocked task, warning on early completion)
+— without enough signal in `Later.Implementation.md` to justify scoping
+it alongside the other two in the same pass. Built in the follow-up pass
+below — see "Phase 17–20 remainder."
+
+## Phase 20 — Excel-style grid view
+
+**`Avalonia.Controls.DataGrid`'s actual API surface was confirmed via
+reflection against the compiled assembly before writing any XAML against
+it, not assumed from general DataGrid familiarity (WPF, other Avalonia
+apps, etc.).** This caught two real mismatches early: there is no
+`DataGridComboBoxColumn` in this package (dropdown cells need a
+`DataGridTemplateColumn` with a `ComboBox` in its `CellEditingTemplate`
+instead), and `DataGrid.SelectedItems` exists but isn't two-way bindable —
+so multi-row selection couldn't be wired the "obvious" WPF-familiar way.
+Both were discovered by loading the actual `12.1.0` package into a
+throwaway console project and enumerating its public types/members via
+`System.Reflection`, the same "verify, don't assume" discipline the
+`ShowInTaskbar` investigation established earlier in this project — applied
+here *before* writing code, rather than after a wrong assumption already
+shipped.
+
+**Multi-row selection uses a per-row `IsSelected` checkbox column, not
+`DataGrid`'s native selection.** Directly following from the point above:
+since `SelectedItems` isn't bindable, `TaskGridRowViewModel` gets its own
+`IsSelected` bool (a `DataGridCheckBoxColumn`'s first column) and
+`GridViewModel.SelectedCount`/`DeleteSelectedCommand` work off that —
+exactly the same pattern `WidgetViewModel`'s Phase 11 bulk-select already
+established (per-row `IsSelected`, a "Delete Selected" bulk action), reused
+rather than reinvented.
+
+**Each grid row persists its own edits via a `PropertyChanged`
+subscription added *after* construction, not from inside the row's own
+constructor.** `TaskGridRowViewModel`'s constructor sets every field from
+the loaded `TaskItem` via the same `[ObservableProperty]`-generated setters
+a live edit would use — if `GridViewModel` subscribed to `PropertyChanged`
+before or during construction, loading the grid would re-save every row's
+just-loaded state as if the user had edited it. `GridViewModel.LoadAsync`
+constructs each row, *then* subscribes — mirroring
+`WidgetViewModel.LoadTasksAsync`'s identical `TaskItemViewModel` handling,
+and the same footgun `TaskItemViewModel`'s own doc comments already warn
+about (`Constructor_NeverPersistsTheJustLoadedState` — `GridViewModelTests`
+has an equivalent regression test).
+
+**Category isn't a user-sortable grid column, unlike every other column.**
+`DataGridColumn.SortMemberPath` resolves via reflection against the row —
+confirmed to exist for simple top-level property names, but whether it
+supports a nested path like `"Category.Name"` wasn't verified, and getting
+it wrong risks a runtime reflection error on every sort click rather than
+a quiet no-op. `CanUserSort="False"` on just that column sidesteps the
+question entirely rather than shipping an unverified path.
+
+**Deferred: real-Excel clipboard interop (TSV copy/paste), saved
+column-layout "views", hide/freeze columns.** Each is genuinely
+self-contained follow-up work — clipboard interop needs Avalonia's
+clipboard API read/written in TSV (a different format and transport from
+the CSV/JSON file import/export already built in Phase 14), saved views
+need a new persisted "column layout + filter state" concept — not
+prerequisites for the grid being a real, usable Excel-style editing surface
+today. Clipboard interop, single-layout hide-columns, and freeze-columns
+were built in the follow-up pass below; multiple *named* saved views
+remain deferred — see "Phase 17–20 remainder."
+
+## Phase 17–20 remainder — finishing the deliberately deferred scope
+
+Each of Phases 17–20 above shipped with an explicit "Deferred:" paragraph
+scoping out real work rather than silently dropping it. This pass went
+back and built everything those paragraphs named, item by item, keeping
+the same layer-by-layer discipline (Domain → Infrastructure → Application
+→ App, tests plus a live migration check before moving to the next layer)
+the rest of this document already establishes. What follows is organized
+by feature, not by which original phase deferred it.
+
+**Subtasks: a self-referencing FK on `TaskItem`, not a separate join
+table.** `TaskItem.ParentTaskId`/`ParentTask`/`Subtasks` is the same shape
+EF Core would use for any one-to-many, just pointed at its own table —
+there's no extra data on the parent/child relationship itself (no ordering,
+no per-subtask metadata), so a join entity would be pure ceremony, the same
+reasoning that kept Tags (Phase 18) off a join entity too. The FK uses
+`DeleteBehavior.Restrict` rather than `Cascade`: in practice this never
+matters, since nothing in this codebase ever hard-deletes a `Tasks` row
+(`TaskService.DeleteTaskAsync` only ever sets `IsDeleted`), but `Restrict`
+is the safer no-surprises default if that ever changes, versus `Cascade`
+silently taking a whole subtree with it. The parent/child relationship is
+enforced as single-level only (a subtask can't itself have subtasks) purely
+at the UI layer — `TaskEditViewModel.LoadAsync` excludes the task's own
+`Subtasks` from its "Parent task" picker options — rather than a DB
+constraint, since the picker exclusion is enough to prevent it from ever
+happening through the app's own UI, and a DB-level check adds real
+complexity for a case with no actual code path that reaches it.
+
+**Attachments: files live under `AppStorageOptions.RootDirectory`, named
+by a fresh GUID, not the original filename.** `Attachment.StoredRelativePath`
+is stored relative to the app's data root (matching how the SQLite database
+file itself is already located, via `AppStorageOptions`) so the whole data
+directory — DB plus attachments — stays relocatable as one unit if a user
+ever moves it. Files are copied (never moved) into an `attachments/`
+subfolder under a name built from `Guid.NewGuid()` plus the original
+extension, which sidesteps filename collisions by construction rather than
+needing a "file already exists, rename or overwrite?" prompt. `AttachmentService`
+deletes the DB row *before* attempting to delete the underlying file, and
+treats the file delete as best-effort: an orphaned file on disk is a
+smaller, self-contained problem (silently wastes a little space) than a DB
+row that still points at a file that's gone, which would surface as a
+broken "Open" button. A 20 MB cap on the source file guards against someone
+attaching, say, a multi-gigabyte video into what's meant to be a lightweight
+per-task attachment, not a general file store.
+
+**Task Dependencies: a plain `TaskDependency` join entity, unlike Tags'
+implicit many-to-many.** `BlockingTaskId`/`BlockedTaskId` are directionally
+asymmetric — "this task blocks that one" is not the same fact as "that task
+blocks this one" — so a skip-navigation many-to-many (which treats both
+sides of the pair identically, the right model for Tags' plain "assigned or
+not") doesn't fit; an explicit join entity is a plain FK pair each with
+`DeleteBehavior.Restrict`, plus a unique composite index on
+`(BlockingTaskId, BlockedTaskId)` so the same blocker can't be added twice.
+`TaskItem.IsBlocked` is a computed property
+(`BlockedByDependencies.Any(d => d.BlockingTask is { IsCompleted: false })`)
+rather than a persisted flag, so it's always derived from live data and
+can never drift out of sync with the blocker's actual completion state —
+it requires `TaskRepository` to `Include` the `BlockingTask` navigation, and
+deliberately evaluates to `false` (not an error) if that Include is missing,
+since an empty un-included collection isn't distinguishable from "genuinely
+no blockers" without a separate loaded-flag, and treating it as "not
+blocked" is the safer default of the two ways to fail quietly.
+`TaskService.CompleteTaskAsync` throws `TaskBlockedException` — mirroring
+`TaskNotFoundException`'s shape — when `task.IsBlocked`, so completing a
+blocked task fails loudly rather than silently succeeding. Cycle prevention
+is deliberately narrow: `TaskDependencyService.AddBlockerAsync` refuses
+self-blocking and a direct two-task cycle (A blocks B, then B blocks A) via
+two `ExistsAsync` checks, but does **not** detect deeper transitive cycles
+(A blocks B, B blocks C, C blocks A) — a full cycle-detection graph walk
+felt like real added complexity for a case a user would need to go out of
+their way to construct, so it's documented here as a known, narrow
+limitation rather than something silently unhandled.
+
+**Rich Text Notes: a hand-rolled Markdown-lite scanner, not a third-party
+Markdown package.** Avalonia has no bundled Markdown renderer, and the
+natural binding path — a converter that turns Markdown text into styled
+output — doesn't work here because `TextBlock.Inlines`
+(`Avalonia.Controls.Documents.InlineCollection`) isn't a type a normal
+`IValueConverter` can hand back through a XAML binding in the usual way.
+`TaskEditWindow.axaml.cs` instead rebuilds `NotesPreviewBlock.Inlines`
+directly in code-behind whenever the "Preview" toggle is flipped, scanning
+for `**bold**`, `*italic*` (via `Bold`/`Italic`, both `Span` subclasses with
+a settable `Inlines` property) and `- ` bullet lines (prefixed with "• ").
+This is intentionally a small, fixed feature set — not a general Markdown
+parser — sized to what a task's notes field actually needs, not to Markdown's
+full spec.
+
+**Recently Viewed: `RecentTaskOption` was rewritten mid-implementation to
+match this project's established "give the item what it needs directly"
+pattern, not the ambient-`$parent`-binding pattern.** It was first written
+as a plain `record` whose chip button would bind to an ambient
+`$parent[ItemsControl].((vm:WidgetViewModel)DataContext).OpenRecentCommand`
+in `WidgetWindow.axaml` — the shape that would come most naturally by
+analogy with plain data records elsewhere. That's a real pattern this
+project deliberately moved away from for exactly this kind of per-row
+action (see `SubtaskRowViewModel`, `BlockerChip`, `AttachmentRowViewModel`,
+`TaskGridRowViewModel`'s doc comment), so before shipping it, it was
+rewritten as a self-contained class carrying its own
+`IRelayCommand OpenCommand` built via `new RelayCommand(() =>
+requestOpen(this))`, keeping the XAML binding a plain, un-ambient
+`Command="{Binding OpenCommand}"` inside the chip's own `DataTemplate`.
+Worth documenting because it's a case of catching a session-established
+convention being about to slip, mid-task, rather than after the fact.
+
+**Grid clipboard interop: `IClipboard` in the pinned Avalonia `12.1.0`
+does not have `SetTextAsync`/`GetTextAsync` directly on the interface.**
+General Avalonia/WPF familiarity suggests it should — older Avalonia
+versions and WPF both have exactly that shape — but reflecting over the
+actual compiled `IClipboard` interface in this package before writing
+`GridWindow.axaml.cs`'s copy/paste handlers found only `ClearAsync`,
+`SetDataAsync(IAsyncDataTransfer)`, `FlushAsync`, `TryGetDataAsync()`, and
+`TryGetInProcessDataAsync()` — the interface itself has moved to a newer
+`IAsyncDataTransfer`-based API. A further reflection pass over
+`Avalonia.Input.Platform.ClipboardExtensions` found the classic convenience
+methods still exist, just as extension methods:
+`SetTextAsync(IClipboard, string)` and `TryGetTextAsync(IClipboard)` (note
+the name — `TryGetTextAsync`, not `GetTextAsync`). `OnCopyClick`/
+`OnPasteClick` were written against the verified extension methods from the
+start (`using Avalonia.Input.Platform;`), the same "verify the real
+compiled API before writing code against it" discipline as the
+`DataGridComboBoxColumn`/`SelectedItems` findings in Phase 20 above — caught
+before it became a build-breaking wrong assumption, not after.
+
+**Grid hidden columns: checkbox state and actual column visibility sync
+at two different times, because a `Flyout`'s content isn't realized until
+the flyout is opened.** `GridWindow.OnOpened` applies the persisted
+`HiddenGridColumns` setting to `TasksGrid.Columns[i].IsVisible` directly —
+this always works immediately, since `DataGrid.Columns` exists as soon as
+the `DataGrid` itself is constructed, regardless of whether the "Columns"
+flyout has ever been opened. The flyout's own `CheckBox`es, though, don't
+exist as realized controls until the `Flyout` is actually shown, so syncing
+their `IsChecked` state to match current visibility has to happen in a
+`Flyout.Opened` handler instead — doing it in `OnOpened` alongside the
+`DataGrid` visibility would silently no-op against controls that don't
+exist yet. Column visibility is index-based
+(`ColumnVisibilityMap`, a static tuple array of checkbox name → setting
+name → column index) rather than name-based, since `DataGridColumn` has no
+built-in stable name/key the way a `Control` would have an `x:Name` that
+survives lookup — `DataGrid.Columns` stays in a fixed *definition* order
+regardless of the user's runtime `DisplayIndex` reordering, so an index
+captured at XAML-definition time stays valid.
+
+Two things named in the original "Deferred:" paragraphs above are still
+genuinely not built: multiple *named* saved grid views (still just the one
+auto-persisted column-visibility layout in `AppSettings.HiddenGridColumns`)
+and a user-facing freeze-column toggle (`FrozenColumnCount="2"` is still a
+fixed XAML value). Both remain open if a future pass specifically wants
+them.
+
 ## What's genuinely verified vs. authored-only (Phases 13–16)
 
 This dev environment is macOS-only with no Windows machine and no
@@ -815,3 +1110,7 @@ paths — that distinction is the whole point of stating it this plainly.
 | Platform integration | Auto-start (macOS verified live; Windows authored-only); desktop-level placement deliberately out of scope | ✅ Done |
 | Testing | Broader unit/integration/ViewModel/performance coverage | Ongoing |
 | Packaging | macOS DMG (built + verified end-to-end); Windows MSIX (authored, unverified — no Windows SDK here) | 🚧 Partial |
+| Checklists & templates | Per-task checklists; named task templates; subtasks; rich-text (Markdown-lite) notes; attachments | ✅ Done |
+| Tags & task color | Many-to-many tags + filter; a second Favorite flag; a per-task color override | ✅ Done |
+| Recurrence & auto-reschedule | Daily/Weekly/Monthly recurrence; opt-in auto-reschedule; Task Dependencies with a completion guard; Recently Viewed | ✅ Done |
+| Excel-style grid view | A separate editable `DataGrid` window over every task; TSV clipboard copy/paste; hide/freeze columns; Status/Progress columns (named saved views still deferred) | 🚧 Partial |

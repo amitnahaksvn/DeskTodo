@@ -81,6 +81,10 @@ dotnet build DeskTodo.sln
 dotnet run --project src/DeskTodo.App
 ```
 
+Or use the wrapper script (macOS/Linux: `scripts/run.sh`, Windows:
+`scripts/run.ps1`) — same command, just without needing to remember the
+project path. Either passes extra arguments straight through to the app.
+
 ## Testing
 
 ```bash

@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "DeskTodo (Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/DeskTodo.App/bin/Debug/net10.0/DeskTodo.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/DeskTodo.App",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": ".NET: Attach to process",
+            "type": "coreclr",
+            "request": "attach"
+        }
+    ]
+}

@@ -30,6 +30,7 @@ public partial class WidgetWindow : Window
         {
             viewModel.TaskEditRequested += OnTaskEditRequested;
             viewModel.SettingsRequested += OnSettingsRequested;
+            viewModel.GridViewRequested += OnGridViewRequested;
             _ = viewModel.LoadTasksAsync();
         }
     }
@@ -56,6 +57,7 @@ public partial class WidgetWindow : Window
         {
             viewModel.TaskEditRequested -= OnTaskEditRequested;
             viewModel.SettingsRequested -= OnSettingsRequested;
+            viewModel.GridViewRequested -= OnGridViewRequested;
         }
 
         (DataContext as IDisposable)?.Dispose();
@@ -85,6 +87,25 @@ public partial class WidgetWindow : Window
         // Also reloads tasks: an Import/Export round trip through Settings (see
         // SettingsWindow's "Import / Export tasks…" button) may have added tasks for the
         // day currently being viewed.
+        await viewModel.LoadTasksAsync();
+    }
+
+    private async void OnGridViewRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var gridViewModel = App.Services.GetRequiredService<GridViewModel>();
+        var gridWindow = new GridWindow { DataContext = gridViewModel };
+        gridViewModel.CloseRequested += (_, _) => gridWindow.Close();
+
+        await gridViewModel.LoadAsync();
+        await gridWindow.ShowDialog(this);
+
+        // Grid edits (title/date/priority/category/due/completed/notes, or deletes) may
+        // have changed what belongs on the day currently being viewed.
         await viewModel.LoadTasksAsync();
     }
 

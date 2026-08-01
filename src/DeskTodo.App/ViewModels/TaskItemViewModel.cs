@@ -35,6 +35,7 @@ public sealed partial class TaskItemViewModel : ViewModelBase
         Priority = task.Priority;
         PriorityColorHex = GetPriorityColorHex(task.Priority);
         CategoryId = task.CategoryId;
+        CategoryName = task.Category?.Name;
         CategoryColorHex = task.Category?.ColorHex;
         Notes = task.Notes;
         Description = task.Description;
@@ -42,6 +43,12 @@ public sealed partial class TaskItemViewModel : ViewModelBase
         Title = task.Title;
         IsCompleted = task.IsCompleted;
         IsPinned = task.IsPinned;
+        IsFavorite = task.IsFavorite;
+        DisplayColorHex = task.ColorHex ?? PriorityColorHex;
+        TagIds = task.Tags.Select(t => t.Id).ToList();
+        IsSubtask = task.ParentTaskId.HasValue;
+        SubtaskCount = task.Subtasks.Count;
+        IsBlocked = task.IsBlocked;
     }
 
     public Guid Id { get; }
@@ -56,7 +63,22 @@ public sealed partial class TaskItemViewModel : ViewModelBase
     /// <summary>For the search bar's category filter — <see cref="CategoryColorHex"/> is what the row itself displays.</summary>
     public Guid? CategoryId { get; }
 
+    /// <summary>For "sort/group by category" — null sorts to the end, after every real category.</summary>
+    public string? CategoryName { get; }
+
     public string? CategoryColorHex { get; }
+
+    /// <summary>For the search bar's tag filter — the row itself doesn't display tags inline (only visible in the full-field editor).</summary>
+    public IReadOnlyList<Guid> TagIds { get; } = [];
+
+    /// <summary>True when this task is nested under a parent — the row indents itself when set.</summary>
+    public bool IsSubtask { get; }
+
+    /// <summary>How many child tasks this one has — shown as a small count badge; 0 renders nothing.</summary>
+    public int SubtaskCount { get; }
+
+    /// <summary>Mirrors <see cref="Domain.Entities.TaskItem.IsBlocked"/> as of the last load — shown as a 🔒 row indicator; completing a blocked task is refused server-side regardless of whether this happens to be stale.</summary>
+    public bool IsBlocked { get; }
 
     /// <summary>Not shown in the row itself — searched against by the search bar.</summary>
     public string? Notes { get; }
@@ -93,6 +115,12 @@ public sealed partial class TaskItemViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial bool IsPinned { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsFavorite { get; set; }
+
+    /// <summary>What the row's priority dot actually renders — <see cref="Domain.Entities.TaskItem.ColorHex"/> (the editor's color picker) when set, else the priority color it used to always show.</summary>
+    public string DisplayColorHex { get; }
 
     [ObservableProperty]
     public partial bool IsEditing { get; set; }
@@ -155,6 +183,17 @@ public sealed partial class TaskItemViewModel : ViewModelBase
         if (await TryAsync(() => newValue ? _taskService.PinTaskAsync(Id) : _taskService.UnpinTaskAsync(Id), "toggle pin for"))
         {
             IsPinned = newValue;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ToggleFavoriteAsync()
+    {
+        var newValue = !IsFavorite;
+
+        if (await TryAsync(() => newValue ? _taskService.FavoriteTaskAsync(Id) : _taskService.UnfavoriteTaskAsync(Id), "toggle favorite for"))
+        {
+            IsFavorite = newValue;
         }
     }
 
