@@ -244,4 +244,115 @@ public class GridViewModelTests
 
         _settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => !a.HiddenGridColumns.Contains("Notes")), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task GetColumnsFrozenAsync_ReflectsPersistedSettings()
+    {
+        _settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { GridColumnsFrozen = false });
+
+        Assert.False(await _sut.GetColumnsFrozenAsync());
+    }
+
+    [Fact]
+    public async Task GetColumnsFrozenAsync_DefaultsToTrue()
+    {
+        Assert.True(await _sut.GetColumnsFrozenAsync());
+    }
+
+    [Fact]
+    public async Task SetColumnsFrozenAsync_PersistsTheValue()
+    {
+        var settings = new AppSettings();
+        _settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
+
+        await _sut.SetColumnsFrozenAsync(false);
+
+        _settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => !a.GridColumnsFrozen), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetSavedViewsAsync_ReflectsPersistedSettings()
+    {
+        _settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AppSettings { GridSavedViews = [new GridSavedView { Name = "Compact", HiddenColumns = ["Notes"] }] });
+
+        var views = await _sut.GetSavedViewsAsync();
+
+        Assert.Single(views);
+        Assert.Equal("Compact", views[0].Name);
+    }
+
+    [Fact]
+    public async Task SaveCurrentViewAsync_SavesTheCurrentHiddenColumnsUnderTheGivenName()
+    {
+        var settings = new AppSettings { HiddenGridColumns = ["Notes", "Due"] };
+        _settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
+
+        await _sut.SaveCurrentViewAsync("Compact");
+
+        _settingsService.Verify(s => s.SaveAsync(
+            It.Is<AppSettings>(a => a.GridSavedViews.Any(v => v.Name == "Compact" && v.HiddenColumns.Contains("Notes") && v.HiddenColumns.Contains("Due"))),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveCurrentViewAsync_WithABlankName_DoesNotSave()
+    {
+        await _sut.SaveCurrentViewAsync("   ");
+
+        _settingsService.Verify(s => s.SaveAsync(It.IsAny<AppSettings>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SaveCurrentViewAsync_OverwritesAnExistingViewWithTheSameName_CaseInsensitively()
+    {
+        var settings = new AppSettings
+        {
+            HiddenGridColumns = ["Due"],
+            GridSavedViews = [new GridSavedView { Name = "compact", HiddenColumns = ["Notes"] }],
+        };
+        _settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
+
+        await _sut.SaveCurrentViewAsync("Compact");
+
+        _settingsService.Verify(s => s.SaveAsync(
+            It.Is<AppSettings>(a => a.GridSavedViews.Count == 1 && a.GridSavedViews[0].HiddenColumns.Contains("Due")),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteSavedViewAsync_RemovesTheNamedView()
+    {
+        var settings = new AppSettings { GridSavedViews = [new GridSavedView { Name = "Compact", HiddenColumns = [] }] };
+        _settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
+
+        await _sut.DeleteSavedViewAsync("Compact");
+
+        _settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.GridSavedViews.Count == 0), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ApplyViewAsync_CopiesTheViewsHiddenColumnsIntoTheCurrentLayout()
+    {
+        var settings = new AppSettings
+        {
+            HiddenGridColumns = ["Due"],
+            GridSavedViews = [new GridSavedView { Name = "Compact", HiddenColumns = ["Notes", "Category"] }],
+        };
+        _settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
+
+        await _sut.ApplyViewAsync("Compact");
+
+        _settingsService.Verify(s => s.SaveAsync(
+            It.Is<AppSettings>(a => a.HiddenGridColumns.Contains("Notes") && a.HiddenGridColumns.Contains("Category") && !a.HiddenGridColumns.Contains("Due")),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ApplyViewAsync_WithAnUnknownName_DoesNotSave()
+    {
+        await _sut.ApplyViewAsync("Nonexistent");
+
+        _settingsService.Verify(s => s.SaveAsync(It.IsAny<AppSettings>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

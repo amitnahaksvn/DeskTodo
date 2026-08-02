@@ -53,7 +53,18 @@ public partial class App : global::Avalonia.Application
             // Program.cs's database migration) so the window's first frame already has the
             // right accent color and position — doing this later in OnOpened would show the
             // window at its default bounds/color first, then visibly jump/flash.
-            widgetViewModel.LoadSettingsAsync().GetAwaiter().GetResult();
+            //
+            // Wrapped in Task.Run rather than awaited-then-blocked directly: at this point
+            // in startup (inside OnFrameworkInitializationCompleted, called synchronously
+            // from AppBuilder.SetupWithLifetime, *before* the classic desktop lifetime's own
+            // dispatcher loop has started pumping), the Avalonia UI thread's dispatcher isn't
+            // processing posted work yet. A plain .GetAwaiter().GetResult() on the ambient
+            // thread deadlocks forever the moment any awaited step inside LoadSettingsAsync
+            // actually yields (a genuine, reproducible hang confirmed live via a managed dump
+            // — the main thread parked at this exact line, every thread-pool worker idle).
+            // Task.Run hands the whole async chain to a thread-pool thread with no captured
+            // dispatcher, so blocking on *that* task here is safe.
+            Task.Run(() => widgetViewModel.LoadSettingsAsync()).GetAwaiter().GetResult();
 
             var widgetWindow = new WidgetWindow { DataContext = widgetViewModel };
 

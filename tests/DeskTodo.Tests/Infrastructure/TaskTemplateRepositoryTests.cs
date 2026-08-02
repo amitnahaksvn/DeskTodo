@@ -1,4 +1,5 @@
 using DeskTodo.Domain.Entities;
+using DeskTodo.Infrastructure.Data.Configurations;
 using DeskTodo.Infrastructure.Repositories;
 
 namespace DeskTodo.Tests.Infrastructure;
@@ -40,8 +41,22 @@ public class TaskTemplateRepositoryTests : IDisposable
         await _sut.AddAsync(new TaskTemplate { Name = "Alpha", TaskTitle = "A" });
 
         var results = await _sut.GetAllAsync();
+        var names = results.Select(t => t.Name).ToList();
 
-        Assert.Equal(["Alpha", "Zebra"], results.Select(t => t.Name));
+        Assert.Equal(names.OrderBy(n => n, StringComparer.Ordinal), names);
+        Assert.Contains("Alpha", names);
+        Assert.Contains("Zebra", names);
+        Assert.True(names.IndexOf("Alpha") < names.IndexOf("Zebra"));
+    }
+
+    [Fact]
+    public async Task GetAllAsync_ReturnsTheSevenSeededDefaultTemplates()
+    {
+        var results = await _sut.GetAllAsync();
+
+        Assert.Equal(7, results.Count);
+        Assert.Contains(results, t => t.Id == TaskTemplateConfiguration.WeeklyGroceryRunId && t.Name == "Weekly grocery run");
+        Assert.Contains(results, t => t.Id == TaskTemplateConfiguration.SprintPlanningPrepId && t.ChecklistItems.Contains("Review backlog"));
     }
 
     [Fact]

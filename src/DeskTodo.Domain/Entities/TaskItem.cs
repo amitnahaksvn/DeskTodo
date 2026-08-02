@@ -41,6 +41,9 @@ public sealed class TaskItem
 
     public TaskPriority Priority { get; set; } = TaskPriority.Medium;
 
+    /// <summary>What kind of activity this is (Task/Event/Reminder/Note/Meeting) — see <see cref="Enums.TaskType"/>. Defaults to the plain <see cref="Enums.TaskType.Task"/> so every existing/imported row is unaffected.</summary>
+    public TaskType Type { get; set; } = TaskType.Task;
+
     public Guid? CategoryId { get; set; }
 
     public Category? Category { get; set; }

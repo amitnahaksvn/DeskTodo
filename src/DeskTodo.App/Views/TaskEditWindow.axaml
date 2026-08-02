@@ -32,22 +32,28 @@
 
                 <Grid ColumnDefinitions="*,*" >
                     <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,6,0">
+                        <TextBlock Text="Type" FontSize="12" Foreground="#64748B" />
+                        <ComboBox ItemsSource="{Binding TaskTypes}" SelectedItem="{Binding Type}"
+                                  HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="4" Margin="6,0,0,0">
                         <TextBlock Text="Priority" FontSize="12" Foreground="#64748B" />
                         <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding Priority}"
                                   HorizontalAlignment="Stretch" />
                     </StackPanel>
-                    <StackPanel Grid.Column="1" Spacing="4" Margin="6,0,0,0">
-                        <TextBlock Text="Category" FontSize="12" Foreground="#64748B" />
-                        <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
-                                  HorizontalAlignment="Stretch">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="vm:CategoryOption">
-                                    <TextBlock Text="{Binding Name}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </StackPanel>
                 </Grid>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Category" FontSize="12" Foreground="#64748B" />
+                    <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CategoryOption">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
 
                 <!--
                   DatePicker (month/day/year spinners) and NumericUpDown both need more

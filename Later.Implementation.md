@@ -39,7 +39,7 @@
 - [x] Archive Tasks
 - [x] Favorite Tasks _(distinct from Pin — a second ⭐ flag, toggled from the row context menu)_
 - [x] Duplicate Task
-- [x] Task Templates _(save a task's shape — incl. checklist — as a named template; "New from template" in the widget's add-task row)_
+- [x] Task Templates _(save a task's shape — incl. checklist — as a named template; "New from template" in the widget's add-task row; seeded with 7 starter templates, one per built-in category, so the picker isn't empty on a fresh install)_
 - [x] Pin Tasks
 - [x] Search Tasks
 - [x] Advanced Filters _(status/category/tag filters; no saved filter presets or multi-criteria combos yet)_
@@ -82,10 +82,10 @@
 - [x] Multi Row Selection _(a per-row selection checkbox column, not the grid's native selection — Avalonia's DataGrid doesn't expose a two-way-bindable SelectedItems)_
 - [ ] Custom Columns
 - [x] Hide Columns _(a "Columns" flyout toggle, persisted across sessions)_
-- [x] Freeze Columns _(a fixed 2-column freeze — checkbox + Title — not a user-configurable freeze point)_
+- [x] Freeze Columns _(a "Freeze checkbox + Title columns" toggle in the Columns flyout, persisted; still a fixed 2-column freeze point, not an arbitrary user-chosen one)_
 - [x] Resize Columns _(the DataGrid control's own built-in behavior)_
 - [x] Reorder Columns _(same — built-in)_
-- [ ] Saved Views _(one auto-persisted layout — column visibility only, not widths/order — not multiple named, switchable views)_
+- [x] Saved Views _(a "Views" flyout: save the grid's current hidden-column set under a name, apply or delete it later — column widths/order still aren't captured, only visibility)_
 - [ ] Filters _(list-view filters are built; grid-specific column filters are not)_
 - [x] Progress Column _(checklist completion, "checked/total" — "—" for a task with no checklist)_
 - [x] Status Column _(derived: Done / Overdue / Due Today / Upcoming / No due date)_

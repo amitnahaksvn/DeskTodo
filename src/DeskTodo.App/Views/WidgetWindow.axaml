@@ -120,7 +120,7 @@
                             FontSize="11" Padding="8,4" />
                     <Button Grid.Column="2" Content="Complete" Command="{Binding BulkCompleteCommand}"
                             IsEnabled="{Binding HasSelection}" FontSize="11" Padding="8,4" />
-                    <Button Grid.Column="3" Content="Delete" Command="{Binding BulkDeleteCommand}"
+                    <Button Grid.Column="3" Content="Delete" Click="OnBulkDeleteClick"
                             IsEnabled="{Binding HasSelection}" FontSize="11" Padding="8,4"
                             Background="#FEE2E2" Foreground="#DC2626" />
                 </Grid>
@@ -142,7 +142,7 @@
                                             <MenuItem Header="Favorite / Unfavorite" Command="{Binding ToggleFavoriteCommand}" />
                                             <Separator />
                                             <MenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
-                                            <MenuItem Header="Delete" Command="{Binding DeleteCommand}" />
+                                            <MenuItem Header="Delete" Click="OnDeleteTaskClick" />
                                         </ContextMenu>
                                     </Grid.ContextMenu>
 
@@ -170,6 +170,9 @@
                                               IsVisible="{Binding IsEditing}" KeyDown="OnEditTitleKeyDown" />
 
                                     <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="6,0,0,0" Spacing="2">
+                                        <TextBlock Text="{Binding TypeIcon}" FontSize="10"
+                                                   VerticalAlignment="Center" IsVisible="{Binding HasNonDefaultType}"
+                                                   ToolTip.Tip="{Binding Type}" />
                                         <TextBlock Text="{Binding SubtaskCount}" FontSize="9" FontWeight="SemiBold"
                                                    VerticalAlignment="Center" Foreground="#64748B"
                                                    IsVisible="{Binding SubtaskCount, Converter={x:Static conv:IntGreaterThanZeroConverter.Instance}}"

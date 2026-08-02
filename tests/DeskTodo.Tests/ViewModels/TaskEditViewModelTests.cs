@@ -70,6 +70,30 @@ public class TaskEditViewModelTests
     }
 
     [Fact]
+    public async Task LoadAsync_PopulatesType()
+    {
+        var task = MakeTask(t => t.Type = TaskType.Meeting);
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.LoadAsync(task.Id);
+
+        Assert.Equal(TaskType.Meeting, _sut.Type);
+    }
+
+    [Fact]
+    public async Task SaveAsync_PersistsTheSelectedType()
+    {
+        var task = MakeTask();
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        await _sut.LoadAsync(task.Id);
+        _sut.Type = TaskType.Reminder;
+
+        await _sut.SaveCommand.ExecuteAsync(null);
+
+        _taskService.Verify(s => s.UpdateTaskAsync(It.Is<TaskItem>(t => t.Type == TaskType.Reminder), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task AddChecklistItemAsync_OnSuccess_AddsARowAndClearsTheInput()
     {
         var task = MakeTask();

@@ -44,6 +44,9 @@ public class SettingsServiceTests : IDisposable
             NotificationsEnabled = false,
             ShowInTaskbar = false,
             AutoRescheduleOverdueTasks = true,
+            HiddenGridColumns = ["Notes", "Due"],
+            GridColumnsFrozen = false,
+            GridSavedViews = [new GridSavedView { Name = "Compact", HiddenColumns = ["Category", "Notes"] }],
         };
 
         await sut.SaveAsync(settings);
@@ -58,6 +61,11 @@ public class SettingsServiceTests : IDisposable
         Assert.Equal(settings.NotificationsEnabled, loaded.NotificationsEnabled);
         Assert.Equal(settings.ShowInTaskbar, loaded.ShowInTaskbar);
         Assert.Equal(settings.AutoRescheduleOverdueTasks, loaded.AutoRescheduleOverdueTasks);
+        Assert.Equal(settings.HiddenGridColumns, loaded.HiddenGridColumns);
+        Assert.Equal(settings.GridColumnsFrozen, loaded.GridColumnsFrozen);
+        Assert.Single(loaded.GridSavedViews);
+        Assert.Equal("Compact", loaded.GridSavedViews[0].Name);
+        Assert.Equal(settings.GridSavedViews[0].HiddenColumns, loaded.GridSavedViews[0].HiddenColumns);
     }
 
     [Fact]

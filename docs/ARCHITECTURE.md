@@ -804,6 +804,16 @@ row-level mutation in the app (Pin, Complete, Delete, ...) and avoids a
 closed via the OS close button rather than Save/Cancel. Tags (Phase 18)
 follow the same immediate-persistence rule for the same reason.
 
+**Seven starter templates are seeded via `TaskTemplateConfiguration.HasData`,
+one per built-in `Category`, using the same fixed-GUID pattern
+`CategoryConfiguration`'s seeded categories already established.** Without
+this, "New from template" is an empty dropdown until a user manually saves
+their first one — a worse first-run experience than Category's own seeded
+rows already avoid. They're ordinary rows once seeded (no `IsBuiltIn`-style
+flag the way `Category` has one): a template is just a saved shape with no
+behavior that needs to distinguish "shipped with the app" from "a user
+saved this," so a user can freely rename, edit, or delete any of them.
+
 ## Phase 18 — tags & task color
 
 **Tags use EF Core's implicit many-to-many (skip navigations), not an
@@ -923,9 +933,9 @@ clipboard API read/written in TSV (a different format and transport from
 the CSV/JSON file import/export already built in Phase 14), saved views
 need a new persisted "column layout + filter state" concept — not
 prerequisites for the grid being a real, usable Excel-style editing surface
-today. Clipboard interop, single-layout hide-columns, and freeze-columns
-were built in the follow-up pass below; multiple *named* saved views
-remain deferred — see "Phase 17–20 remainder."
+today. Clipboard interop, hide/freeze columns, and — in a second follow-up
+pass — a freeze-columns toggle and multiple *named* saved column-layout
+views were all built; see "Phase 17–20 remainder" below.
 
 ## Phase 17–20 remainder — finishing the deliberately deferred scope
 
@@ -1069,12 +1079,77 @@ survives lookup — `DataGrid.Columns` stays in a fixed *definition* order
 regardless of the user's runtime `DisplayIndex` reordering, so an index
 captured at XAML-definition time stays valid.
 
-Two things named in the original "Deferred:" paragraphs above are still
-genuinely not built: multiple *named* saved grid views (still just the one
-auto-persisted column-visibility layout in `AppSettings.HiddenGridColumns`)
-and a user-facing freeze-column toggle (`FrozenColumnCount="2"` is still a
-fixed XAML value). Both remain open if a future pass specifically wants
-them.
+**Freeze columns became a real toggle, not just a fixed XAML value.** A
+"Freeze checkbox + Title columns" `CheckBox` in the "Columns" flyout sets
+`TasksGrid.FrozenColumnCount` to 2 or 0 and persists the choice via
+`AppSettings.GridColumnsFrozen` (default `true`, preserving the original
+fixed behavior for existing users). It deliberately stays a binary toggle
+rather than an arbitrary "freeze N columns" control — Title is the one
+column a user always wants visible while scrolling right, so there's no
+real second freeze point worth exposing, and a numeric/dropdown control for
+a two-state choice would be over-built for the value.
+
+**Named saved grid views: a thin snapshot of the same shape as the single
+"current" layout, not a separate richer concept.** `GridSavedView` (a name
+plus a hidden-column list) mirrors `AppSettings.HiddenGridColumns` exactly
+— column widths/order/sort/freeze-state still aren't captured, matching
+the scope the single-layout version already settled on, rather than
+quietly promising more than the UI can actually restore.
+`GridViewModel.SaveCurrentViewAsync` overwrites an existing view with the
+same name (case-insensitive) instead of erroring or creating a silent
+duplicate, since re-saving over an existing view is the more likely intent
+than accumulating same-named views. `ApplyViewAsync` works by copying the
+view's hidden-column list into the *same* `HiddenGridColumns` setting the
+"Columns" flyout edits directly — applying a saved view and then manually
+toggling one more column compose naturally, rather than needing two
+independent code paths that could drift out of sync with each other.
+
+## Follow-up (2026-08-02) — Task Type & delete confirmation
+
+**`TaskItem.Type` (`TaskType`: Task/Event/Reminder/Note/Meeting) is a third,
+independent classification axis alongside `Priority` and `Category`, not a
+replacement for either.** Priority answers "how urgent," Category answers
+"which project/context bucket," and Type answers "what kind of activity is
+this" — genuinely different questions a task can answer independently, the
+same reasoning `IsPinned`/`IsFavorite` stay two separate flags rather than
+being unified. It's editable only in the full-field editor (mirrors every
+other secondary field — Category, Due Date, Recurrence — none of which are
+settable from the widget's inline "Add a task…" row either), defaulting to
+the plain `Task` value so every existing/imported row is unaffected.
+
+**The widget row shows one dynamic icon (`TypeIcon`), not four independent
+badges the way `IsBlocked`/`IsFavorite`/`IsPinned` each get their own.**
+Those three are genuinely independent booleans that can combine on one row;
+`Type` is a single enum a task only ever has one value of, so a single
+`Text="{Binding TypeIcon}"` binding is the correct shape, not a stack of
+per-type `IsVisible` toggles. It renders nothing for the default `Task`
+type (`HasNonDefaultType` gates visibility) to keep ordinary rows clean —
+the same "only show it when it's not the boring default" reasoning as
+`SubtaskCount`'s badge.
+
+**Delete confirmation needed a dialog Avalonia doesn't ship — `ConfirmDialogWindow`
+is a small, deliberately generic Yes/No window, not a delete-specific one.**
+Unlike WPF, Avalonia has no built-in `MessageBox`. Rather than hardcoding
+delete's wording into the window, `ShowAsync(owner, title, message,
+confirmText)` takes all display text as parameters, so the same window
+could back a future non-delete confirmation without changes. It's invoked
+from code-behind (`WidgetWindow`'s per-row and bulk-delete handlers,
+`GridWindow`'s Delete Selected handler) rather than from a ViewModel —
+consistent with every other dialog hand-off in this app
+(`TaskEditRequested`/`SettingsRequested`/`GridViewRequested`): no ViewModel
+here owns a `Window` reference, so anything that needs to *show* a window
+happens on the View side. The existing `DeleteCommand`/`BulkDeleteCommand`/
+`DeleteSelectedCommand` are unchanged — the confirm step only gates
+*invoking* them, from a `Click` handler instead of a direct `Command`
+binding.
+
+**The dialog's wording says "can't be undone from here," not "will be
+permanently deleted."** `TaskItem.IsDeleted` is technically a soft-delete
+flag (the row survives in the database), but there's no user-facing
+recovery UI anywhere in the app — no trash/restore view exists — so
+promising recoverability would be describing an implementation detail the
+user has no way to act on. The wording is accurate to what a user can
+actually do, not to what the database technically retains.
 
 ## What's genuinely verified vs. authored-only (Phases 13–16)
 
@@ -1100,7 +1175,7 @@ paths — that distinction is the whole point of stating it this plainly.
 | Domain model | `TaskItem`, `Category`, `TaskPriority` | ✅ Done |
 | Persistence | EF Core `DbContext`, SQLite, migrations, repositories, `TaskService` use cases | ✅ Done |
 | Widget UI | Always-visible window: today's date + task list | ✅ Done |
-| Task CRUD | Create/rename/delete/duplicate/pin/archive | ✅ Done |
+| Task CRUD | Create/rename/delete (confirmation dialog)/duplicate/pin/archive; a Task Type field (Task/Event/Reminder/Note/Meeting) | ✅ Done |
 | Reorder + full editor | Drag-to-reorder gesture, full-field task editor dialog | ✅ Done |
 | Daily planner | Per-day task lists, previous/next/today navigation, calendar picker | ✅ Done |
 | Search / filter / sort | Search, status/category filters, sort options, multi-select bulk actions | ✅ Done |
@@ -1113,4 +1188,4 @@ paths — that distinction is the whole point of stating it this plainly.
 | Checklists & templates | Per-task checklists; named task templates; subtasks; rich-text (Markdown-lite) notes; attachments | ✅ Done |
 | Tags & task color | Many-to-many tags + filter; a second Favorite flag; a per-task color override | ✅ Done |
 | Recurrence & auto-reschedule | Daily/Weekly/Monthly recurrence; opt-in auto-reschedule; Task Dependencies with a completion guard; Recently Viewed | ✅ Done |
-| Excel-style grid view | A separate editable `DataGrid` window over every task; TSV clipboard copy/paste; hide/freeze columns; Status/Progress columns (named saved views still deferred) | 🚧 Partial |
+| Excel-style grid view | A separate editable `DataGrid` window over every task; TSV clipboard copy/paste; hide/freeze columns; named saved column-layout views; Status/Progress columns | ✅ Done |

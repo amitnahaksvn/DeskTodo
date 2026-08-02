@@ -40,12 +40,18 @@ public partial class WidgetWindow : Window
     // torn down. Saved with GetAwaiter().GetResult() — blocking briefly on a local JSON
     // write during shutdown, the same pattern Program.cs uses for the database migration —
     // rather than fire-and-forget, since fire-and-forget here could easily lose the write
-    // to process exit.
+    // to process exit. Wrapped in Task.Run for the same reason as App.axaml.cs's
+    // LoadSettingsAsync call — blocking the UI thread on an un-decoupled async chain risks
+    // the same deadlock class confirmed live at startup.
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         if (DataContext is WidgetViewModel viewModel)
         {
-            viewModel.SaveWindowBoundsAsync(Position.X, Position.Y, Width, Height).GetAwaiter().GetResult();
+            var left = Position.X;
+            var top = Position.Y;
+            var width = Width;
+            var height = Height;
+            Task.Run(() => viewModel.SaveWindowBoundsAsync(left, top, width, height)).GetAwaiter().GetResult();
         }
 
         base.OnClosing(e);
@@ -225,5 +231,42 @@ public partial class WidgetWindow : Window
         }
 
         await viewModel.ReorderAsync(draggedId, targetItem.Id);
+    }
+
+    // Delete is gated behind ConfirmDialogWindow here in code-behind rather than
+    // TaskItemViewModel/WidgetViewModel showing the dialog themselves — no ViewModel in
+    // this app owns a Window reference (see TaskEditRequested/SettingsRequested/
+    // GridViewRequested, all handled the same way), so the confirm step lives on the same
+    // side as every other dialog hand-off. DeleteCommand/BulkDeleteCommand themselves are
+    // unchanged; this only gates *invoking* them.
+    private async void OnDeleteTaskClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control { DataContext: TaskItemViewModel taskItem })
+        {
+            return;
+        }
+
+        var confirmed = await ConfirmDialogWindow.ShowAsync(this, "Delete task?",
+            $"\"{taskItem.Title}\" will be deleted. This can't be undone from here.");
+        if (confirmed)
+        {
+            await taskItem.DeleteCommand.ExecuteAsync(null);
+        }
+    }
+
+    private async void OnBulkDeleteClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var count = viewModel.SelectedCount;
+        var confirmed = await ConfirmDialogWindow.ShowAsync(this, "Delete selected tasks?",
+            $"{count} selected {(count == 1 ? "task" : "tasks")} will be deleted. This can't be undone from here.");
+        if (confirmed)
+        {
+            await viewModel.BulkDeleteCommand.ExecuteAsync(null);
+        }
     }
 }

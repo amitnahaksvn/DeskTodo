@@ -17,23 +17,43 @@
       An Excel-style editable view of every non-archived task across every day —
       Phase 20. Column resize/reorder/sort are the DataGrid control's own built-in
       behavior (CanUserResizeColumns/CanUserReorderColumns/CanUserSortColumns below),
-      not anything GridViewModel drives. FrozenColumnCount is a fixed built-in default
-      (checkbox + Title always stay visible while scrolling horizontally), not a
-      user-facing toggle — building arbitrary freeze-point UI wasn't worth it for the
-      value. Each row persists its own cell edits immediately as they're made (see
-      GridViewModel's remarks) — there's no separate "Save" button, mirroring every
-      other immediate-persistence surface in this app (Pin, Complete, Delete, ...).
+      not anything GridViewModel drives. Each row persists its own cell edits
+      immediately as they're made (see GridViewModel's remarks) — there's no separate
+      "Save" button, mirroring every other immediate-persistence surface in this app
+      (Pin, Complete, Delete, ...).
     -->
     <Grid RowDefinitions="Auto,*,Auto" Margin="20">
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,12">
             <TextBlock Grid.Column="0" Text="All Tasks" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" />
             <TextBlock Grid.Column="1" Text="{Binding SelectedCount, StringFormat='{}{0} selected'}"
                        VerticalAlignment="Center" FontSize="12" Foreground="#64748B" Margin="0,0,12,0"
                        IsVisible="{Binding HasSelection}" />
-            <Button Grid.Column="2" Content="Columns" FontSize="12" Padding="10,4">
+            <Button Grid.Column="2" Content="Views" FontSize="12" Padding="10,4" Margin="0,0,8,0">
+                <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedRight" Opened="OnViewsFlyoutOpened">
+                        <StackPanel Spacing="8" MinWidth="220">
+                            <TextBlock Text="Saved column views" FontSize="11" Foreground="#64748B" />
+                            <ListBox x:Name="SavedViewsListBox" MaxHeight="140" SelectionMode="Single" FontSize="12" />
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Button Content="Apply" Click="OnApplyViewClick" FontSize="11" Padding="8,4" />
+                                <Button Content="Delete" Click="OnDeleteViewClick" FontSize="11" Padding="8,4" />
+                            </StackPanel>
+                            <Separator Margin="0,4" />
+                            <TextBlock Text="Save current columns as…" FontSize="11" Foreground="#64748B" />
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBox x:Name="NewViewNameTextBox" PlaceholderText="View name" Width="130" FontSize="12" />
+                                <Button Content="Save" Click="OnSaveViewClick" FontSize="11" Padding="8,4" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+            <Button Grid.Column="3" Content="Columns" FontSize="12" Padding="10,4">
                 <Button.Flyout>
                     <Flyout Placement="BottomEdgeAlignedRight" Opened="OnColumnsFlyoutOpened">
-                        <StackPanel Spacing="6" MinWidth="140">
+                        <StackPanel Spacing="6" MinWidth="150">
+                            <CheckBox x:Name="FreezeColumnsCheckBox" Content="Freeze checkbox + Title columns" Click="OnFreezeColumnsChanged" />
+                            <Separator Margin="0,2" />
                             <TextBlock Text="Show columns" FontSize="11" Foreground="#64748B" Margin="0,0,0,2" />
                             <CheckBox x:Name="CategoryColumnCheckBox" Content="Category" Click="OnColumnVisibilityChanged" />
                             <CheckBox x:Name="DueColumnCheckBox" Content="Due" Click="OnColumnVisibilityChanged" />
@@ -141,7 +161,7 @@
                         ToolTip.Tip="Create tasks from tab-separated clipboard text — from this grid or from Excel" />
             </StackPanel>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                <Button Content="Delete Selected" Command="{Binding DeleteSelectedCommand}"
+                <Button Content="Delete Selected" Click="OnDeleteSelectedClick"
                         IsEnabled="{Binding HasSelection}" Padding="16,8"
                         Background="#FEE2E2" Foreground="#DC2626" />
                 <Button Content="Close" Command="{Binding CloseCommand}" Padding="16,8"

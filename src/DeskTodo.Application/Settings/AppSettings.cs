@@ -53,10 +53,23 @@ public sealed class AppSettings
 
     /// <summary>
     /// Names of grid-view columns (Category/Due/Notes — the ones the user can hide) currently
-    /// hidden, restored the next time the grid opens. A single persisted layout rather than
-    /// multiple named "saved views" — column width/order aren't included, only visibility,
-    /// to keep this to the one thing worth remembering across sessions without needing a
-    /// dedicated saved-views concept.
+    /// hidden, restored the next time the grid opens. This is the grid's "current" layout —
+    /// distinct from <see cref="GridSavedViews"/>, which are named snapshots of this same
+    /// shape that a user can save and re-apply.
     /// </summary>
     public List<string> HiddenGridColumns { get; set; } = [];
+
+    /// <summary>
+    /// Whether the grid's checkbox + Title columns stay pinned while scrolling horizontally.
+    /// Defaults to <c>true</c> — today's fixed behavior — so introducing this setting doesn't
+    /// silently change anything for existing users.
+    /// </summary>
+    public bool GridColumnsFrozen { get; set; } = true;
+
+    /// <summary>
+    /// Named, user-saved grid column layouts (see <see cref="Settings.GridSavedView"/>) — a
+    /// user can save the grid's current hidden-column set under a name and re-apply it later,
+    /// distinct from the single "current" layout in <see cref="HiddenGridColumns"/>.
+    /// </summary>
+    public List<GridSavedView> GridSavedViews { get; set; } = [];
 }

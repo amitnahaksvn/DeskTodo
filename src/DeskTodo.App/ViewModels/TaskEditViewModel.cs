@@ -67,6 +67,8 @@ public sealed partial class TaskEditViewModel : ViewModelBase
 
     public IReadOnlyList<TaskPriority> Priorities { get; } = Enum.GetValues<TaskPriority>();
 
+    public IReadOnlyList<TaskType> TaskTypes { get; } = Enum.GetValues<TaskType>();
+
     public IReadOnlyList<RecurrenceFrequency> RecurrenceFrequencies { get; } = Enum.GetValues<RecurrenceFrequency>();
 
     /// <summary>A small fixed palette rather than a full color picker — consistent with the built-in category colors, and enough choice for visually grouping tasks at a glance.</summary>
@@ -90,6 +92,9 @@ public sealed partial class TaskEditViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial TaskPriority Priority { get; set; } = TaskPriority.Medium;
+
+    [ObservableProperty]
+    public partial TaskType Type { get; set; } = TaskType.Task;
 
     [ObservableProperty]
     public partial CategoryOption SelectedCategory { get; set; } = CategoryOption.None;
@@ -187,6 +192,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         Notes = task.Notes ?? string.Empty;
         IsNotesPreview = false;
         Priority = task.Priority;
+        Type = task.Type;
         SelectedCategory = Categories.FirstOrDefault(c => c.Id == task.CategoryId) ?? CategoryOption.None;
         DueDate = task.DueDate is { } due ? new DateTimeOffset(due) : null;
         EstimatedMinutes = task.EstimatedMinutes;
@@ -447,6 +453,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
             task.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
             task.Notes = string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim();
             task.Priority = Priority;
+            task.Type = Type;
             task.CategoryId = SelectedCategory.Id;
             task.DueDate = DueDate?.DateTime;
             task.EstimatedMinutes = EstimatedMinutes.HasValue ? (int)EstimatedMinutes.Value : null;

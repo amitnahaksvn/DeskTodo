@@ -2,6 +2,7 @@ using DeskTodo.App.ViewModels;
 using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Services;
 using DeskTodo.Domain.Entities;
+using DeskTodo.Domain.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -283,5 +284,33 @@ public class TaskItemViewModelTests
         var sut = new TaskItemViewModel(task, Mock.Of<ITaskService>(), NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
 
         Assert.True(sut.IsBlocked);
+    }
+
+    [Fact]
+    public void HasNonDefaultType_IsFalseForThePlainTaskType()
+    {
+        var task = CreateTask(completed: false);
+        task.Type = TaskType.Task;
+
+        var sut = new TaskItemViewModel(task, Mock.Of<ITaskService>(), NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
+
+        Assert.False(sut.HasNonDefaultType);
+        Assert.Equal(string.Empty, sut.TypeIcon);
+    }
+
+    [Theory]
+    [InlineData(TaskType.Event, "📅")]
+    [InlineData(TaskType.Reminder, "⏰")]
+    [InlineData(TaskType.Note, "📝")]
+    [InlineData(TaskType.Meeting, "👥")]
+    public void TypeIcon_ReflectsTheTasksType(TaskType type, string expectedIcon)
+    {
+        var task = CreateTask(completed: false);
+        task.Type = type;
+
+        var sut = new TaskItemViewModel(task, Mock.Of<ITaskService>(), NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
+
+        Assert.True(sut.HasNonDefaultType);
+        Assert.Equal(expectedIcon, sut.TypeIcon);
     }
 }

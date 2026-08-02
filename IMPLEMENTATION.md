@@ -7,7 +7,7 @@ that one is the reasoning.
 
 **Legend:** ✅ Done · 🚧 Partial · ⬜ Not started
 
-**Last updated:** 2026-08-01 (Phases 1–16 done; Extended Roadmap — Phases 17–37 — added, all pending)
+**Last updated:** 2026-08-02 (Phases 1–16 done; Phases 17–20 fully done — including their originally-deferred items; Phases 21–37 still pending)
 
 > **Note on numbering:** phases 1–16 mirror the tracked work items
 > one-to-one, with one deliberate exception — the DesktopSheet→DeskTodo
@@ -47,14 +47,22 @@ that one is the reasoning.
 | 15 | [Platform-specific integration](#15-platform-specific-integration) | ✅ |
 | 16 | [Packaging (MSIX / DMG)](#16-packaging-msix--dmg) | 🚧 |
 
-## Extended Roadmap — Phase 17+
+## Phases 17–20 (done)
+
+Fully built, including every item their own "Deferred:"/scope notes
+originally named — see each phase's own section below for the full detail.
 
 | # | Phase | Source category (Later.Implementation.md) | Status |
 |---|-------|---------------------------------------------|--------|
-| 17 | [Subtasks, checklists, templates & rich content](#17-subtasks-checklists-templates--rich-content) | Core Task Management | 🚧 |
-| 18 | [Tags, labels & grouping](#18-tags-labels--grouping) | Core Task Management | 🚧 |
-| 19 | [Recurring tasks, dependencies & auto-reschedule](#19-recurring-tasks-dependencies--auto-reschedule) | Core Task Management, "Later" notes | 🚧 |
-| 20 | [Excel-style grid view](#20-excel-style-grid-view) | Spreadsheet / Grid View | 🚧 |
+| 17 | [Subtasks, checklists, templates & rich content](#17-subtasks-checklists-templates--rich-content) | Core Task Management | ✅ |
+| 18 | [Tags, labels & grouping](#18-tags-labels--grouping) | Core Task Management | ✅ |
+| 19 | [Recurring tasks, dependencies & auto-reschedule](#19-recurring-tasks-dependencies--auto-reschedule) | Core Task Management, "Later" notes | ✅ |
+| 20 | [Excel-style grid view](#20-excel-style-grid-view) | Spreadsheet / Grid View | ✅ |
+
+## Extended Roadmap — Phase 21+
+
+| # | Phase | Source category (Later.Implementation.md) | Status |
+|---|-------|---------------------------------------------|--------|
 | 21 | [Calendar, weekly/monthly/year views & alternate layouts](#21-calendar-weeklymonthlyyear-views--alternate-layouts) | Planning | ⬜ |
 | 22 | [System tray, global shortcuts & quick add](#22-system-tray-global-shortcuts--quick-add) | Desktop Features | ⬜ |
 | 23 | [Productivity tools: timers, focus & habits](#23-productivity-tools-timers-focus--habits) | Productivity | ⬜ |
@@ -161,11 +169,40 @@ docs/ARCHITECTURE.md's "Headless visual verification" section).
 - [x] Duplicate (context menu)
 - [x] Pin / unpin (context menu, glyph indicator)
 - [x] Archive (context menu)
-- [x] Delete — soft delete, recoverable (context menu)
+- [x] Delete — soft delete (context menu), gated behind a confirmation
+      dialog (see follow-up below); the underlying row/DB state is a soft
+      delete, but there's no user-facing recovery UI, so the dialog is
+      honest that it "can't be undone from here"
 - [x] Regression + headless UI tests for all of the above
 
 Deliberately out of scope for this phase, carried forward to Phase 9: drag
 gesture, full-field editing, edit auto-focus.
+
+**Follow-up (2026-08-02): delete confirmation + a new Task Type field.**
+
+- Delete confirmation — every delete path (per-row context menu, the
+  widget's bulk-select "Delete", and the grid's "Delete Selected") now
+  routes through a new shared `ConfirmDialogWindow` (title/message/confirm-
+  button text all caller-supplied, not delete-specific) before invoking the
+  existing `DeleteCommand`/`BulkDeleteCommand`/`DeleteSelectedCommand` —
+  those commands are unchanged, only what triggers them is gated. Avalonia
+  has no built-in MessageBox the way WPF does, so this is hand-rolled.
+- Task Type — a new `TaskItem.Type` field (`TaskType`: Task/Event/Reminder/
+  Note/Meeting), distinct from Priority (urgency) and Category (project/
+  context grouping) — answers "what kind of activity is this." Editable via
+  a new "Type" picker in the full-field editor (paired with Priority);
+  shown as a small icon on the widget row (📅/⏰/📝/👥), hidden entirely for
+  the plain, default `Task` type to keep ordinary rows visually clean.
+
+- `src/DeskTodo.Domain/Enums/TaskType.cs`, `src/DeskTodo.Domain/Entities/TaskItem.cs` (`Type`)
+- `src/DeskTodo.App/Views/{ConfirmDialogWindow.axaml,ConfirmDialogWindow.axaml.cs}` (new)
+- `src/DeskTodo.App/Views/WidgetWindow.axaml(.cs)` (`OnDeleteTaskClick`, `OnBulkDeleteClick`,
+  type icon row indicator), `Views/GridWindow.axaml(.cs)` (`OnDeleteSelectedClick`)
+- `src/DeskTodo.App/ViewModels/TaskEditViewModel.cs` (`Type`, `TaskTypes`),
+  `Views/TaskEditWindow.axaml` ("Type" picker)
+- `src/DeskTodo.App/ViewModels/TaskItemViewModel.cs` (`Type`, `TypeIcon`, `HasNonDefaultType`)
+- Migration: `20260802162824_AddTaskType`
+- Tests: `TaskItemViewModelTests`, `TaskEditViewModelTests`, `ConfirmDialogWindowRenderTests`
 
 ## 9. Drag-to-reorder gesture + full-field task editor ✅
 
@@ -386,8 +423,11 @@ yet either (only the Avalonia template placeholder icon is in the repo — see
 
 # Extended Roadmap (Phase 17+)
 
-Everything below is **planning only — no code has been written for any of
-it.** Each phase lists what it covers, why it's grouped that way, the
+Phases 17–20 are now fully built, including every item their own original
+"Deferred:"/scope-note paragraphs named — see each phase's own section
+below for exactly what shipped and the reasoning behind it. Phases 21–37
+below remain **planning only — no code has been written for any of them.**
+Each of those phases lists what it covers, why it's grouped that way, the
 concrete deliverables (traced back to `Later.Implementation.md`), and the
 architectural approach in prose — new entities, services, or UI surfaces —
 without pre-committing to exact class names or file layouts that should be
@@ -395,7 +435,7 @@ worked out at implementation time. Phases are ordered roughly by
 dependency and by how naturally they build on what already exists, not by
 priority — that's a product call for whoever picks this up next.
 
-## 17. Subtasks, checklists, templates & rich content 🚧
+## 17. Subtasks, checklists, templates & rich content ✅
 
 - [x] Checklists — an ordered, per-task list of check-off-able items
       (`ChecklistItem`: text, checked, order), added/toggled/removed inline
@@ -403,35 +443,57 @@ priority — that's a product call for whoever picks this up next.
 - [x] Task Templates — save a task's current shape (title, description,
       priority, category, estimated minutes, notes, checklist lines) as a
       named `TaskTemplate`; "New from template" (a picker in the widget's
-      add-task row) seeds a new task — including its checklist — from one
-- [ ] Subtasks (full parent/child `TaskItem` hierarchy) — deliberately not
-      built; Checklists cover the "smaller things inside one task" need
-      without the added complexity of a second recursive task hierarchy
-      alongside Category/Tag
-- [ ] Rich Text Notes (Markdown rendering) — not built; `Notes` is still
-      plain text
-- [ ] Attachments — not built
+      add-task row) seeds a new task — including its checklist — from one;
+      seeded with 7 starter templates (one per built-in Category — Morning
+      routine, Sprint planning prep, Study session, Workout, Weekly grocery
+      run, Pay monthly bills, Family game night) so the picker isn't empty
+      on a brand-new install
+- [x] Subtasks — a single-level parent/child relationship
+      (`TaskItem.ParentTaskId`/`Subtasks`, deliberately not a general tree —
+      a subtask having its own subtasks isn't offered at the UI layer); a
+      "Parent task" picker and an inline "Add a subtask" list live in the
+      full-field editor, and the widget row indents itself and shows a
+      subtask-count badge
+- [x] Rich Text Notes — a hand-rolled minimal Markdown preview
+      (`**bold**`/`*italic*`/`- bullet` lines) toggled via a "Preview"/"Edit"
+      button on the Notes field — see the scope note below for why this is
+      hand-rolled rather than a third-party renderer
+- [x] Attachments — files copied into app storage (a 20 MB cap) and recorded
+      as `Attachment` rows; attach/open/remove in the full-field editor,
+      "Open" launching the OS default handler via Avalonia's `ILauncher`
 
-Checklists and Templates were judged the highest-value, most self-contained
-items in this phase; Subtasks/Rich Text/Attachments are each a meaningfully
-sized feature of their own (a second task hierarchy, a Markdown renderer,
-file storage + size/type caps) and were left for a future pass rather than
-built shallowly just to check a box.
+**Scope note on Rich Text Notes:** Avalonia has no bundled Markdown
+renderer, and pulling in a third-party one just for `**bold**`/`*italic*`/
+bullet lines wasn't worth the added dependency — especially since
+`TextBlock.Inlines` can't be data-bound to a converter's output the normal
+way (it's a mutable collection property assigned once, not driven by a
+value converter binding). `TaskEditWindow`'s code-behind rebuilds the
+preview's `Inlines` by hand instead, via a small scanner — genuinely
+functional for the common case, not a general Markdown parser (no nested
+emphasis, no links/headers/code blocks).
 
-- `src/DeskTodo.Domain/Entities/{ChecklistItem,TaskTemplate}.cs`
-- `src/DeskTodo.Infrastructure/Data/Configurations/{ChecklistItemConfiguration,TaskTemplateConfiguration}.cs`
-- `src/DeskTodo.Application/Abstractions/{IChecklistRepository,ITaskTemplateRepository}.cs`,
-  `src/DeskTodo.Infrastructure/Repositories/{ChecklistRepository,TaskTemplateRepository}.cs`
-- `src/DeskTodo.Application/Services/{IChecklistService,ChecklistService,ITaskTemplateService,TaskTemplateService}.cs`
-- `src/DeskTodo.App/ViewModels/ChecklistItemRowViewModel.cs`, `TaskEditViewModel.cs`
-  (checklist add/toggle/remove, `TemplateNameToSave`/`SaveAsTemplateCommand`)
+- `src/DeskTodo.Domain/Entities/{ChecklistItem,TaskTemplate,Attachment}.cs`
+- `src/DeskTodo.Domain/Entities/TaskItem.cs` (`ParentTaskId`/`ParentTask`/`Subtasks`)
+- `src/DeskTodo.Infrastructure/Data/Configurations/{ChecklistItemConfiguration,TaskTemplateConfiguration,AttachmentConfiguration}.cs`
+- `src/DeskTodo.Application/Abstractions/{IChecklistRepository,ITaskTemplateRepository,IAttachmentRepository}.cs`,
+  `src/DeskTodo.Infrastructure/Repositories/{ChecklistRepository,TaskTemplateRepository,AttachmentRepository}.cs`
+- `src/DeskTodo.Application/Services/{IChecklistService,ChecklistService,ITaskTemplateService,TaskTemplateService,IAttachmentService,AttachmentService}.cs`
+- `src/DeskTodo.App/ViewModels/{ChecklistItemRowViewModel,SubtaskRowViewModel,AttachmentRowViewModel,TaskOption}.cs`,
+  `TaskEditViewModel.cs` (checklist/subtask/attachment add-remove, `SelectedParentTask`, `IsNotesPreview`/`ToggleNotesPreviewCommand`)
 - `src/DeskTodo.App/ViewModels/WidgetViewModel.cs` (`Templates`, `SelectedTemplateToApply`)
-- `src/DeskTodo.App/Views/TaskEditWindow.axaml` (checklist section), `WidgetWindow.axaml` ("From template…" picker)
-- Migration: `20260731190657_AddChecklistsTemplatesTagsRecurrence` (shared with Phases 18–19)
-- Tests: `ChecklistRepositoryTests`, `TaskTemplateRepositoryTests`, `ChecklistServiceTests`,
-  `TaskTemplateServiceTests`, `TaskEditViewModelTests`, `WidgetViewModelTests`
+- `src/DeskTodo.App/ViewModels/TaskItemViewModel.cs` (`IsSubtask`, `SubtaskCount`)
+- `src/DeskTodo.App/Converters/{BoolToNotesToggleLabelConverter,IsSubtaskToRowMarginConverter,IntGreaterThanZeroConverter}.cs`
+- `src/DeskTodo.App/Views/TaskEditWindow.axaml`/`.axaml.cs` (checklist/subtask/attachment sections,
+  Notes preview toggle, OS file picker, Markdown-lite renderer), `WidgetWindow.axaml` ("From template…" picker,
+  subtask indent/count badge)
+- Migration: `20260731190657_AddChecklistsTemplatesTagsRecurrence`,
+  `20260801193307_AddSubtasksAttachmentsDependencies` (both shared with Phases 18–19),
+  `20260802155355_SeedDefaultTaskTemplates`
+- Tests: `ChecklistRepositoryTests`, `TaskTemplateRepositoryTests`, `AttachmentRepositoryTests`,
+  `ChecklistServiceTests`, `TaskTemplateServiceTests`, `AttachmentServiceTests`,
+  `TaskEditViewModelTests`, `TaskItemViewModelTests`, `WidgetViewModelTests`
 
-## 18. Tags, labels & grouping 🚧
+## 18. Tags, labels & grouping ✅
 
 - [x] Tags — free-form, multi-valued, user-created (`Tag`, many-to-many with
       `TaskItem`); add/remove chips in the full-field editor, get-or-create
@@ -448,7 +510,9 @@ built shallowly just to check a box.
 - [x] Task Color — a per-task `ColorHex` override (8-swatch palette + "none"
       in the full-field editor); the widget row's priority dot now shows it
       when set, falling back to the priority color otherwise
-- [ ] Recently Viewed — not built
+- [x] Recently Viewed — the last 5 tasks opened in the full-field editor,
+      most-recent-first, shown as a clickable chip row in the search bar;
+      session-only (not persisted — see the scope note below)
 
 **Scope note on Group By:** implemented as an additional `TaskSortOption`
 (sorting by category name visually clusters same-category rows) instead of
@@ -461,20 +525,27 @@ would have had to account for. Grouping by priority/tag/due-date (only
 category was requested strongly enough to prioritize) and true header rows
 are still open if a future pass wants them.
 
+**Scope note on Recently Viewed:** deliberately session-only, resetting on
+restart — the same reasoning as `WidgetViewModel`'s existing
+`_notifiedOverdueTaskIds`: re-showing an empty list once after a restart
+isn't harmful, and persisting five task IDs would need its own storage for
+very little benefit.
+
 - `src/DeskTodo.Domain/Entities/Tag.cs`, `src/DeskTodo.Infrastructure/Data/Configurations/TagConfiguration.cs`
   (implicit many-to-many via EF Core skip navigations — no explicit join-entity class)
 - `src/DeskTodo.Application/Abstractions/ITagRepository.cs`, `src/DeskTodo.Infrastructure/Repositories/TagRepository.cs`
 - `src/DeskTodo.Application/Services/{ITagService,TagService}.cs`
 - `src/DeskTodo.Domain/Entities/TaskItem.cs` (`IsFavorite`, `MarkFavorite`/`UnmarkFavorite`, `ColorHex` already existed, now wired to UI)
 - `src/DeskTodo.App/ViewModels/TagChip.cs`, `TaskEditViewModel.cs` (tag add/remove, color swatches)
-- `src/DeskTodo.App/ViewModels/{TagFilterOption,TaskSortOption}.cs`, `WidgetViewModel.cs`
-  (`Tags`, `SelectedTagFilter`, `RefreshTagsAsync`, `TaskSortOption.Category` handling)
+- `src/DeskTodo.App/ViewModels/{TagFilterOption,TaskSortOption,RecentTaskOption}.cs`, `WidgetViewModel.cs`
+  (`Tags`, `SelectedTagFilter`, `RefreshTagsAsync`, `TaskSortOption.Category` handling, `RecentlyViewed`, `RequestTaskEdit`)
 - `src/DeskTodo.App/ViewModels/TaskItemViewModel.cs` (`IsFavorite`, `DisplayColorHex`, `ToggleFavoriteCommand`)
-- `src/DeskTodo.App/Views/WidgetWindow.axaml` (tag filter dropdown, ⭐ indicator, Favorite context-menu item, `DisplayColorHex` binding)
-- Migration: `20260731190657_AddChecklistsTemplatesTagsRecurrence` (shared with Phases 17, 19)
+- `src/DeskTodo.App/Views/WidgetWindow.axaml` (tag filter dropdown, ⭐ indicator, Favorite context-menu item,
+  `DisplayColorHex` binding, Recently Viewed chip row)
+- Migration: `20260731190657_AddChecklistsTemplatesTagsRecurrence` (shared with Phase 17, 19)
 - Tests: `TagRepositoryTests`, `TagServiceTests`, `TaskEditViewModelTests`, `TaskItemViewModelTests`, `WidgetViewModelTests`
 
-## 19. Recurring tasks, dependencies & auto-reschedule 🚧
+## 19. Recurring tasks, dependencies & auto-reschedule ✅
 
 - [x] Recurring Tasks — `RecurrenceFrequency` (None/Daily/Weekly/Monthly) +
       `RecurrenceInterval` + optional `RecurrenceEndDate` on `TaskItem`,
@@ -490,31 +561,55 @@ are still open if a future pass wants them.
       non-archived task from a past day onto today the first time today's
       list loads each calendar day (mirrors `MaybeSendDailySummaryAsync`'s
       once-per-day guard), appended to the end of the day's list
-- [ ] Task Dependencies — not built
+- [x] Task Dependencies — a `TaskDependency` join entity
+      (`BlockingTaskId`/`BlockedTaskId`, both `Restrict`-deleted FKs to
+      `TaskItem`, a unique composite index against duplicate assignment);
+      `TaskItem.IsBlocked` is computed from `BlockedByDependencies` (true
+      while any blocker is still incomplete); `TaskService.CompleteTaskAsync`
+      throws `TaskBlockedException` for a blocked task instead of silently
+      completing it; the full-field editor gets a "Blocked by" section (chip
+      list + add picker) and the widget row shows a 🔒 indicator — see the
+      scope note below for what cycle-prevention deliberately doesn't cover
 
 **Approach note:** recurrence's "create the next occurrence" logic lives in
 `TaskService.CompleteTaskAsync` rather than a separate background poller —
 completion is the only event that can produce a next occurrence, so there's
 no need for `WidgetViewModel`'s 30-second timer to also carry this check.
-Dependencies were left out: it's the one item here that's a genuinely
-separate concept (a `TaskDependency` join entity + a completion guard) with
-its own UI needs (visually marking a blocked task, warning on early
-completion) rather than an extension of an existing field, and didn't have
-enough signal to justify scoping alongside the other two.
+Task Dependencies uses a plain join entity rather than tags' many-to-many
+skip navigation, because "blocks"/"is blocked by" is directionally
+asymmetric — unlike a tag assignment, which side of the pair is which
+matters.
+
+**Scope note on Task Dependencies' cycle prevention:**
+`TaskDependencyService.AddBlockerAsync` refuses self-blocking and a direct
+two-task cycle (A blocks B, then B blocks A) via two `ExistsAsync` checks,
+but does **not** walk the full dependency graph to catch a deeper
+transitive cycle (A blocks B, B blocks C, C blocks A). A user would need to
+deliberately construct that shape for it to matter, so it's documented here
+as a known, narrow limitation rather than left silently unhandled.
 
 - `src/DeskTodo.Domain/Enums/RecurrenceFrequency.cs`
-- `src/DeskTodo.Domain/Entities/TaskItem.cs` (`RecurrenceFrequency`/`RecurrenceInterval`/`RecurrenceEndDate`, `GetNextOccurrencePlanDate`)
-- `src/DeskTodo.Application/Services/TaskService.cs` (`CompleteTaskAsync`'s next-occurrence creation, `RescheduleOverdueTasksAsync`)
-- `src/DeskTodo.Application/Abstractions/ITaskRepository.cs`, `src/DeskTodo.Infrastructure/Repositories/TaskRepository.cs` (`GetIncompleteBeforeDateAsync`)
+- `src/DeskTodo.Domain/Entities/TaskItem.cs` (`RecurrenceFrequency`/`RecurrenceInterval`/`RecurrenceEndDate`, `GetNextOccurrencePlanDate`,
+  `BlockedByDependencies`/`BlockingDependencies`, `IsBlocked`)
+- `src/DeskTodo.Domain/Entities/TaskDependency.cs`, `src/DeskTodo.Domain/Exceptions/TaskBlockedException.cs`
+- `src/DeskTodo.Infrastructure/Data/Configurations/TaskDependencyConfiguration.cs`
+- `src/DeskTodo.Application/Abstractions/ITaskDependencyRepository.cs`, `src/DeskTodo.Infrastructure/Repositories/TaskDependencyRepository.cs`
+- `src/DeskTodo.Application/Services/{ITaskDependencyService,TaskDependencyService}.cs`
+- `src/DeskTodo.Application/Services/TaskService.cs` (`CompleteTaskAsync`'s next-occurrence creation + blocked-guard, `RescheduleOverdueTasksAsync`)
+- `src/DeskTodo.Application/Abstractions/ITaskRepository.cs`, `src/DeskTodo.Infrastructure/Repositories/TaskRepository.cs` (`GetIncompleteBeforeDateAsync`, blocker `Include`s)
 - `src/DeskTodo.Application/Settings/AppSettings.cs` (`AutoRescheduleOverdueTasks`), `SettingsViewModel.cs`, `Views/SettingsWindow.axaml`
-- `src/DeskTodo.App/ViewModels/TaskEditViewModel.cs` (recurrence fields), `Views/TaskEditWindow.axaml` ("Repeat" section)
+- `src/DeskTodo.App/ViewModels/{TaskEditViewModel,BlockerChip,TaskOption}.cs` (recurrence fields, Blocked-by section),
+  `Views/TaskEditWindow.axaml` ("Repeat" section, Blocked-by chips + add picker)
 - `src/DeskTodo.App/ViewModels/WidgetViewModel.cs` (`MaybeRescheduleOverdueTasksAsync`)
+- `src/DeskTodo.App/ViewModels/TaskItemViewModel.cs` (`IsBlocked`), `Views/WidgetWindow.axaml` (🔒 indicator)
 - `src/DeskTodo.App/Converters/RecurrenceFrequencyToBoolConverter.cs`
-- Migration: `20260731190657_AddChecklistsTemplatesTagsRecurrence` (shared with Phases 17–18)
-- Tests: `TaskServiceTests` (recurrence + reschedule), `TaskRepositoryTests`, `SettingsViewModelTests`,
-  `SettingsServiceTests`, `WidgetViewModelTests`, `TaskEditViewModelTests`
+- Migration: `20260731190657_AddChecklistsTemplatesTagsRecurrence` (shared with Phases 17–18),
+  `20260801193307_AddSubtasksAttachmentsDependencies` (shared with Phase 17)
+- Tests: `TaskServiceTests` (recurrence + reschedule + blocked-completion), `TaskRepositoryTests`,
+  `TaskDependencyRepositoryTests`, `TaskDependencyServiceTests`, `SettingsViewModelTests`,
+  `SettingsServiceTests`, `WidgetViewModelTests`, `TaskEditViewModelTests`, `TaskItemViewModelTests`
 
-## 20. Excel-style grid view 🚧
+## 20. Excel-style grid view ✅
 
 - [x] An Excel-like grid as an alternate view of the task list — every
       non-archived task across every day, opened from a new header icon
@@ -531,10 +626,26 @@ enough signal to justify scoping alongside the other two.
 - [x] Resizable, reorderable, sortable columns — `DataGrid`'s own built-in
       `CanUserResizeColumns`/`CanUserReorderColumns`/`CanUserSortColumns`,
       not custom-built
-- [ ] Copy/paste to and from real Excel (TSV clipboard interop) — not built
-- [ ] Hideable/freezable columns, saved column-layout "views" — not built
-- [ ] Dedicated Progress/Status columns — not built (Done is a plain
-      checkbox column bound to `IsCompleted`, not a derived progress value)
+- [x] Copy/paste to and from real Excel (TSV clipboard interop) —
+      `GridViewModel.BuildClipboardText()`/`PasteFromClipboardAsync` build
+      and parse tab-separated text (Excel's own copy format), wired to
+      Copy/Paste buttons in `GridWindow`; copies the selection or every row
+      if nothing's selected — see the scope note below for the `IClipboard`
+      API discovery this needed
+- [x] Hideable + freezable columns — a "Columns" flyout (Category/Due/Notes/
+      Status/Progress can be hidden; Title/Date/Priority/Done stay
+      mandatory) plus a "Freeze checkbox + Title columns" toggle, both
+      persisted via `AppSettings.HiddenGridColumns`/`GridColumnsFrozen` and
+      restored the next time the grid opens
+- [x] Saved column-layout "views" — a "Views" flyout: save the grid's
+      current hidden-column set under a name (`AppSettings.GridSavedViews`),
+      apply or delete a saved view later; column widths/order still aren't
+      captured, only visibility — see the scope note below
+- [x] Dedicated Progress/Status columns — `TaskGridRowViewModel.StatusDisplay`
+      (Done/Overdue/Due Today/Upcoming/No due date, derived from
+      `IsCompleted`/`DueDate`) and `ProgressDisplay` (checked/total checklist
+      items, or "—" with none), both read-only and derived, not raw
+      persisted fields
 
 **Scope note:** `Avalonia.Controls.DataGrid` (the official first-party
 package, version-matched to the rest of the pinned Avalonia 12.1.0 stack)
@@ -544,19 +655,67 @@ checkbox column out of the box. Column-type/API choices (`DataGridTemplateColumn
 for date/dropdown cells, `DataGridCollectionView`-driven sort via
 `SortMemberPath`, no `DataGridComboBoxColumn` — it doesn't exist in this
 package) were confirmed against the actual compiled assembly via reflection
-before use, not assumed from general DataGrid familiarity. TSV clipboard
-interop, saved views, and hide/freeze were cut for scope — each is a
-self-contained follow-up, not a blocker for the grid being genuinely usable
-today.
+before use, not assumed from general DataGrid familiarity.
+
+**Scope note on the clipboard API:** `IClipboard` in the pinned Avalonia
+`12.1.0` does **not** expose `SetTextAsync`/`GetTextAsync` directly, despite
+that being the shape older Avalonia/WPF familiarity would suggest —
+reflecting over the real compiled interface first (before writing
+`GridWindow.axaml.cs`'s copy/paste handlers) found it's built around a
+newer `IAsyncDataTransfer`/`SetDataAsync`/`TryGetDataAsync` API instead. The
+classic convenience methods still exist, just as extension methods —
+`Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(IClipboard,
+string)` and `TryGetTextAsync(IClipboard)` (note: `TryGetTextAsync`, not
+`GetTextAsync`) — found via a further reflection pass and used from the
+start, the same "verify the real compiled API before depending on it"
+discipline as the `DataGridComboBoxColumn`/`SelectedItems` findings above.
+
+**Scope note on hidden columns and freeze:** the "Columns" flyout's
+`CheckBox`es (including the freeze toggle) aren't realized as controls
+until the flyout is actually opened, so syncing their checked state to the
+persisted setting happens in a `Flyout.Opened` handler — separately from
+`GridWindow.OnOpened`, which applies the actual `DataGridColumn.IsVisible`
+values and `DataGrid.FrozenColumnCount` unconditionally, since
+`DataGrid.Columns`/the `DataGrid` itself exist immediately regardless of
+whether the flyout has ever been shown. Column visibility is tracked by a
+fixed column *index* (a static `ColumnVisibilityMap`), not by name, since
+`DataGridColumn` has no stable name/key the way an `x:Name`d `Control`
+would. Freeze stays a binary "checkbox + Title columns, or nothing" toggle
+rather than an arbitrary user-chosen freeze point — the two-column default
+is the only shape that's actually useful here (Title is the one column you
+always want visible while scrolling right), so a more general "freeze N
+columns" control wasn't worth the added UI.
+
+**Scope note on saved views:** a named `GridSavedView` (name + hidden-column
+set) is deliberately a thin snapshot of the *same* shape as the single
+"current" layout (`AppSettings.HiddenGridColumns`) — column width/order/
+sort/freeze-state aren't captured, matching the scope the single-layout
+version already settled on. `GridViewModel.SaveCurrentViewAsync` overwrites
+an existing view of the same name (case-insensitive) rather than erroring
+or silently creating a duplicate, since "save over my existing view" is the
+more common intent than "let me have two views with the same name."
+`ApplyViewAsync` works by copying the saved view's hidden-column list into
+`HiddenGridColumns` — the *same* setting the "Columns" flyout already
+edits — so applying a view and manually toggling a column afterward compose
+naturally instead of being two disconnected mechanisms.
 
 - `Directory.Packages.props`, `src/DeskTodo.App/DeskTodo.App.csproj` (`Avalonia.Controls.DataGrid`)
 - `src/DeskTodo.App/App.axaml` (`StyleInclude` for the DataGrid's Fluent theme)
 - `src/DeskTodo.App/ViewModels/{GridViewModel,TaskGridRowViewModel}.cs`
-- `src/DeskTodo.App/Views/{GridWindow.axaml,GridWindow.axaml.cs}`
+  (`BuildClipboardText`, `EscapeCell`, `PasteFromClipboardAsync`, `GetHiddenColumnsAsync`,
+  `SetColumnHiddenAsync`, `GetColumnsFrozenAsync`/`SetColumnsFrozenAsync`, `GetSavedViewsAsync`,
+  `SaveCurrentViewAsync`/`DeleteSavedViewAsync`/`ApplyViewAsync`, `StatusDisplay`/`ProgressDisplay`)
+- `src/DeskTodo.App/Views/{GridWindow.axaml,GridWindow.axaml.cs}` ("Views" + "Columns" flyouts,
+  Copy/Paste buttons, `ColumnVisibilityMap`, `OnColumnsFlyoutOpened`/`OnFreezeColumnsChanged`,
+  `OnViewsFlyoutOpened`/`OnApplyViewClick`/`OnDeleteViewClick`/`OnSaveViewClick`, `OnCopyClick`/`OnPasteClick`)
 - `src/DeskTodo.App/ViewModels/WidgetViewModel.cs` (`GridViewRequested`, `OpenGridViewCommand`),
   `Views/WidgetWindow.axaml` (grid header icon), `Views/WidgetWindow.axaml.cs` (`OnGridViewRequested`)
-- No new migration — reads/writes the same `TaskItem` fields already modeled
-- Tests: `GridViewModelTests`, `GridWindowRenderTests` (headless, incl. a screenshot-verified render)
+- `src/DeskTodo.Application/Settings/{AppSettings,GridSavedView}.cs` (`HiddenGridColumns`, `GridColumnsFrozen`, `GridSavedViews`)
+- No new migration — reads/writes the same `TaskItem`/`ChecklistItem` fields already modeled,
+  plus JSON-persisted `AppSettings` fields (no schema migration needed for those)
+- Tests: `GridViewModelTests` (incl. clipboard build/parse, hidden-column/freeze/saved-view persistence),
+  `TaskGridRowViewModelTests`, `SettingsServiceTests` (round-trips the new settings fields),
+  `GridWindowRenderTests` (headless, incl. a screenshot-verified render)
 
 ## 21. Calendar, weekly/monthly/year views & alternate layouts ⬜
 

@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Services;
+using DeskTodo.Application.Settings;
 using DeskTodo.Domain.Enums;
 using Microsoft.Extensions.Logging;
 
@@ -310,6 +311,89 @@ public sealed partial class GridViewModel : ViewModelBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to persist grid column visibility for '{ColumnName}'", columnName);
+        }
+    }
+
+    public async Task<bool> GetColumnsFrozenAsync(CancellationToken cancellationToken = default)
+    {
+        var settings = await _settingsService.LoadAsync(cancellationToken);
+        return settings.GridColumnsFrozen;
+    }
+
+    public async Task SetColumnsFrozenAsync(bool isFrozen, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var settings = await _settingsService.LoadAsync(cancellationToken);
+            settings.GridColumnsFrozen = isFrozen;
+            await _settingsService.SaveAsync(settings, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist the grid's freeze-columns setting");
+        }
+    }
+
+    public async Task<IReadOnlyList<GridSavedView>> GetSavedViewsAsync(CancellationToken cancellationToken = default)
+    {
+        var settings = await _settingsService.LoadAsync(cancellationToken);
+        return settings.GridSavedViews;
+    }
+
+    /// <summary>Saves the grid's *current* hidden-column set (<see cref="AppSettings.HiddenGridColumns"/>) as a named view, overwriting any existing view with the same name (case-insensitive).</summary>
+    public async Task SaveCurrentViewAsync(string name, CancellationToken cancellationToken = default)
+    {
+        var trimmedName = name.Trim();
+        if (string.IsNullOrEmpty(trimmedName))
+        {
+            return;
+        }
+
+        try
+        {
+            var settings = await _settingsService.LoadAsync(cancellationToken);
+            settings.GridSavedViews.RemoveAll(v => string.Equals(v.Name, trimmedName, StringComparison.OrdinalIgnoreCase));
+            settings.GridSavedViews.Add(new GridSavedView { Name = trimmedName, HiddenColumns = settings.HiddenGridColumns.ToList() });
+            await _settingsService.SaveAsync(settings, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save grid view '{Name}'", trimmedName);
+        }
+    }
+
+    public async Task DeleteSavedViewAsync(string name, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var settings = await _settingsService.LoadAsync(cancellationToken);
+            settings.GridSavedViews.RemoveAll(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+            await _settingsService.SaveAsync(settings, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete grid view '{Name}'", name);
+        }
+    }
+
+    /// <summary>Makes a saved view the grid's *current* layout by copying its hidden-column set into <see cref="AppSettings.HiddenGridColumns"/> — the caller (GridWindow) still needs to re-read <see cref="GetHiddenColumnsAsync"/> afterward to apply it to the live <c>DataGrid</c>/checkboxes.</summary>
+    public async Task ApplyViewAsync(string name, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var settings = await _settingsService.LoadAsync(cancellationToken);
+            var view = settings.GridSavedViews.FirstOrDefault(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (view is null)
+            {
+                return;
+            }
+
+            settings.HiddenGridColumns = view.HiddenColumns.ToList();
+            await _settingsService.SaveAsync(settings, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to apply grid view '{Name}'", name);
         }
     }
 

@@ -33,6 +33,7 @@ public sealed partial class TaskItemViewModel : ViewModelBase
         Id = task.Id;
         DisplayNumber = task.DayOrder + 1;
         Priority = task.Priority;
+        Type = task.Type;
         PriorityColorHex = GetPriorityColorHex(task.Priority);
         CategoryId = task.CategoryId;
         CategoryName = task.Category?.Name;
@@ -59,6 +60,22 @@ public sealed partial class TaskItemViewModel : ViewModelBase
     public TaskPriority Priority { get; }
 
     public string PriorityColorHex { get; }
+
+    /// <summary>What kind of activity this is — see <see cref="Domain.Enums.TaskType"/>.</summary>
+    public TaskType Type { get; }
+
+    /// <summary>True for every type except the plain, default <see cref="Domain.Enums.TaskType.Task"/> — drives <see cref="TypeIcon"/>'s row visibility, matching how <see cref="SubtaskCount"/>/<see cref="IsBlocked"/> only render something for their non-default case.</summary>
+    public bool HasNonDefaultType => Type != TaskType.Task;
+
+    /// <summary>Small row indicator — one icon, not a per-type flag like <see cref="IsBlocked"/>/<see cref="IsFavorite"/>/<see cref="IsPinned"/>, since a task only ever has one <see cref="Type"/> at a time.</summary>
+    public string TypeIcon => Type switch
+    {
+        TaskType.Event => "📅",
+        TaskType.Reminder => "⏰",
+        TaskType.Note => "📝",
+        TaskType.Meeting => "👥",
+        _ => "",
+    };
 
     /// <summary>For the search bar's category filter — <see cref="CategoryColorHex"/> is what the row itself displays.</summary>
     public Guid? CategoryId { get; }
