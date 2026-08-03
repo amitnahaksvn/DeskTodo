@@ -17,6 +17,7 @@ public class TaskEditViewModelTests
     private readonly Mock<ITaskTemplateService> _templateService = new();
     private readonly Mock<ITaskDependencyService> _taskDependencyService = new();
     private readonly Mock<IAttachmentService> _attachmentService = new();
+    private readonly Mock<IMilestoneService> _milestoneService = new();
     private readonly TaskEditViewModel _sut;
 
     public TaskEditViewModelTests()
@@ -24,6 +25,7 @@ public class TaskEditViewModelTests
         _categoryRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _taskService.Setup(s => s.GetTasksForDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<TaskItem>());
         _attachmentService.Setup(s => s.GetAttachmentsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Attachment>());
+        _milestoneService.Setup(s => s.GetMilestonesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Milestone>());
         _sut = new TaskEditViewModel(
             _taskService.Object,
             _categoryRepository.Object,
@@ -32,6 +34,7 @@ public class TaskEditViewModelTests
             _templateService.Object,
             _taskDependencyService.Object,
             _attachmentService.Object,
+            _milestoneService.Object,
             NullLogger<TaskEditViewModel>.Instance,
             NullLogger<ChecklistItemRowViewModel>.Instance);
     }
@@ -91,6 +94,49 @@ public class TaskEditViewModelTests
         await _sut.SaveCommand.ExecuteAsync(null);
 
         _taskService.Verify(s => s.UpdateTaskAsync(It.Is<TaskItem>(t => t.Type == TaskType.Reminder), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task LoadAsync_PopulatesMilestoneOptions_AndSelectsTheTasksCurrentMilestone()
+    {
+        var milestone = new Milestone { Title = "Ship v1" };
+        var task = MakeTask(t => t.MilestoneId = milestone.Id);
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        _milestoneService.Setup(s => s.GetMilestonesAsync(It.IsAny<CancellationToken>())).ReturnsAsync([milestone]);
+
+        await _sut.LoadAsync(task.Id);
+
+        Assert.Equal(2, _sut.MilestoneOptions.Count); // None + the one milestone
+        Assert.Equal(milestone.Id, _sut.SelectedMilestone.Id);
+        Assert.Equal("Ship v1", _sut.SelectedMilestone.Title);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenTheTaskHasNoMilestone_SelectsNone()
+    {
+        var milestone = new Milestone { Title = "Ship v1" };
+        var task = MakeTask();
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        _milestoneService.Setup(s => s.GetMilestonesAsync(It.IsAny<CancellationToken>())).ReturnsAsync([milestone]);
+
+        await _sut.LoadAsync(task.Id);
+
+        Assert.Equal(MilestoneOption.None, _sut.SelectedMilestone);
+    }
+
+    [Fact]
+    public async Task SaveAsync_PersistsTheSelectedMilestone()
+    {
+        var milestone = new Milestone { Title = "Ship v1" };
+        var task = MakeTask();
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        _milestoneService.Setup(s => s.GetMilestonesAsync(It.IsAny<CancellationToken>())).ReturnsAsync([milestone]);
+        await _sut.LoadAsync(task.Id);
+        _sut.SelectedMilestone = _sut.MilestoneOptions.Single(o => o.Id == milestone.Id);
+
+        await _sut.SaveCommand.ExecuteAsync(null);
+
+        _taskService.Verify(s => s.UpdateTaskAsync(It.Is<TaskItem>(t => t.MilestoneId == milestone.Id), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

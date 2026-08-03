@@ -31,6 +31,8 @@ public partial class WidgetWindow : Window
             viewModel.TaskEditRequested += OnTaskEditRequested;
             viewModel.SettingsRequested += OnSettingsRequested;
             viewModel.GridViewRequested += OnGridViewRequested;
+            viewModel.CalendarViewRequested += OnCalendarViewRequested;
+            viewModel.PlannerViewRequested += OnPlannerViewRequested;
             _ = viewModel.LoadTasksAsync();
         }
     }
@@ -64,6 +66,8 @@ public partial class WidgetWindow : Window
             viewModel.TaskEditRequested -= OnTaskEditRequested;
             viewModel.SettingsRequested -= OnSettingsRequested;
             viewModel.GridViewRequested -= OnGridViewRequested;
+            viewModel.CalendarViewRequested -= OnCalendarViewRequested;
+            viewModel.PlannerViewRequested -= OnPlannerViewRequested;
         }
 
         (DataContext as IDisposable)?.Dispose();
@@ -113,6 +117,48 @@ public partial class WidgetWindow : Window
         // Grid edits (title/date/priority/category/due/completed/notes, or deletes) may
         // have changed what belongs on the day currently being viewed.
         await viewModel.LoadTasksAsync();
+    }
+
+    private async void OnCalendarViewRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var calendarViewModel = App.Services.GetRequiredService<CalendarViewModel>();
+        var calendarWindow = new CalendarWindow { DataContext = calendarViewModel };
+        calendarViewModel.CloseRequested += (_, _) => calendarWindow.Close();
+
+        await calendarViewModel.LoadAsync(viewModel.PlanDate);
+        await calendarWindow.ShowDialog(this);
+
+        // Picking a day in the calendar navigates the widget there — a no-op if the
+        // calendar was closed without picking one (Close/OS close button leave this null).
+        if (calendarWindow.SelectedDate is { } selected)
+        {
+            viewModel.SelectedDate = selected.ToDateTime(TimeOnly.MinValue);
+        }
+    }
+
+    private async void OnPlannerViewRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var plannerViewModel = App.Services.GetRequiredService<PlannerViewModel>();
+        var plannerWindow = new PlannerWindow { DataContext = plannerViewModel };
+        plannerViewModel.CloseRequested += (_, _) => plannerWindow.Close();
+        plannerViewModel.DateSelected += (_, date) =>
+        {
+            viewModel.SelectedDate = date.ToDateTime(TimeOnly.MinValue);
+            plannerWindow.Close();
+        };
+
+        await plannerViewModel.LoadAsync(viewModel.PlanDate);
+        await plannerWindow.ShowDialog(this);
     }
 
     private async void OnTaskEditRequested(object? sender, Guid taskId)

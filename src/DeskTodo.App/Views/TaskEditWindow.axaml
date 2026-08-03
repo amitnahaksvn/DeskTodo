@@ -78,6 +78,12 @@
                 </StackPanel>
 
                 <StackPanel Spacing="4">
+                    <TextBlock Text="Milestone" FontSize="12" Foreground="#64748B" />
+                    <ComboBox ItemsSource="{Binding MilestoneOptions}" SelectedItem="{Binding SelectedMilestone}"
+                              HorizontalAlignment="Stretch" ToolTip.Tip="Link this task to a milestone" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Grid.Column="0" Text="Notes" FontSize="12" Foreground="#64748B" VerticalAlignment="Center" />
                         <Button Grid.Column="1" Content="{Binding IsNotesPreview, Converter={x:Static conv:BoolToNotesToggleLabelConverter.Instance}}"

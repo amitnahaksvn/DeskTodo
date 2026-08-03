@@ -37,7 +37,7 @@
             CornerRadius="16" ClipToBounds="True" BoxShadow="0 8 32 0 #33000000">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
 
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" Background="Transparent"
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Background="Transparent"
                   Margin="20,16,12,4" PointerPressed="OnHeaderPointerPressed">
                 <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Text="{Binding DayOfWeekText}" FontSize="20" FontWeight="SemiBold" Foreground="#1E293B" />
@@ -52,10 +52,16 @@
                 <Button Grid.Column="3" Content="&#x25A6;" Command="{Binding OpenGridViewCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Grid view (all tasks)" />
-                <Button Grid.Column="4" Content="&#x2699;" Command="{Binding OpenSettingsCommand}"
+                <Button Grid.Column="4" Content="&#x1F4C5;" Command="{Binding OpenCalendarViewCommand}"
+                        Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Calendar view" />
+                <Button Grid.Column="5" Content="&#x1F4CB;" Command="{Binding OpenPlannerViewCommand}"
+                        Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Planner (week / year / agenda / timeline / kanban / matrix)" />
+                <Button Grid.Column="6" Content="&#x2699;" Command="{Binding OpenSettingsCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Settings" />
-                <Button Grid.Column="5" Content="&#x2715;" Click="OnCloseButtonClick"
+                <Button Grid.Column="7" Content="&#x2715;" Click="OnCloseButtonClick"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="11"
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" />
             </Grid>

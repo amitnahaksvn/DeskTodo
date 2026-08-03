@@ -19,6 +19,12 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<TaskDependency> TaskDependencies => Set<TaskDependency>();
 
+    public DbSet<Goal> Goals => Set<Goal>();
+
+    public DbSet<GoalCompletion> GoalCompletions => Set<GoalCompletion>();
+
+    public DbSet<Milestone> Milestones => Set<Milestone>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeskTodoDbContext).Assembly);

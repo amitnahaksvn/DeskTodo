@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:conv="using:DeskTodo.App.Converters"
+        xmlns:prim="using:Avalonia.Controls.Primitives"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="480"
+        x:Class="DeskTodo.App.Views.CalendarWindow"
+        x:DataType="vm:CalendarViewModel"
+        Title="Calendar"
+        Width="420" Height="480"
+        MinWidth="380" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        Background="#F8FAFC">
+
+    <!--
+      Phase 21's month-grid calendar — a read-only view over the same task data the grid
+      already reads, not new persistence. Always a fixed 7x6 cell grid (see
+      CalendarViewModel.Days's doc comment) so switching months never reflows the window's
+      height. Clicking a day navigates the widget to it and closes this window (see
+      CalendarWindow.axaml.cs's OnDateSelected) rather than this window itself becoming a
+      second place to edit tasks.
+    -->
+    <Grid RowDefinitions="Auto,Auto,*" Margin="20">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,0,0,12">
+            <Button Grid.Column="0" Content="&#x2039;" Command="{Binding PreviousMonthCommand}"
+                    Padding="10,4" FontSize="16" ToolTip.Tip="Previous month" />
+            <TextBlock Grid.Column="1" Text="{Binding MonthTitle}" FontSize="16" FontWeight="SemiBold"
+                       Foreground="#1E293B" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Button Grid.Column="2" Content="&#x203A;" Command="{Binding NextMonthCommand}"
+                    Padding="10,4" FontSize="16" Margin="0,0,8,0" ToolTip.Tip="Next month" />
+            <Button Grid.Column="3" Content="Today" Command="{Binding GoToCurrentMonthCommand}"
+                    FontSize="12" Padding="10,4" Margin="0,0,8,0" />
+            <Button Grid.Column="4" Content="Close" Command="{Binding CloseCommand}"
+                    FontSize="12" Padding="10,4" Background="#3B82F6" Foreground="White" />
+        </Grid>
+
+        <prim:UniformGrid Grid.Row="1" Columns="7" Margin="0,0,0,4">
+            <TextBlock Text="Sun" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
+            <TextBlock Text="Mon" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
+            <TextBlock Text="Tue" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
+            <TextBlock Text="Wed" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
+            <TextBlock Text="Thu" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
+            <TextBlock Text="Fri" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
+            <TextBlock Text="Sat" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
+        </prim:UniformGrid>
+
+        <ItemsControl Grid.Row="2" ItemsSource="{Binding Days}" VerticalAlignment="Top">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <prim:UniformGrid Columns="7" Rows="6" RowSpacing="2" ColumnSpacing="2" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:CalendarDayViewModel">
+                    <Button Command="{Binding SelectCommand}" Padding="0" MinHeight="52"
+                            HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                            Background="{Binding IsToday, Converter={x:Static conv:BoolToTodayBackgroundConverter.Instance}}"
+                            BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4">
+                        <StackPanel Margin="4" Opacity="{Binding IsCurrentMonth, Converter={x:Static conv:BoolToCurrentMonthOpacityConverter.Instance}}">
+                            <TextBlock Text="{Binding DayNumber}" FontSize="12" FontWeight="SemiBold" Foreground="#1E293B" />
+                            <TextBlock Text="{Binding CountDisplay}" FontSize="10" Foreground="#64748B"
+                                       IsVisible="{Binding HasTasks}" />
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
+
+</Window>

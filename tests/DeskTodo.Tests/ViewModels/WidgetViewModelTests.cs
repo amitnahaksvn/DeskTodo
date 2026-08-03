@@ -866,6 +866,34 @@ public class WidgetViewModelTests
         notificationService.Verify(n => n.NotifyAsync("Today's tasks", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public void OpenCalendarViewCommand_RaisesCalendarViewRequested()
+    {
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        var raised = false;
+        sut.CalendarViewRequested += (_, _) => raised = true;
+
+        sut.OpenCalendarViewCommand.Execute(null);
+
+        Assert.True(raised);
+    }
+
+    [Fact]
+    public void OpenPlannerViewCommand_RaisesPlannerViewRequested()
+    {
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        var raised = false;
+        sut.PlannerViewRequested += (_, _) => raised = true;
+
+        sut.OpenPlannerViewCommand.Execute(null);
+
+        Assert.True(raised);
+    }
+
     // Pins LocalTimeZone to UTC so GetLocalNow() == GetUtcNow() exactly — otherwise these
     // tests' chosen date/time literals could land on a different calendar date depending on
     // the machine's local timezone (WidgetViewModel.Today() calls GetLocalNow(), matching

@@ -7,7 +7,7 @@ that one is the reasoning.
 
 **Legend:** ✅ Done · 🚧 Partial · ⬜ Not started
 
-**Last updated:** 2026-08-02 (Phases 1–16 done; Phases 17–20 fully done — including their originally-deferred items; Phases 21–37 still pending)
+**Last updated:** 2026-08-04 (Phases 1–16 done; Phases 17–21 fully done — including their originally-deferred items; Phases 22–37 still pending)
 
 > **Note on numbering:** phases 1–16 mirror the tracked work items
 > one-to-one, with one deliberate exception — the DesktopSheet→DeskTodo
@@ -47,7 +47,7 @@ that one is the reasoning.
 | 15 | [Platform-specific integration](#15-platform-specific-integration) | ✅ |
 | 16 | [Packaging (MSIX / DMG)](#16-packaging-msix--dmg) | 🚧 |
 
-## Phases 17–20 (done)
+## Phases 17–21 (done)
 
 Fully built, including every item their own "Deferred:"/scope notes
 originally named — see each phase's own section below for the full detail.
@@ -58,12 +58,12 @@ originally named — see each phase's own section below for the full detail.
 | 18 | [Tags, labels & grouping](#18-tags-labels--grouping) | Core Task Management | ✅ |
 | 19 | [Recurring tasks, dependencies & auto-reschedule](#19-recurring-tasks-dependencies--auto-reschedule) | Core Task Management, "Later" notes | ✅ |
 | 20 | [Excel-style grid view](#20-excel-style-grid-view) | Spreadsheet / Grid View | ✅ |
+| 21 | [Calendar, weekly/monthly/year views & alternate layouts](#21-calendar-weeklymonthlyyear-views--alternate-layouts) | Planning | ✅ |
 
-## Extended Roadmap — Phase 21+
+## Extended Roadmap — Phase 22+
 
 | # | Phase | Source category (Later.Implementation.md) | Status |
 |---|-------|---------------------------------------------|--------|
-| 21 | [Calendar, weekly/monthly/year views & alternate layouts](#21-calendar-weeklymonthlyyear-views--alternate-layouts) | Planning | ⬜ |
 | 22 | [System tray, global shortcuts & quick add](#22-system-tray-global-shortcuts--quick-add) | Desktop Features | ⬜ |
 | 23 | [Productivity tools: timers, focus & habits](#23-productivity-tools-timers-focus--habits) | Productivity | ⬜ |
 | 24 | [Analytics & reporting](#24-analytics--reporting) | Analytics | ⬜ |
@@ -423,9 +423,9 @@ yet either (only the Avalonia template placeholder icon is in the repo — see
 
 # Extended Roadmap (Phase 17+)
 
-Phases 17–20 are now fully built, including every item their own original
+Phases 17–21 are now fully built, including every item their own original
 "Deferred:"/scope-note paragraphs named — see each phase's own section
-below for exactly what shipped and the reasoning behind it. Phases 21–37
+below for exactly what shipped and the reasoning behind it. Phases 22–37
 below remain **planning only — no code has been written for any of them.**
 Each of those phases lists what it covers, why it's grouped that way, the
 concrete deliverables (traced back to `Later.Implementation.md`), and the
@@ -717,44 +717,132 @@ naturally instead of being two disconnected mechanisms.
   `TaskGridRowViewModelTests`, `SettingsServiceTests` (round-trips the new settings fields),
   `GridWindowRenderTests` (headless, incl. a screenshot-verified render)
 
-## 21. Calendar, weekly/monthly/year views & alternate layouts ⬜
+## 21. Calendar, weekly/monthly/year views & alternate layouts ✅
 
 The widget only ever shows one day at a time (by design — Phase 10's daily
 planner). This phase is about *viewing more than one day at once*, in
 several different shapes.
 
-**Deliverables:**
-- Calendar View — a real month-grid calendar (not just the existing
-  jump-to-a-date picker from Phase 10), with a completion/task-count
-  indicator per day
-- Weekly Planner, Monthly Planner, Year Planner — dedicated views scoped to
-  those time ranges
-- Agenda View — a scrollable list of upcoming tasks across many days,
-  grouped by date (distinct from the grid's flat single-day list)
-- Timeline View — tasks plotted against a time axis (likely by due
-  date/estimated time, for the tasks that have one)
-- Kanban Board — tasks as cards in status-based columns (e.g. To Do /
-  In Progress / Done — needs a status concept beyond the current
-  boolean `IsCompleted`, or reuses it as a two-column board)
-- Eisenhower Matrix — a 2×2 urgent/important grid, derived from
-  priority + due-date proximity
-- Goal Planner, Milestones, Sprint Planner, Roadmap View — longer-horizon
-  planning views, likely needing a new higher-level "Goal"/"Milestone"
-  concept that tasks can optionally link to
+- [x] Calendar View — a real month-grid calendar (`CalendarWindow`, a fixed
+      7x6 cell grid, always 42 cells so switching months never reflows the
+      window's height), with a completion/task-count indicator per day;
+      also serves as the Monthly Planner deliverable below (a month grid
+      already shows a full month's shape — a separate near-duplicate screen
+      wasn't worth building)
+- [x] Weekly Planner — a "Week" tab in a new `PlannerWindow` (seven day
+      cells, same cell type the Calendar view uses)
+- [x] Monthly Planner — see Calendar View above
+- [x] Year Planner — a "Year" tab: 12 month tiles, each a task-count summary
+      rather than a mini-calendar (see scope note below)
+- [x] Agenda View — an "Agenda" tab: incomplete tasks across the next 14
+      days (including anything overdue), grouped by date with a friendly
+      label ("Today"/"Tomorrow"/day name)
+- [x] Timeline View — a "Timeline" tab: every incomplete task with a due
+      date, in chronological order (see scope note below for why this is a
+      plain list, not a proportionally-drawn axis)
+- [x] Kanban Board — a "Kanban" tab: To Do / Done columns, reusing
+      `TaskItem.IsCompleted` (see scope note below for why, not a new
+      status concept)
+- [x] Eisenhower Matrix — a "Matrix" tab: a 2x2 grid derived purely from
+      Priority (High/Critical = important) and due-date proximity (due
+      within 2 days, or overdue = urgent) — no new persistence
+- [x] Goal Planner — a "Goals" tab: personal, ongoing habit-style targets
+      (new `Goal`/`GoalCompletion` entities), tracked by a computed daily
+      streak (`Goal.GetCurrentStreak`) — "Mark done today" logs one
+      completion row per calendar day
+- [x] Milestones, Sprint Planner, Roadmap View — a "Milestones" tab: a new
+      `Milestone` entity with an optional target date that tasks can link
+      to (`TaskItem.MilestoneId`, a "Milestone" picker in the full-field
+      editor), showing each milestone's linked-task progress; this one
+      chronologically-ordered list serves Sprint Planner *and* Roadmap View
+      both — see the scope note below for why
 
-**Approach:** All of these are read/organize *views* over the same
-`TaskItem` data (via `ITaskService.GetAllTasksAsync`, already built for
-Phase 14's export), not new persistence beyond Kanban's status concept and
-Goals/Milestones' new entity. Each is realistically its own window or a
-tab within a larger "Planner" window, since the compact widget's whole
-design premise (small, unobtrusive, one day) doesn't fit a month grid or a
-Kanban board — this phase implies growing DeskTodo a second, larger window
-alongside the widget, not stretching the widget itself. Goal
-Planner/Milestones/Sprint Planner/Roadmap View are the most speculative
-items here and probably deserve their own scoping discussion before
-committing to an entity design — "Goal" means different things in
-different apps (a personal habit-style goal vs. a project-management
-milestone).
+**Approach:** Calendar/Week/Year/Agenda/Timeline/Kanban/Matrix are all
+read-only *views* over the same `TaskItem` data `ITaskService.GetAllTasksAsync`
+already provides (Phase 14/20) — no new persistence for any of them.
+Goal/Milestone are the exception — the phase's own original scope note
+flagged these four wishlist items ("Goal Planner, Milestones, Sprint
+Planner, Roadmap View") as needing a genuinely new persisted concept before
+they could be built at all, and they're the only pieces of this phase that
+actually needed one: two new entities (`Goal` + its `GoalCompletion` log,
+and `Milestone`) plus a nullable FK from `TaskItem`. Week/Year/Agenda/
+Timeline/Kanban/Matrix/Goals/Milestones live as tabs in one `PlannerWindow`
+rather than eight separate windows/header icons (Calendar stays its own
+window/icon, since it was built first and a month grid's interaction shape
+— click a day, jump there — is different enough from the others' list/card
+shapes to earn its own screen). Clicking a day or task in a date-bearing
+tab navigates the widget to it and closes the window; Goals/Milestones rows
+don't (see docs/ARCHITECTURE.md's "Phase 21" section for why).
+
+**Scope note on the Year view:** 12 simultaneous 7x6 mini-calendars would
+be either illegibly tiny or need a much taller window than this app's other
+dialogs use, so each month is a summary tile ("N/M done") instead — a
+year-level view answering "how busy was this month," with day-level detail
+left to the Month/Week tabs.
+
+**Scope note on the Timeline view:** a plain chronological list (due date +
+title per row), not tasks positioned along a proportionally-scaled drawn
+axis. A true scaled timeline needs custom `DrawingContext`/`Canvas` layout,
+axis-scaling, and same-day overlap handling — a materially bigger UI
+engineering effort for a view whose actual job ("what's due, in order") a
+plain list already delivers. Still open if a future pass specifically wants
+the visual version.
+
+**Scope note on the Kanban board:** two columns (To Do/Done) reusing
+`TaskItem.IsCompleted` directly, not a new persisted "status" (the original
+wishlist shape was a three-plus-column board — To Do/In Progress/Done —
+but nothing in the domain model distinguishes "not started" from "in
+progress," and inventing that distinction is a separate scoping decision,
+not something to bolt on silently here). Moving a card between columns is a
+button click ("Move to Done"/"Move to To Do"), not drag-and-drop — a real
+drag gesture (Avalonia's `DragDrop` API, already used for the widget's own
+row reordering) is a reasonable follow-up, deliberately not built here to
+keep this pass's scope to the underlying To Do/Done model itself.
+
+**Scope note on Goal vs. Milestone:** two deliberately separate entities,
+not one concept split by a type flag — a personal habit-style goal (no end
+date, tracked by a daily streak) and a project-management milestone (a
+fixed deliverable with a target date that tasks link to) answer genuinely
+different questions, decided directly with the user rather than guessed:
+"add personal habit style goal and project style milestone" — both, as two
+concepts. `Sprint Planner` and `Roadmap View` were folded into the same
+Milestones tab rather than built as separate screens, since a
+chronologically-ordered milestone list already reads as "what's coming up
+next" (Sprint Planner) at the top and as the full timeline (Roadmap View)
+scrolling down — see docs/ARCHITECTURE.md's "Phase 21" section for the full
+reasoning, including why the streak is computed from a completion log
+rather than a cached counter, why Milestone deletion unlinks tasks instead
+of deleting them, and why Goals/Milestones don't navigate the widget the
+way every other tab's rows do.
+
+- `src/DeskTodo.Domain/Entities/{Goal,GoalCompletion,Milestone}.cs`,
+  `src/DeskTodo.Domain/Entities/TaskItem.cs` (`MilestoneId`/`Milestone`),
+  `src/DeskTodo.Domain/Exceptions/{GoalNotFoundException,MilestoneNotFoundException}.cs`
+- `src/DeskTodo.Infrastructure/Data/Configurations/{GoalConfiguration,GoalCompletionConfiguration,MilestoneConfiguration}.cs`,
+  `TaskItemConfiguration.cs` (Milestone FK, `SetNull`)
+- `src/DeskTodo.Application/Abstractions/{IGoalRepository,IMilestoneRepository}.cs`,
+  `src/DeskTodo.Infrastructure/Repositories/{GoalRepository,MilestoneRepository}.cs`
+- `src/DeskTodo.Application/Services/{IGoalService,GoalService,IMilestoneService,MilestoneService}.cs`
+- `src/DeskTodo.App/ViewModels/{CalendarViewModel,CalendarDayViewModel}.cs`,
+  `Views/{CalendarWindow.axaml,CalendarWindow.axaml.cs}`
+- `src/DeskTodo.App/ViewModels/{PlannerViewModel,WeekViewModel,YearViewModel,YearMonthSummaryViewModel,
+  AgendaViewModel,AgendaGroupViewModel,TimelineViewModel,KanbanViewModel,KanbanCardViewModel,
+  MatrixViewModel,MatrixQuadrantViewModel,PlannerTaskRowViewModel,PriorityColors,
+  GoalsViewModel,GoalRowViewModel,MilestonesViewModel,MilestoneRowViewModel,MilestoneOption}.cs`,
+  `Views/{PlannerWindow.axaml,PlannerWindow.axaml.cs}`
+- `src/DeskTodo.App/Converters/{BoolToTodayBackgroundConverter,BoolToCurrentMonthOpacityConverter}.cs`
+- `src/DeskTodo.App/ViewModels/TaskEditViewModel.cs` (`MilestoneOptions`/`SelectedMilestone`),
+  `Views/TaskEditWindow.axaml` ("Milestone" picker)
+- `src/DeskTodo.App/ViewModels/WidgetViewModel.cs` (`CalendarViewRequested`/`OpenCalendarViewCommand`,
+  `PlannerViewRequested`/`OpenPlannerViewCommand`), `Views/WidgetWindow.axaml` (📅/📋 header icons),
+  `Views/WidgetWindow.axaml.cs` (`OnCalendarViewRequested`, `OnPlannerViewRequested`)
+- Migration: `20260803195217_AddGoalsAndMilestones`
+- Tests: `GoalTests` (streak computation), `GoalRepositoryTests`, `MilestoneRepositoryTests`,
+  `GoalServiceTests`, `MilestoneServiceTests`, `GoalsViewModelTests`, `MilestonesViewModelTests`,
+  `CalendarViewModelTests`, `WeekViewModelTests`, `YearViewModelTests`, `AgendaViewModelTests`,
+  `TimelineViewModelTests`, `KanbanViewModelTests`, `MatrixViewModelTests`, `PlannerViewModelTests`,
+  `TaskEditViewModelTests`, `WidgetViewModelTests`, `CalendarWindowRenderTests`,
+  `PlannerWindowRenderTests` (headless, incl. a screenshot-verified render of every tab)
 
 ## 22. System tray, global shortcuts & quick add ⬜
 

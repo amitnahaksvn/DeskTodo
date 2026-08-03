@@ -37,6 +37,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
     private readonly ITaskTemplateService _templateService;
     private readonly ITaskDependencyService _taskDependencyService;
     private readonly IAttachmentService _attachmentService;
+    private readonly IMilestoneService _milestoneService;
     private readonly ILogger<TaskEditViewModel> _logger;
     private readonly ILogger<ChecklistItemRowViewModel> _checklistItemLogger;
     private Guid _taskId;
@@ -49,6 +50,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         ITaskTemplateService templateService,
         ITaskDependencyService taskDependencyService,
         IAttachmentService attachmentService,
+        IMilestoneService milestoneService,
         ILogger<TaskEditViewModel> logger,
         ILogger<ChecklistItemRowViewModel> checklistItemLogger)
     {
@@ -59,6 +61,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         _templateService = templateService;
         _taskDependencyService = taskDependencyService;
         _attachmentService = attachmentService;
+        _milestoneService = milestoneService;
         _logger = logger;
         _checklistItemLogger = checklistItemLogger;
     }
@@ -140,6 +143,12 @@ public sealed partial class TaskEditViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial TaskOption SelectedParentTask { get; set; } = TaskOption.None;
+
+    /// <summary>Every milestone, for the "Milestone" picker — see <see cref="Domain.Entities.Milestone"/>.</summary>
+    public ObservableCollection<MilestoneOption> MilestoneOptions { get; } = [MilestoneOption.None];
+
+    [ObservableProperty]
+    public partial MilestoneOption SelectedMilestone { get; set; } = MilestoneOption.None;
 
     /// <summary>Child tasks — added/removed immediately; see the class remarks.</summary>
     public ObservableCollection<SubtaskRowViewModel> Subtasks { get; } = [];
@@ -227,6 +236,16 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         }
 
         SelectedParentTask = SameDayTasks.FirstOrDefault(o => o.Id == task.ParentTaskId) ?? TaskOption.None;
+
+        var milestones = await _milestoneService.GetMilestonesAsync(cancellationToken);
+        MilestoneOptions.Clear();
+        MilestoneOptions.Add(MilestoneOption.None);
+        foreach (var milestone in milestones.OrderBy(m => m.TargetDate ?? DateOnly.MaxValue))
+        {
+            MilestoneOptions.Add(new MilestoneOption(milestone.Id, milestone.Title));
+        }
+
+        SelectedMilestone = MilestoneOptions.FirstOrDefault(o => o.Id == task.MilestoneId) ?? MilestoneOption.None;
 
         Subtasks.Clear();
         foreach (var subtask in task.Subtasks.OrderBy(t => t.Title, StringComparer.OrdinalIgnoreCase))
@@ -462,6 +481,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
             task.RecurrenceInterval = Math.Max(1, (int)RecurrenceInterval);
             task.RecurrenceEndDate = RecurrenceEndDate is { } end ? DateOnly.FromDateTime(end.DateTime) : null;
             task.ParentTaskId = SelectedParentTask.Id;
+            task.MilestoneId = SelectedMilestone.Id;
 
             await _taskService.UpdateTaskAsync(task);
             Saved?.Invoke(this, EventArgs.Empty);

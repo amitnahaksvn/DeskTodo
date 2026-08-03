@@ -167,6 +167,81 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                     b.ToTable("ChecklistItems", (string)null);
                 });
 
+            modelBuilder.Entity("DeskTodo.Domain.Entities.Goal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Goals", (string)null);
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.GoalCompletion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("CompletedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("GoalId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GoalId", "CompletedDate")
+                        .IsUnique();
+
+                    b.ToTable("GoalCompletions", (string)null);
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.Milestone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly?>("TargetDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Milestones", (string)null);
+                });
+
             modelBuilder.Entity("DeskTodo.Domain.Entities.Tag", b =>
                 {
                     b.Property<Guid>("Id")
@@ -261,6 +336,9 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                     b.Property<bool>("IsPinned")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid?>("MilestoneId")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("TEXT");
 
@@ -303,6 +381,8 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                     b.HasIndex("IsDeleted");
 
                     b.HasIndex("IsFavorite");
+
+                    b.HasIndex("MilestoneId");
 
                     b.HasIndex("ParentTaskId");
 
@@ -467,6 +547,17 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                     b.Navigation("Task");
                 });
 
+            modelBuilder.Entity("DeskTodo.Domain.Entities.GoalCompletion", b =>
+                {
+                    b.HasOne("DeskTodo.Domain.Entities.Goal", "Goal")
+                        .WithMany("Completions")
+                        .HasForeignKey("GoalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Goal");
+                });
+
             modelBuilder.Entity("DeskTodo.Domain.Entities.TaskDependency", b =>
                 {
                     b.HasOne("DeskTodo.Domain.Entities.TaskItem", "BlockedTask")
@@ -493,12 +584,19 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("DeskTodo.Domain.Entities.Milestone", "Milestone")
+                        .WithMany("Tasks")
+                        .HasForeignKey("MilestoneId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("DeskTodo.Domain.Entities.TaskItem", "ParentTask")
                         .WithMany("Subtasks")
                         .HasForeignKey("ParentTaskId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Category");
+
+                    b.Navigation("Milestone");
 
                     b.Navigation("ParentTask");
                 });
@@ -526,6 +624,16 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                         .HasForeignKey("TasksId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.Goal", b =>
+                {
+                    b.Navigation("Completions");
+                });
+
+            modelBuilder.Entity("DeskTodo.Domain.Entities.Milestone", b =>
+                {
+                    b.Navigation("Tasks");
                 });
 
             modelBuilder.Entity("DeskTodo.Domain.Entities.TaskItem", b =>

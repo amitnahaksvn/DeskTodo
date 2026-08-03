@@ -17,6 +17,16 @@ public static class ServiceCollectionExtensions
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<ImportExportViewModel>();
         services.AddTransient<GridViewModel>();
+        services.AddTransient<CalendarViewModel>();
+        services.AddTransient<PlannerViewModel>();
+        services.AddTransient<WeekViewModel>();
+        services.AddTransient<YearViewModel>();
+        services.AddTransient<AgendaViewModel>();
+        services.AddTransient<TimelineViewModel>();
+        services.AddTransient<KanbanViewModel>();
+        services.AddTransient<MatrixViewModel>();
+        services.AddTransient<GoalsViewModel>();
+        services.AddTransient<MilestonesViewModel>();
 
         return services;
     }

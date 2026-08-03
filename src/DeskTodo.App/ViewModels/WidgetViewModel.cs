@@ -700,6 +700,18 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenGridView() => GridViewRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised when the header's calendar icon is clicked (Phase 21's month-grid calendar). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? CalendarViewRequested;
+
+    [RelayCommand]
+    private void OpenCalendarView() => CalendarViewRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised when the header's planner icon is clicked (Phase 21's Week/Year/Agenda/Timeline/Kanban/Matrix views). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? PlannerViewRequested;
+
+    [RelayCommand]
+    private void OpenPlannerView() => PlannerViewRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try

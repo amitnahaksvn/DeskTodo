@@ -255,12 +255,5 @@ public sealed partial class TaskItemViewModel : ViewModelBase
         }
     }
 
-    private static string GetPriorityColorHex(TaskPriority priority) => priority switch
-    {
-        TaskPriority.Low => "#94A3B8",
-        TaskPriority.Medium => "#3B82F6",
-        TaskPriority.High => "#F97316",
-        TaskPriority.Critical => "#EF4444",
-        _ => "#94A3B8",
-    };
+    private static string GetPriorityColorHex(TaskPriority priority) => PriorityColors.ForPriority(priority);
 }

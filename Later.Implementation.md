@@ -3,14 +3,14 @@
 > A cross-platform desktop productivity application for Windows & macOS built with .NET.
 
 > **Status key:** `[x]` shipped (see IMPLEMENTATION.md for which phase). `[ ]`
-> not built. Checked/unchecked below reflects the state as of Phases 17–20
-> completing, including their originally-deferred items (2026-08-02) —
+> not built. Checked/unchecked below reflects the state as of Phases 17–21
+> completing, including their originally-deferred items (2026-08-04) —
 > cross-referenced item by item against IMPLEMENTATION.md, not assumed;
 > several `[x]` items note a partial scope inline (see IMPLEMENTATION.md's
-> Phase 17–20 sections for the full detail on what shipped vs. what's still
+> Phase 17–21 sections for the full detail on what shipped vs. what's still
 > deliberately out of scope). Everything still `[ ]` here has been carried
-> into IMPLEMENTATION.md's "Extended Roadmap (Phase 17+)" as a planned,
-> not-yet-started item (Phases 21–37).
+> into IMPLEMENTATION.md's "Extended Roadmap (Phase 22+)" as a planned,
+> not-yet-started item (Phases 22–37).
 
 ---
 
@@ -55,18 +55,18 @@
 # 📅 Planning
 
 - [x] Daily Planner
-- [ ] Weekly Planner
-- [ ] Monthly Planner
-- [ ] Year Planner
-- [ ] Calendar View _(a date-picker to jump to a day exists; no month-grid view)_
-- [ ] Agenda View
-- [ ] Timeline View
-- [ ] Kanban Board
-- [ ] Eisenhower Matrix
-- [ ] Goal Planner
-- [ ] Milestones
-- [ ] Sprint Planner
-- [ ] Roadmap View
+- [x] Weekly Planner _(a "Week" tab in the new Planner window — seven day cells with per-day task counts)_
+- [x] Monthly Planner _(the month-grid Calendar View below doubles as this — a month grid already shows a full month's shape)_
+- [x] Year Planner _(a "Year" tab: 12 month tiles, each a task-count summary rather than a mini-calendar)_
+- [x] Calendar View _(a real month-grid calendar — fixed 7x6 cells, a completion/task-count indicator per day)_
+- [x] Agenda View _(an "Agenda" tab: incomplete tasks across the next 14 days, grouped by date)_
+- [x] Timeline View _(a "Timeline" tab: every incomplete task with a due date, chronologically — a plain list, not a proportionally-drawn axis)_
+- [x] Kanban Board _(a "Kanban" tab: To Do/Done columns reusing IsCompleted, not a new status concept — click to move, not drag-and-drop)_
+- [x] Eisenhower Matrix _(a "Matrix" tab: 2x2 grid derived from Priority + due-date proximity, no new persistence)_
+- [x] Goal Planner _(a "Goals" tab: personal, ongoing habit-style targets tracked by a computed daily streak)_
+- [x] Milestones _(a "Milestones" tab: a target-date deliverable tasks can optionally link to, with progress shown as linked-task completion)_
+- [x] Sprint Planner _(served by the same Milestones tab — near-term milestones at the top read as "what's coming up next")_
+- [x] Roadmap View _(also served by the same Milestones tab — the full chronological list reads as the project's timeline)_
 
 ---
 
@@ -389,8 +389,8 @@
 # 🏆 MVP (Version 1)
 
 - [x] Task Management
-- [ ] Excel-style Grid
-- [ ] Calendar View
+- [x] Excel-style Grid
+- [x] Calendar View
 - [x] Daily Planner
 - [x] Always-on-Top Widget
 - [x] SQLite Storage

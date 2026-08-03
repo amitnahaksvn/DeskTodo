@@ -97,6 +97,11 @@ public sealed class TaskItem
 
     public ICollection<TaskItem> Subtasks { get; set; } = [];
 
+    /// <summary>Optional link to the project-style milestone this task contributes to — see <see cref="Entities.Milestone"/>. Null means "not part of a milestone," the common case.</summary>
+    public Guid? MilestoneId { get; set; }
+
+    public Milestone? Milestone { get; set; }
+
     /// <summary>Tasks that must be completed before this one can be — see <see cref="Entities.TaskDependency"/>.</summary>
     public ICollection<TaskDependency> BlockedByDependencies { get; set; } = [];
 

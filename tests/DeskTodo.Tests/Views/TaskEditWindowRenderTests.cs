@@ -42,6 +42,8 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
             var taskDependencyService = new Mock<ITaskDependencyService>();
             var attachmentService = new Mock<IAttachmentService>();
             attachmentService.Setup(s => s.GetAttachmentsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Attachment>());
+            var milestoneService = new Mock<IMilestoneService>();
+            milestoneService.Setup(s => s.GetMilestonesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Milestone>());
             var viewModel = new TaskEditViewModel(
                 taskService,
                 categoryRepository.Object,
@@ -50,6 +52,7 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
                 templateService.Object,
                 taskDependencyService.Object,
                 attachmentService.Object,
+                milestoneService.Object,
                 NullLogger<TaskEditViewModel>.Instance,
                 NullLogger<ChecklistItemRowViewModel>.Instance);
 
@@ -99,6 +102,8 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
             var taskDependencyService = new Mock<ITaskDependencyService>();
             var attachmentService = new Mock<IAttachmentService>();
             attachmentService.Setup(s => s.GetAttachmentsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Attachment>());
+            var milestoneService = new Mock<IMilestoneService>();
+            milestoneService.Setup(s => s.GetMilestonesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Milestone>());
             var viewModel = new TaskEditViewModel(
                 taskService,
                 categoryRepository.Object,
@@ -107,6 +112,7 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
                 templateService.Object,
                 taskDependencyService.Object,
                 attachmentService.Object,
+                milestoneService.Object,
                 NullLogger<TaskEditViewModel>.Instance,
                 NullLogger<ChecklistItemRowViewModel>.Instance);
             await viewModel.LoadAsync(task.Id);

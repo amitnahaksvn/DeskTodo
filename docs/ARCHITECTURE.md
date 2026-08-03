@@ -1151,6 +1151,154 @@ promising recoverability would be describing an implementation detail the
 user has no way to act on. The wording is accurate to what a user can
 actually do, not to what the database technically retains.
 
+## Phase 21 — Calendar, weekly/monthly/year views & alternate layouts
+
+**Every new view (Calendar, Week, Year, Agenda, Timeline, Kanban, Matrix) is
+a read-only projection over `ITaskService.GetAllTasksAsync` — none of them
+needed a new migration.** This was true by construction, not luck: the
+phase's own "Approach" note (written when this phase was first scoped)
+already flagged that these views only *organize* existing `TaskItem` data
+differently, and every implementation choice below stayed inside that
+constraint. The one deliverable that genuinely can't stay inside it — Goal/
+Milestone/Sprint/Roadmap — is exactly the one still unbuilt (see below).
+
+**Six of the seven built views share one `PlannerWindow` with a
+`TabControl`; Calendar kept its own window and header icon.** Week/Year/
+Agenda/Timeline/Kanban/Matrix all have the same interaction shape (a list
+or grid of things to glance at, click to navigate), so one window composing
+six small, independently-usable sub-ViewModels (`PlannerViewModel` holding
+`WeekViewModel`/`YearViewModel`/etc., see `PlannerViewModel`'s doc comment)
+avoided both a large monolithic ViewModel and a proliferation of
+near-identical windows/header icons. Calendar's month grid has a genuinely
+different interaction shape (a 7x6 spatial grid, not a list/card layout)
+and was built first, before the "one window, many tabs" shape had been
+decided on — kept as its own window rather than retrofitted into a seventh
+tab, since forcing a month grid into the same tab-content pattern as the
+others would have made it a worse month grid, not a more consistent app.
+
+**`CalendarDayViewModel` (Date/IsCurrentMonth/IsToday/counts/`SelectCommand`)
+is reused as-is by both the Calendar window's month grid and the Planner's
+Week tab**, rather than each view getting its own cell type — the two grids
+show the exact same information per cell (a date, whether it's today, a
+task count), just at different granularities (42 cells vs. 7), so one type
+serving both avoided a near-duplicate class for no behavioral difference.
+
+**The Year view shows 12 summary tiles, not 12 mini-calendars.** Twelve
+simultaneous 7x6 grids would be either illegibly tiny at this app's window
+sizes or need a materially taller window than every other dialog in this
+app uses. A summary tile ("N/M done") answers what a year-level glance is
+actually for — "how busy was/is this month" — while day-level detail stays
+the Month/Week tabs' job. This mirrors the same "match the view to the
+question it's actually answering" reasoning throughout this phase (see the
+Timeline and Kanban notes below).
+
+**The Timeline view is a plain chronologically-ordered list, not a
+proportionally-scaled drawn timeline.** A true visual timeline (tasks
+positioned along an axis spaced by actual elapsed time, with overlap
+handling for same-day tasks) needs custom `DrawingContext`/`Canvas` layout
+work — a materially bigger UI engineering effort than every other view in
+this phase, for a feature whose actual ask ("what's due, in what order")
+a plain ordered list already satisfies completely. Deliberately not built
+to that level of visual fidelity; open if a future pass specifically wants
+the drawn version.
+
+**The Kanban board reuses `TaskItem.IsCompleted` for two columns (To Do/
+Done) rather than introducing a new "status" concept for a three-plus
+column board.** The wishlist's original shape (To Do/In Progress/Done)
+needs a status distinction the domain model doesn't have — "in progress"
+isn't derivable from anything `TaskItem` currently tracks — and inventing
+that distinction is exactly the kind of scoping decision this phase's notes
+already flagged shouldn't happen silently inside an unrelated view's
+implementation. Reusing the existing boolean keeps the board real and
+functional today without pre-committing to a status model nobody's decided
+on yet. Moving a card between columns is a button click, not a drag
+gesture — Avalonia's `DragDrop` API is already used for the widget's own
+row reordering (Phase 9), so a real Kanban drag is a natural, scoped
+follow-up rather than something that needed solving in this pass.
+
+**The Eisenhower Matrix's "urgent" threshold (overdue, or due within 2
+days) is a fixed constant, not a user setting.** A configurable threshold
+is easy to add later if it turns out to matter in practice; shipping one
+reasonable default first avoids a Settings entry for a number nobody has
+asked to tune yet.
+
+**Goal Planner and Milestones/Sprint Planner/Roadmap View needed a real
+scoping decision before they could be built at all — resolved directly with
+the user rather than guessed.** Unlike every other view in this phase,
+these needed a genuinely new persisted entity (an EF Core migration and
+real schema commitment), and "Goal" means different things in different
+apps. Asked directly: the answer was **both**, as two separate concepts —
+"add personal habit style goal and project style milestone" — not one
+concept with a type flag, and not a guess at which single meaning to build.
+
+**`Goal` and `Milestone` are two separate entities, not one entity with a
+discriminator.** A personal habit ("meditate daily," no end date, tracked
+by a streak) and a project deliverable (a target date, tasks link to it)
+answer different questions and have almost no shared fields beyond a name
+— `Goal` has no target date or linked tasks; `Milestone` has no streak
+concept. A shared base type or a single table with a "kind" flag would
+have saved a small amount of boilerplate at the cost of every consumer
+needing to reason about which fields are meaningful for which kind — not
+worth it for two types this different in shape.
+
+**A goal's streak is computed from a log of completion dates
+(`GoalCompletion`, one row per day marked done), not a cached counter on
+`Goal` itself.** `Goal.GetCurrentStreak(today)` walks backward from today
+(or yesterday, if today isn't marked done yet — a streak isn't broken until
+a full day passes with nothing logged) counting consecutive days present in
+the log, stopping at the first gap. A cached "current streak" integer would
+need updating on every mark/unmark and would drift out of sync the moment
+a user un-marks an earlier day, deletes a stray completion, or the app
+skips a day for any reason (a crash, not opening it) — recomputing from the
+log on every read means it can never be wrong, at the cost of a small
+amount of computation that's cheap enough not to matter (the number of
+completions for one goal is small). The (GoalId, CompletedDate) pair has a
+unique index — a goal can only be marked done once per day — so
+`AddCompletionAsync` is idempotent rather than needing the caller to check
+first.
+
+**A `Milestone`'s target date is nullable, and deleting one unlinks its
+tasks (`SetNull`) rather than deleting them or blocking the delete.** Not
+every milestone needs a date ("someday" goals are real); a task's own
+existence and history shouldn't depend on whether the milestone it happened
+to be tagged with still exists. This mirrors `Category`'s exact same
+`SetNull` reasoning — a task losing its milestone tag is a much smaller
+problem than a task disappearing because an unrelated milestone got
+deleted. Verified live: adding a nullable FK to the existing `Tasks` table
+needed the same SQLite "rebuild the table" migration mechanism as the
+earlier self-referencing Subtasks FK (Phase 17) — confirmed via
+`PRAGMA foreign_key_list(Tasks)` against the real database that the
+constraint landed as a genuine, enforced `SET NULL`, not silently skipped.
+
+**Sprint Planner and Roadmap View are both served by the same
+chronologically-ordered Milestones list — not two separate screens.** Once
+"Milestone" existed as a concept with a target date, both wishlist items
+turned out to be the same underlying data viewed at different distances:
+near-term milestones at the top of the list read as "what's coming up next"
+(Sprint Planner), and scrolling through the whole list reads as the
+project's timeline (Roadmap View). Building two separate screens over
+identical data would have been the visual-timeline mistake the Timeline
+tab already avoided for tasks (see above) — a plain ordered list already
+answers both questions without needing two views to keep in sync.
+
+**Goals and Milestones don't raise `PlannerViewModel.DateSelected` the way
+every date-bearing tab does.** A `Goal` has no single day to jump to — it's
+ongoing by definition. A `Milestone` row's click targets are its own
+Toggle/Delete buttons, not a "jump to this date" gesture — even though it
+has a target date, clicking the row itself doing something as consequential
+as closing the whole Planner window and navigating the widget away would be
+surprising, unlike a Week/Agenda/Matrix row where "click it, go there" is
+the row's entire purpose.
+
+**Linking a task to a milestone reuses the exact pattern Category already
+established, not a new "link/unlink" service method.** `TaskItem.MilestoneId`
+is a plain nullable property, set through the full-field editor's normal
+staged-save flow (`SelectedMilestone` populated in `LoadAsync`, persisted
+in `SaveAsync`) exactly like `CategoryId`/`SelectedCategory` already work —
+`IMilestoneService` has no `LinkTaskAsync`/`UnlinkTaskAsync` at all, since
+the existing task-update path already does this without needing a
+dedicated method.
+
 ## What's genuinely verified vs. authored-only (Phases 13–16)
 
 This dev environment is macOS-only with no Windows machine and no
@@ -1189,3 +1337,4 @@ paths — that distinction is the whole point of stating it this plainly.
 | Tags & task color | Many-to-many tags + filter; a second Favorite flag; a per-task color override | ✅ Done |
 | Recurrence & auto-reschedule | Daily/Weekly/Monthly recurrence; opt-in auto-reschedule; Task Dependencies with a completion guard; Recently Viewed | ✅ Done |
 | Excel-style grid view | A separate editable `DataGrid` window over every task; TSV clipboard copy/paste; hide/freeze columns; named saved column-layout views; Status/Progress columns | ✅ Done |
+| Calendar & alternate layouts | Month-grid Calendar; Week/Year/Agenda/Timeline/Kanban/Matrix/Goals/Milestones planner tabs — Goals (habit streaks) and Milestones (target-date deliverables tasks can link to) both built as separate entities | ✅ Done |
