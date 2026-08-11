@@ -1695,6 +1695,107 @@ exact Markdown content for a given period is instead covered by
 `AnalyticsServiceTests`' direct string-content assertions, which check the
 same computation the UI would have displayed.
 
+## Phase 25 — Organization: projects, workspaces & lists
+
+`Later.Implementation.md`'s "Organization" category lists nine items:
+Projects, Workspaces, Lists, Folders, Sections, Smart Lists, Saved
+Searches, Favorites, Bookmarks. Before writing any code, these were
+grouped into three buckets — genuinely new, already-satisfied-but-missing-
+UI, and honestly-out-of-scope — rather than treated as nine independent
+features, because several of them are the same underlying idea wearing
+different names.
+
+**Projects vs. Category vs. Milestone.** The codebase already had two
+grouping concepts: `Category` (flat, often built-in, no archive state) and
+Phase 21's `Milestone` (a fixed deliverable with a target date, used by the
+Sprint Planner/Roadmap View). Neither is "a Project" in the ongoing,
+color-coded-bucket sense the wishlist means — a Project has no target date
+and isn't a one-time deliverable, it's a standing container, closer to how
+Todoist or Asana use the word. Reusing `Milestone` for this (the way Phase
+23 reused `Goal` for "Habit Tracker") would have been a stretch: a
+Milestone's whole reason for existing is its target date, which a Project
+usually doesn't have. So `Project` is a genuinely new entity — `Id, Name,
+Description?, ColorHex, IsArchived, CreatedAt` — deliberately mirroring
+`Category`'s shape plus the archive flag `Milestone.IsCompleted` already
+established as "explicitly settable, not derived." `TaskItem.ProjectId` is
+a plain nullable FK set directly through `ITaskService`'s normal update
+path, exactly how `CategoryId`/`MilestoneId` already work — no dedicated
+link/unlink method exists for any of the three, so Project doesn't invent
+one either.
+
+**Where Projects live in the UI.** The header row (`WidgetWindow.axaml`)
+already carries ten icons after Phase 24 added Analytics; an eleventh for
+"manage Projects" would have made an already-crowded row worse. Milestones
+faced the identical problem in Phase 21 and was resolved by folding it into
+the existing `PlannerWindow`'s `TabControl` as one more tab rather than a
+new window — Projects follows the same precedent exactly, composing a
+ninth small `ProjectsViewModel` into `PlannerViewModel` alongside Week/
+Year/Agenda/Timeline/Kanban/Matrix/Goals/Milestones.
+
+**Favorites and Bookmarks were mostly already done.** `TaskItem.IsFavorite`
+and `TaskItem.IsPinned` already existed as two deliberately independent
+flags (see `TaskItem`'s own doc comment: "Pin means keep at top of today's
+list; Favorite means important to me across every day"), complete with
+per-row toggle UI in the widget. What was missing was any way to see *all*
+favorited/pinned tasks across every day at once — the widget only ever
+shows one day. That gap is exactly what this phase's Smart Lists close.
+
+**Smart Lists and Saved Searches live in the grid, not the widget.** The
+widget (`WidgetViewModel`) is fundamentally day-scoped — `PlanDate`,
+one day's `Tasks` at a time. "Show me every overdue task" or "show me
+every favorite" are inherently cross-day queries, which don't fit that
+model without a much bigger change. The Excel-style grid (Phase 20,
+`GridViewModel`) already loads every non-archived task across every day
+into one list — it just had no filtering at all before this phase. Adding
+a `GridSmartFilter` enum (Favorites/Pinned/Overdue/Due Today/High Priority/
+No Project) there, alongside a first-ever search/status/category/project
+filter bar, was the natural fit. "Saved Searches" then became a question of
+whether to build a second, parallel persisted concept next to the grid's
+existing "saved column views" (`GridSavedView`, from Phase 20's commit
+`bb1e54f`) — or extend that one concept to also remember filter state.
+The latter was chosen: a user thinks of both as "what the grid currently
+looks like," so `GridSavedView` grew `SearchText`/`CategoryId`/`ProjectId`/
+`StatusFilter`/`SmartFilter` fields alongside its existing `HiddenColumns`,
+and the "Views" flyout's Save/Apply/Delete now round-trips both halves
+together. `StatusFilter`/`SmartFilter` are stored as plain strings (parsed
+with `Enum.TryParse`), not the enums themselves, since `GridSavedView`
+lives in `DeskTodo.Application.Settings` and can't reference the App-layer
+`TaskStatusFilter`/`GridSmartFilter` types without a layering violation.
+
+**What was deliberately deferred, and why:**
+- **Workspaces** — fully separate task-space silos (their own settings,
+  tray icon behavior, database scoping) would touch nearly every part of
+  the app's composition root, not just add a filter or an entity. That's a
+  different order of change than everything else in this phase, and no
+  partial version of it would be honest about what "Workspaces" usually
+  promises. Deferred outright rather than shipping something misleadingly
+  named.
+- **Folders** — nested Project hierarchy. The only precedent for hierarchy
+  anywhere in this domain is `TaskItem.ParentTaskId`, and its own doc
+  comment is explicit that it's "a lighter-weight, single-level parent/child
+  relationship — deliberately not a general tree." Building general
+  hierarchy just for Projects, with no other precedent to extend, felt like
+  solving a problem nobody has hit yet. Deferred until flat Projects alone
+  prove insufficient.
+- **Sections** — sub-grouping headers within a single project's task list
+  (grouped/collapsible rows, drag-reorder across groups). Real, nontrivial
+  UI work for a feature this app's current single-day-list-first design
+  doesn't obviously need yet. Deferred.
+
+**Live-verified:** created a real "Website Redesign" project through the
+Planner window's new Projects tab against the actual database — confirmed
+via a direct `sqlite3` query that it persisted with the correct name/color/
+archived state, and that the UI rendered it with its color swatch and "No
+linked tasks" progress text. Cleaned up afterward (deleted the row). Given
+session budget constraints partway through this phase's live-testing pass,
+the widget's new Project filter dropdown, the grid's new filter bar/Smart
+Lists/Saved Searches, and the task editor's new Project picker were not
+separately click-verified live — each is instead covered by dedicated
+tests (`WidgetViewModelTests`, `GridViewModelTests`,
+`TaskEditViewModelTests`) added specifically for this phase, following the
+same "test coverage substitutes for an interrupted live pass" reasoning
+Phase 24's report-generation gap used.
+
 ## What's genuinely verified vs. authored-only (Phases 13–16, 22)
 
 This dev environment is macOS-only with no Windows machine and no
@@ -1743,3 +1844,4 @@ carry equivalent, currently-undiscovered risk until it's actually run.
 | System tray, global shortcuts & quick add | Tray icon/menu bar item (macOS verified live); minimize to tray; Quick Add window; Cmd/Ctrl+Shift+N global shortcut (macOS verified live end-to-end via Carbon; Windows authored-only); Mini Widget collapsed layout; Multi Monitor placement (macOS verified live against a real two-monitor setup) | ✅ Done |
 | Productivity tools: timers, focus & habits | Pomodoro/Stopwatch/Countdown Timer session engine (one shared `FocusTimerViewModel` singleton, live-verified real ticking + DB write + cross-window preselection); Break/Water/Stretch Reminders; Time Tracking writing into `TaskItem.ActualMinutes`; Habit Tracker satisfied by Phase 21's `Goal` (daily cadence only — no weekly/monthly habit cadence yet); Productivity Score deferred to Phase 24 (Analytics) | ✅ Done |
 | Analytics & reporting | Dashboard (live-verified against the real database) with Weekly/Monthly/Overall completion rates, a Streak Counter, Focus Time, a 12-week Heat Map, and a per-category breakdown (Time Per Project delivered as Time Per Category — Phase 25's "Project" concept doesn't exist yet); generated Weekly/Monthly Markdown Reports with copy/save actions | ✅ Done |
+| Organization: projects, workspaces & lists | New `Project` entity (live-verified create + persist + render against the real database) with a Projects tab in the Planner window; Lists satisfied by Projects; Favorites/Bookmarks satisfied by wiring already-existing `IsFavorite`/`IsPinned` flags into new cross-day Smart Lists; Smart Lists (Favorites/Pinned/Overdue/Due Today/High Priority/No Project) and a first-ever filter bar added to the grid view; Saved Searches unified into the grid's existing `GridSavedView` "saved column views" rather than a second concept; Workspaces/Folders/Sections explicitly deferred (documented reasoning) | ✅ Done |

@@ -27,6 +27,8 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<FocusSession> FocusSessions => Set<FocusSession>();
 
+    public DbSet<Project> Projects => Set<Project>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeskTodoDbContext).Assembly);

@@ -38,6 +38,7 @@ public sealed partial class TaskItemViewModel : ViewModelBase
         CategoryId = task.CategoryId;
         CategoryName = task.Category?.Name;
         CategoryColorHex = task.Category?.ColorHex;
+        ProjectId = task.ProjectId;
         Notes = task.Notes;
         Description = task.Description;
         DueDate = task.DueDate;
@@ -84,6 +85,9 @@ public sealed partial class TaskItemViewModel : ViewModelBase
     public string? CategoryName { get; }
 
     public string? CategoryColorHex { get; }
+
+    /// <summary>For the search bar's project filter — see <see cref="Domain.Entities.Project"/>.</summary>
+    public Guid? ProjectId { get; }
 
     /// <summary>For the search bar's tag filter — the row itself doesn't display tags inline (only visible in the full-field editor).</summary>
     public IReadOnlyList<Guid> TagIds { get; } = [];

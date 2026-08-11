@@ -26,6 +26,11 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
             .HasForeignKey(t => t.MilestoneId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(t => t.Project)
+            .WithMany(p => p.Tasks)
+            .HasForeignKey(t => t.ProjectId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // Self-referencing one-level parent/child (Subtasks). Restrict rather than Cascade:
         // no code path ever hard-deletes a Tasks row (deletion is always the IsDeleted soft
         // flag), so the delete behavior is moot in practice, but Restrict is the safer
@@ -42,6 +47,7 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         builder.HasIndex(t => t.IsFavorite);
         builder.HasIndex(t => t.ParentTaskId);
         builder.HasIndex(t => t.MilestoneId);
+        builder.HasIndex(t => t.ProjectId);
 
         // Computed at read time; not persisted.
         builder.Ignore(t => t.IsOverdue);

@@ -12,7 +12,7 @@ using Moq;
 
 namespace DeskTodo.Tests.Views;
 
-/// <summary>Renders <see cref="PlannerWindow"/> (all eight tabs — Week/Year/Agenda/Timeline/Kanban/Matrix/Goals/Milestones — via <see cref="PlannerViewModel"/>) through Avalonia's headless platform (see <see cref="WidgetWindowRenderTests"/> for why).</summary>
+/// <summary>Renders <see cref="PlannerWindow"/> (all nine tabs — Week/Year/Agenda/Timeline/Kanban/Matrix/Goals/Milestones/Projects — via <see cref="PlannerViewModel"/>) through Avalonia's headless platform (see <see cref="WidgetWindowRenderTests"/> for why).</summary>
 [Collection(nameof(HeadlessCollection))]
 public class PlannerWindowRenderTests(HeadlessSessionFixture fixture)
 {
@@ -38,6 +38,10 @@ public class PlannerWindowRenderTests(HeadlessSessionFixture fixture)
             var milestoneService = new Mock<IMilestoneService>();
             milestoneService.Setup(s => s.GetMilestonesAsync(It.IsAny<CancellationToken>())).ReturnsAsync([milestone]);
 
+            var project = new Project { Name = "Website Redesign", ColorHex = "#6366F1" };
+            var projectService = new Mock<IProjectService>();
+            projectService.Setup(s => s.GetProjectsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([project]);
+
             var week = new WeekViewModel(taskService.Object, TimeProvider.System, NullLogger<WeekViewModel>.Instance);
             var year = new YearViewModel(taskService.Object, TimeProvider.System, NullLogger<YearViewModel>.Instance);
             var agenda = new AgendaViewModel(taskService.Object, TimeProvider.System, NullLogger<AgendaViewModel>.Instance);
@@ -46,7 +50,8 @@ public class PlannerWindowRenderTests(HeadlessSessionFixture fixture)
             var matrix = new MatrixViewModel(taskService.Object, TimeProvider.System, NullLogger<MatrixViewModel>.Instance);
             var goals = new GoalsViewModel(goalService.Object, TimeProvider.System, NullLogger<GoalsViewModel>.Instance);
             var milestones = new MilestonesViewModel(milestoneService.Object, NullLogger<MilestonesViewModel>.Instance);
-            var viewModel = new PlannerViewModel(week, year, agenda, timeline, kanban, matrix, goals, milestones);
+            var projects = new ProjectsViewModel(projectService.Object, NullLogger<ProjectsViewModel>.Instance);
+            var viewModel = new PlannerViewModel(week, year, agenda, timeline, kanban, matrix, goals, milestones, projects);
 
             await viewModel.LoadAsync(new DateOnly(2026, 8, 15));
 
@@ -54,7 +59,7 @@ public class PlannerWindowRenderTests(HeadlessSessionFixture fixture)
             window.Show();
 
             var tabControl = window.GetVisualDescendants().OfType<TabControl>().Single();
-            Assert.Equal(8, tabControl.ItemCount);
+            Assert.Equal(9, tabControl.ItemCount);
 
             var screenshotDir = Environment.GetEnvironmentVariable("DESKTODO_SCREENSHOT_DIR");
 

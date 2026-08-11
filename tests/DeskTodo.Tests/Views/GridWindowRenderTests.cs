@@ -35,7 +35,10 @@ public class GridWindowRenderTests(HeadlessSessionFixture fixture)
             var settingsService = new Mock<ISettingsService>();
             settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
 
-            var viewModel = new GridViewModel(taskService.Object, categoryRepository.Object, settingsService.Object, NullLogger<GridViewModel>.Instance);
+            var projectService = new Mock<IProjectService>();
+            projectService.Setup(s => s.GetProjectsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+
+            var viewModel = new GridViewModel(taskService.Object, categoryRepository.Object, projectService.Object, settingsService.Object, TimeProvider.System, NullLogger<GridViewModel>.Instance);
             await viewModel.LoadAsync();
 
             Assert.Equal(2, viewModel.Rows.Count);
@@ -71,7 +74,10 @@ public class GridWindowRenderTests(HeadlessSessionFixture fixture)
             var settingsService = new Mock<ISettingsService>();
             settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
 
-            var viewModel = new GridViewModel(taskService.Object, categoryRepository.Object, settingsService.Object, NullLogger<GridViewModel>.Instance);
+            var projectService = new Mock<IProjectService>();
+            projectService.Setup(s => s.GetProjectsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+
+            var viewModel = new GridViewModel(taskService.Object, categoryRepository.Object, projectService.Object, settingsService.Object, TimeProvider.System, NullLogger<GridViewModel>.Instance);
             await viewModel.LoadAsync();
 
             var window = new GridWindow { DataContext = viewModel };

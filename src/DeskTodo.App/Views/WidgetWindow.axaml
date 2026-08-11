@@ -144,6 +144,8 @@
                 -->
                 <ComboBox x:Name="CategoryFilterComboBox" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategoryFilter}"
                           HorizontalAlignment="Stretch" ToolTip.Tip="Filter by category" />
+                <ComboBox x:Name="ProjectFilterComboBox" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProjectFilter}"
+                          HorizontalAlignment="Stretch" ToolTip.Tip="Filter by project" />
                 <ComboBox x:Name="TagFilterComboBox" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTagFilter}"
                           HorizontalAlignment="Stretch" ToolTip.Tip="Filter by tag" />
             </StackPanel>

@@ -375,6 +375,43 @@
                     </ScrollViewer>
                 </Grid>
             </TabItem>
+
+            <!-- Projects -->
+            <TabItem Header="Projects">
+                <Grid RowDefinitions="Auto,*" Margin="0,8,0,0">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                        <TextBox Grid.Column="0" Text="{Binding Projects.NewProjectName}" PlaceholderText="New project name…" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="Add" Command="{Binding Projects.AddProjectCommand}" Padding="12,6" />
+                    </Grid>
+                    <TextBlock Grid.Row="1" Text="No projects yet — add one above." FontSize="12" Foreground="#64748B"
+                               HorizontalAlignment="Center" Margin="0,24,0,0"
+                               IsVisible="{Binding Projects.HasNoProjects}" />
+                    <ScrollViewer Grid.Row="1">
+                        <ItemsControl ItemsSource="{Binding Projects.Projects}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ProjectRowViewModel">
+                                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4"
+                                            Padding="10" Margin="0,0,0,6">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                            <Ellipse Grid.Column="0" Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                     Fill="{Binding ColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#1E293B"
+                                                           Opacity="{Binding IsArchived, Converter={x:Static conv:BoolToArchivedOpacityConverter.Instance}}" />
+                                                <TextBlock Text="{Binding ProgressDisplay}" FontSize="11" Foreground="#64748B" />
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Content="{Binding ToggleButtonLabel}" Command="{Binding ToggleArchivedCommand}"
+                                                    FontSize="11" Padding="8,4" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                            <Button Grid.Column="3" Content="Delete" Command="{Binding DeleteCommand}"
+                                                    FontSize="11" Padding="8,4" Background="#FEE2E2" Foreground="#DC2626" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
         </TabControl>
     </Grid>
 

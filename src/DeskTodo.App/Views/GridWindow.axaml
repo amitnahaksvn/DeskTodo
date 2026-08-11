@@ -22,7 +22,7 @@
       "Save" button, mirroring every other immediate-persistence surface in this app
       (Pin, Complete, Delete, ...).
     -->
-    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,12">
             <TextBlock Grid.Column="0" Text="All Tasks" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" />
             <TextBlock Grid.Column="1" Text="{Binding SelectedCount, StringFormat='{}{0} selected'}"
@@ -32,14 +32,15 @@
                 <Button.Flyout>
                     <Flyout Placement="BottomEdgeAlignedRight" Opened="OnViewsFlyoutOpened">
                         <StackPanel Spacing="8" MinWidth="220">
-                            <TextBlock Text="Saved column views" FontSize="11" Foreground="#64748B" />
+                            <TextBlock Text="Saved views" FontSize="11" Foreground="#64748B" />
+                            <TextBlock Text="Each saves the grid's columns and filters together" FontSize="10" Foreground="#94A3B8" TextWrapping="Wrap" />
                             <ListBox x:Name="SavedViewsListBox" MaxHeight="140" SelectionMode="Single" FontSize="12" />
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <Button Content="Apply" Click="OnApplyViewClick" FontSize="11" Padding="8,4" />
                                 <Button Content="Delete" Click="OnDeleteViewClick" FontSize="11" Padding="8,4" />
                             </StackPanel>
                             <Separator Margin="0,4" />
-                            <TextBlock Text="Save current columns as…" FontSize="11" Foreground="#64748B" />
+                            <TextBlock Text="Save current columns + filters as…" FontSize="11" Foreground="#64748B" />
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBox x:Name="NewViewNameTextBox" PlaceholderText="View name" Width="130" FontSize="12" />
                                 <Button Content="Save" Click="OnSaveViewClick" FontSize="11" Padding="8,4" />
@@ -66,7 +67,15 @@
             </Button>
         </Grid>
 
-        <DataGrid x:Name="TasksGrid" Grid.Row="1" ItemsSource="{Binding Rows}"
+        <Grid Grid.Row="1" ColumnDefinitions="1.5*,Auto,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,12">
+            <TextBox Grid.Column="0" Text="{Binding SearchText}" PlaceholderText="Search title, notes…" />
+            <ComboBox Grid.Column="1" ItemsSource="{Binding StatusFilters}" SelectedItem="{Binding SelectedStatusFilter}" ToolTip.Tip="Filter by status" />
+            <ComboBox Grid.Column="2" ItemsSource="{Binding CategoryFilterOptions}" SelectedItem="{Binding SelectedCategoryFilter}" ToolTip.Tip="Filter by category" />
+            <ComboBox Grid.Column="3" ItemsSource="{Binding ProjectFilterOptions}" SelectedItem="{Binding SelectedProjectFilter}" ToolTip.Tip="Filter by project" />
+            <ComboBox Grid.Column="4" ItemsSource="{Binding SmartFilters}" SelectedItem="{Binding SelectedSmartFilter}" ToolTip.Tip="Smart Lists — a quick, computed filter" />
+        </Grid>
+
+        <DataGrid x:Name="TasksGrid" Grid.Row="2" ItemsSource="{Binding VisibleRows}"
                   AutoGenerateColumns="False" CanUserResizeColumns="True"
                   CanUserReorderColumns="True" CanUserSortColumns="True"
                   FrozenColumnCount="2"
@@ -153,7 +162,7 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,16,0,0">
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Margin="0,16,0,0">
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
                 <Button Content="Copy" Click="OnCopyClick" Padding="12,8"
                         ToolTip.Tip="Copy the selection (or every row, if none selected) as tab-separated text — pastes directly into Excel" />

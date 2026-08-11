@@ -3,14 +3,14 @@
 > A cross-platform desktop productivity application for Windows & macOS built with .NET.
 
 > **Status key:** `[x]` shipped (see IMPLEMENTATION.md for which phase). `[ ]`
-> not built. Checked/unchecked below reflects the state as of Phase 24
+> not built. Checked/unchecked below reflects the state as of Phase 25
 > completing, including its originally-deferred items (2026-08-12) —
 > cross-referenced item by item against IMPLEMENTATION.md, not assumed;
 > several `[x]` items note a partial scope inline (see IMPLEMENTATION.md's
-> Phase 17–24 sections for the full detail on what shipped vs. what's still
+> Phase 17–25 sections for the full detail on what shipped vs. what's still
 > deliberately out of scope). Everything still `[ ]` here has been carried
-> into IMPLEMENTATION.md's "Extended Roadmap (Phase 25+)" as a planned,
-> not-yet-started item (Phases 25–37).
+> into IMPLEMENTATION.md's "Extended Roadmap (Phase 26+)" as a planned,
+> not-yet-started item (Phases 26–37).
 
 ---
 
@@ -157,15 +157,15 @@
 
 # 📁 Organization
 
-- [ ] Projects
-- [ ] Workspaces
-- [ ] Lists
-- [ ] Folders
-- [ ] Sections
-- [ ] Smart Lists
-- [ ] Saved Searches
-- [ ] Favorites
-- [ ] Bookmarks
+- [x] Projects
+- [ ] Workspaces _(deferred — a full separate task-space silo is a much larger structural change than this single-user, single-database app currently supports; no honest partial version exists)_
+- [x] Lists _(satisfied by Projects — a Project's linked tasks ARE a list, not a second concept)_
+- [ ] Folders _(deferred — nested Project hierarchy; no precedent for general hierarchy anywhere in the domain, only `TaskItem`'s single-level, deliberately-not-a-tree subtask relationship)_
+- [ ] Sections _(deferred — sub-grouping headers within a project's list; real UI complexity for low value at this stage)_
+- [x] Smart Lists _(Favorites/Pinned/Overdue/Due Today/High Priority/No Project — a computed quick filter in the grid view, the natural home since it already spans every day)_
+- [x] Saved Searches _(unified with the grid's existing "saved column views" into one named preset, rather than a second parallel concept)_
+- [x] Favorites _(the underlying `TaskItem.IsFavorite` flag already existed; this phase added its missing cross-day "view them all" UI)_
+- [x] Bookmarks _(same story as Favorites, via `TaskItem.IsPinned`)_
 
 ---
 

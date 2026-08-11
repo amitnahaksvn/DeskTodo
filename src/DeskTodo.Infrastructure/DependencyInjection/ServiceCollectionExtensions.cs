@@ -55,6 +55,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IGoalRepository, GoalRepository>();
         services.AddScoped<IMilestoneRepository, MilestoneRepository>();
         services.AddScoped<IFocusSessionRepository, FocusSessionRepository>();
+        services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<IChecklistService, ChecklistService>();
         services.AddScoped<ITaskTemplateService, TaskTemplateService>();
@@ -64,6 +65,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IGoalService, GoalService>();
         services.AddScoped<IMilestoneService, MilestoneService>();
         services.AddScoped<IFocusSessionService, FocusSessionService>();
+        services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IAnalyticsService, AnalyticsService>();
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<ITaskExportService, TaskExportService>();

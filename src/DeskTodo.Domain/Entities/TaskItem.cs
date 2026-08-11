@@ -102,6 +102,11 @@ public sealed class TaskItem
 
     public Milestone? Milestone { get; set; }
 
+    /// <summary>Optional link to the ongoing project bucket this task belongs to — see <see cref="Entities.Project"/>. Distinct from <see cref="MilestoneId"/> (a fixed deliverable) and <see cref="CategoryId"/> (a lighter day-to-day label); a task can carry any combination of the three.</summary>
+    public Guid? ProjectId { get; set; }
+
+    public Project? Project { get; set; }
+
     /// <summary>Tasks that must be completed before this one can be — see <see cref="Entities.TaskDependency"/>.</summary>
     public ICollection<TaskDependency> BlockedByDependencies { get; set; } = [];
 

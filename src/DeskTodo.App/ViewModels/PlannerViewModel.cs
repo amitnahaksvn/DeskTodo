@@ -4,19 +4,19 @@ namespace DeskTodo.App.ViewModels;
 
 /// <summary>
 /// Hosts Phase 21's remaining planner tabs — Week, Year, Agenda, Timeline, Kanban, Matrix,
-/// Goals, Milestones — behind one window with a <c>TabControl</c> (see
-/// <c>PlannerWindow.axaml</c>), rather than eight separate windows/header icons. This
-/// composes eight small, independent sub-ViewModels (each already usable on its own)
-/// instead of being one large ViewModel with everything inlined — every tab's data loads
-/// together in <see cref="LoadAsync"/>, and picking a date in *any* date-bearing tab
-/// bubbles up through this class's own <see cref="DateSelected"/> so <c>WidgetWindow</c>
-/// only needs to handle one event. Goals and Milestones don't raise it — a goal has no
-/// single day, and clicking a milestone row triggers its own Toggle/Delete buttons rather
-/// than navigating the widget anywhere.
+/// Goals, Milestones — plus Phase 25's Projects tab, behind one window with a
+/// <c>TabControl</c> (see <c>PlannerWindow.axaml</c>), rather than nine separate
+/// windows/header icons. This composes nine small, independent sub-ViewModels (each already
+/// usable on its own) instead of being one large ViewModel with everything inlined — every
+/// tab's data loads together in <see cref="LoadAsync"/>, and picking a date in *any*
+/// date-bearing tab bubbles up through this class's own <see cref="DateSelected"/> so
+/// <c>WidgetWindow</c> only needs to handle one event. Goals, Milestones and Projects don't
+/// raise it — none of the three has a single day, and clicking a row in any of them triggers
+/// its own Toggle/Archive/Delete buttons rather than navigating the widget anywhere.
 /// </summary>
 public sealed partial class PlannerViewModel : ViewModelBase
 {
-    public PlannerViewModel(WeekViewModel week, YearViewModel year, AgendaViewModel agenda, TimelineViewModel timeline, KanbanViewModel kanban, MatrixViewModel matrix, GoalsViewModel goals, MilestonesViewModel milestones)
+    public PlannerViewModel(WeekViewModel week, YearViewModel year, AgendaViewModel agenda, TimelineViewModel timeline, KanbanViewModel kanban, MatrixViewModel matrix, GoalsViewModel goals, MilestonesViewModel milestones, ProjectsViewModel projects)
     {
         Week = week;
         Year = year;
@@ -26,6 +26,7 @@ public sealed partial class PlannerViewModel : ViewModelBase
         Matrix = matrix;
         Goals = goals;
         Milestones = milestones;
+        Projects = projects;
 
         Week.DateSelected += (_, date) => DateSelected?.Invoke(this, date);
         Year.DateSelected += (_, date) => DateSelected?.Invoke(this, date);
@@ -50,6 +51,8 @@ public sealed partial class PlannerViewModel : ViewModelBase
 
     public MilestonesViewModel Milestones { get; }
 
+    public ProjectsViewModel Projects { get; }
+
     public event EventHandler<DateOnly>? DateSelected;
 
     public event EventHandler? CloseRequested;
@@ -64,6 +67,7 @@ public sealed partial class PlannerViewModel : ViewModelBase
         await Matrix.LoadAsync(cancellationToken);
         await Goals.LoadAsync(cancellationToken);
         await Milestones.LoadAsync(cancellationToken);
+        await Projects.LoadAsync(cancellationToken);
     }
 
     [RelayCommand]

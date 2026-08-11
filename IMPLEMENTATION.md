@@ -7,7 +7,7 @@ that one is the reasoning.
 
 **Legend:** ✅ Done · 🚧 Partial · ⬜ Not started
 
-**Last updated:** 2026-08-12 (Phases 1–16 done; Phases 17–24 fully done — including their originally-deferred items; Phases 25–37 still pending)
+**Last updated:** 2026-08-12 (Phases 1–16 done; Phases 17–25 fully done — including their originally-deferred items; Phases 26–37 still pending)
 
 > **Note on numbering:** phases 1–16 mirror the tracked work items
 > one-to-one, with one deliberate exception — the DesktopSheet→DeskTodo
@@ -47,7 +47,7 @@ that one is the reasoning.
 | 15 | [Platform-specific integration](#15-platform-specific-integration) | ✅ |
 | 16 | [Packaging (MSIX / DMG)](#16-packaging-msix--dmg) | 🚧 |
 
-## Phases 17–24 (done)
+## Phases 17–25 (done)
 
 Fully built, including every item their own "Deferred:"/scope notes
 originally named — see each phase's own section below for the full detail.
@@ -62,12 +62,12 @@ originally named — see each phase's own section below for the full detail.
 | 22 | [System tray, global shortcuts & quick add](#22-system-tray-global-shortcuts--quick-add) | Desktop Features | ✅ |
 | 23 | [Productivity tools: timers, focus & habits](#23-productivity-tools-timers-focus--habits) | Productivity | ✅ |
 | 24 | [Analytics & reporting](#24-analytics--reporting) | Analytics | ✅ |
+| 25 | [Organization: projects, workspaces & lists](#25-organization-projects-workspaces--lists) | Organization | ✅ |
 
-## Extended Roadmap — Phase 25+
+## Extended Roadmap — Phase 26+
 
 | # | Phase | Source category (Later.Implementation.md) | Status |
 |---|-------|---------------------------------------------|--------|
-| 25 | [Organization: projects, workspaces & lists](#25-organization-projects-workspaces--lists) | Organization | ⬜ |
 | 26 | [Reminder enhancements](#26-reminder-enhancements) | Reminders | ⬜ |
 | 27 | [Theming & appearance](#27-theming--appearance) | Appearance, "Later" notes | ⬜ |
 | 28 | [Power user tools](#28-power-user-tools) | Power User Features | ⬜ |
@@ -80,7 +80,7 @@ originally named — see each phase's own section below for the full detail.
 | 35 | [Unique capture features](#35-unique-capture-features) | Unique Features | ⬜ |
 | 36 | [Developer Mode dashboards](#36-developer-mode-dashboards) | Developer Mode | ⬜ |
 | 37 | [Companion apps & extensions](#37-companion-apps--extensions) | Future Ideas | ⬜ |
-
+| 38 | [have a list of task which can add to day, days, week or month on 1 click] allow user to create multiple task groups and on click it adds to ther to do list
 ---
 
 ## 1. Solution scaffold ✅
@@ -423,9 +423,9 @@ yet either (only the Avalonia template placeholder icon is in the repo — see
 
 # Extended Roadmap (Phase 17+)
 
-Phases 17–24 are now fully built, including every item their own original
+Phases 17–25 are now fully built, including every item their own original
 "Deferred:"/scope-note paragraphs named — see each phase's own section
-below for exactly what shipped and the reasoning behind it. Phases 25–37
+below for exactly what shipped and the reasoning behind it. Phases 26–37
 below remain **planning only — no code has been written for any of them.**
 Each of those phases lists what it covers, why it's grouped that way, the
 concrete deliverables (traced back to `Later.Implementation.md`), and the
@@ -1090,36 +1090,92 @@ lock partway through, and no attempt was made to work around that.
   (`OnAnalyticsRequested`)
 - Tests: `AnalyticsServiceTests`, `AnalyticsViewModelTests`
 
-## 25. Organization: projects, workspaces & lists ⬜
+## 25. Organization: projects, workspaces & lists ✅
 
-A second, coarser grouping concept above Category/Tags — the wishlist
-treats "a Category on a task" and "a Project/Workspace that contains many
-tasks" as different things, and this phase is exactly that distinction.
+The wishlist's nine items (Projects, Workspaces, Lists, Folders, Sections,
+Smart Lists, Saved Searches, Favorites, Bookmarks) are really three or four
+distinct ideas wearing nine names. This phase builds the ones that add
+genuine new value at this app's current scale, and explicitly defers the
+ones that would require a much larger structural change for little payoff
+today — each substitution/deferral is documented below rather than silently
+dropped.
 
-**Deliverables:**
-- Projects, Lists, Folders, Sections — nested/flat containers for grouping
-  many tasks (needs a product decision on how many of these four
-  near-synonymous concepts actually ship as distinct features vs.
-  collapsing into one)
-- Workspaces — a higher-level container potentially holding multiple
-  Projects/Lists (most relevant once Phase 32's multi-user features exist —
-  low priority standalone)
-- Smart Lists — a saved filter/query (e.g. "overdue," "due this week")
-  presented as if it were a static list
-- Saved Searches, Bookmarks — persisted versions of an ad-hoc search
-  (Phase 11) or a specific task, for quick return access
+**Delivered:**
+- **Projects** — a new `Project` entity (name, color, description, archived
+  flag): an ongoing, color-coded task container, distinct from `Category`
+  (lighter, often built-in) and Phase 21's `Milestone` (a fixed deliverable
+  with a target date, not an ongoing bucket). `TaskItem.ProjectId` is a
+  plain nullable FK, linked the same way `CategoryId`/`MilestoneId` already
+  are — no dedicated link/unlink method. A "Projects" tab was added
+  alongside Goals/Milestones in the existing Planner window (add/archive/
+  delete, colors cycling through a fixed palette) rather than a new header
+  icon/window, matching how Milestones was integrated in Phase 21.
+- **Lists** — satisfied by Projects: a Project's linked-tasks collection
+  *is* a list. Not a second, separate concept.
+- **Favorites** — `TaskItem.IsFavorite` already existed (an earlier phase)
+  but had no cross-day "view them all" UI; this phase adds that missing
+  piece via the grid's new Favorites Smart List.
+- **Bookmarks** — read the same way: `TaskItem.IsPinned` already existed;
+  this phase adds the cross-day "Pinned" Smart List that was missing.
+- **Smart Lists** — a `GridSmartFilter` enum (Favorites/Pinned/Overdue/Due
+  Today/High Priority/No Project) added to the grid view (Phase 20), which
+  is the natural home since — unlike the day-scoped widget — it already
+  spans every day.
+- **Saved Searches** — rather than a second, parallel "saved search" concept
+  next to the grid's existing "saved column views" (Phase 20), `GridSavedView`
+  was extended with search text/category/project/status/smart-filter fields:
+  one named preset now captures both what's *shown* (columns) and what's
+  *filtered* (the search bar), since a user thinks of both as "what the
+  grid currently looks like."
+- The grid also gained its first filter bar at all (search text + status +
+  category + project dropdowns) — it previously showed every non-archived
+  task with no filtering whatsoever.
+- The widget's existing day-scoped filter bar (Phase 11) gained a matching
+  Project filter dropdown, alongside the existing Category/Tag ones.
+- The full-field task editor (Phase 17) gained a "Project" picker, the same
+  shape as its existing "Milestone" picker.
 
-**Approach:** A new `Project` (or `List`) entity that `TaskItem` gets an
-optional FK to, parallel to the existing `CategoryId` — the
-`WidgetViewModel`/search-and-filter surface (Phase 11) would need a
-project-scoped view mode alongside the existing day-scoped one, which is
-a meaningful architectural shift (the whole app is currently organized
-around "today's tasks," not "this project's tasks"). Smart Lists and Saved
-Searches are lighter: persist a filter-criteria object (status + category +
-tag + search text, mirroring `WidgetViewModel`'s existing filter
-properties from Phase 11) under a user-given name, and re-apply it on
-selection — no new Domain entities needed, just a new small persisted
-list, similar in spirit to how `AppSettings` is persisted today.
+**Deferred (documented, not silently dropped):**
+- **Workspaces** — fully separate task-space silos (their own settings,
+  tray behavior, DB scoping) are a much larger structural change than this
+  single-user, single-database desktop widget currently supports. No
+  partial version would be honest, so it's deferred rather than faked.
+- **Folders** — nested hierarchy of Projects. The only precedent for
+  hierarchy anywhere in this domain is `TaskItem.ParentTaskId`'s single-level
+  parent/child, explicitly documented as deliberately *not* a general tree.
+  Deferred until flat Projects alone prove insufficient.
+- **Sections** — sub-grouping headers within a project's task list. Real UI
+  complexity (grouped/collapsible rows, cross-section drag-reorder) for
+  comparatively low value at this stage; deferred.
+
+**Live-verified:** created a real "Website Redesign" project through the
+Planner window's new Projects tab against the actual database — confirmed
+it persisted correctly (`sqlite3` query against `Projects`), rendered with
+its color swatch and "No linked tasks" state, and cleaned up afterward.
+The widget/grid filter dropdowns and the task editor's Project picker were
+not separately click-verified live in this pass (covered instead by
+`WidgetViewModelTests`, `GridViewModelTests`, and `TaskEditViewModelTests`'
+dedicated Project-filter/Smart-List/Saved-Search test coverage) — session
+budget ran low partway through live verification, so remaining surface
+area relied on the automated suite rather than further manual clicking.
+
+- `src/DeskTodo.Domain/Entities/Project.cs`, `TaskItem.cs` (`ProjectId`/`Project`)
+- `src/DeskTodo.Domain/Exceptions/ProjectNotFoundException.cs`
+- `src/DeskTodo.Infrastructure/Data/Configurations/{ProjectConfiguration,TaskItemConfiguration}.cs`,
+  migration `20260811205335_AddProjects`
+- `src/DeskTodo.Application/Abstractions/IProjectRepository.cs`,
+  `src/DeskTodo.Infrastructure/Repositories/ProjectRepository.cs`
+- `src/DeskTodo.Application/Services/{IProjectService,ProjectService}.cs`
+- `src/DeskTodo.App/ViewModels/{ProjectsViewModel,ProjectRowViewModel,ProjectOption,ProjectFilterOption}.cs`,
+  `PlannerViewModel.cs` (Projects tab), `Views/PlannerWindow.axaml` (Projects `TabItem`)
+- `src/DeskTodo.App/Converters/BoolToArchivedOpacityConverter.cs`
+- `src/DeskTodo.App/ViewModels/TaskEditViewModel.cs`/`Views/TaskEditWindow.axaml`
+  (Project picker), `WidgetViewModel.cs`/`Views/WidgetWindow.axaml` (Project filter)
+- `src/DeskTodo.App/ViewModels/{GridSmartFilter,TaskGridRowViewModel,GridViewModel}.cs`,
+  `Views/GridWindow.axaml` (filter bar), `Application/Settings/GridSavedView.cs`
+  (Saved Search fields)
+- Tests: `ProjectRepositoryTests`, `ProjectServiceTests`, `ProjectsViewModelTests`,
+  plus additions to `WidgetViewModelTests`, `TaskEditViewModelTests`, `GridViewModelTests`
 
 ## 26. Reminder enhancements ⬜
 

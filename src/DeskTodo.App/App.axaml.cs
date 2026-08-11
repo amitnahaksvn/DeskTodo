@@ -54,6 +54,7 @@ public partial class App : global::Avalonia.Application
                 ?? new WidgetViewModel(
                     new DesignTimeTaskService(),
                     new DesignTimeCategoryRepository(),
+                    new DesignTimeProjectService(),
                     new DesignTimeTagService(),
                     new DesignTimeTaskTemplateService(),
                     new DesignTimeSettingsService(),

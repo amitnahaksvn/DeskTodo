@@ -38,6 +38,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
     private readonly ITaskDependencyService _taskDependencyService;
     private readonly IAttachmentService _attachmentService;
     private readonly IMilestoneService _milestoneService;
+    private readonly IProjectService _projectService;
     private readonly ILogger<TaskEditViewModel> _logger;
     private readonly ILogger<ChecklistItemRowViewModel> _checklistItemLogger;
     private Guid _taskId;
@@ -51,6 +52,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         ITaskDependencyService taskDependencyService,
         IAttachmentService attachmentService,
         IMilestoneService milestoneService,
+        IProjectService projectService,
         ILogger<TaskEditViewModel> logger,
         ILogger<ChecklistItemRowViewModel> checklistItemLogger)
     {
@@ -62,6 +64,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         _taskDependencyService = taskDependencyService;
         _attachmentService = attachmentService;
         _milestoneService = milestoneService;
+        _projectService = projectService;
         _logger = logger;
         _checklistItemLogger = checklistItemLogger;
     }
@@ -161,6 +164,12 @@ public sealed partial class TaskEditViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial MilestoneOption SelectedMilestone { get; set; } = MilestoneOption.None;
+
+    /// <summary>Every non-archived project, for the "Project" picker — see <see cref="Domain.Entities.Project"/>.</summary>
+    public ObservableCollection<ProjectOption> ProjectOptions { get; } = [ProjectOption.None];
+
+    [ObservableProperty]
+    public partial ProjectOption SelectedProject { get; set; } = ProjectOption.None;
 
     /// <summary>Child tasks — added/removed immediately; see the class remarks.</summary>
     public ObservableCollection<SubtaskRowViewModel> Subtasks { get; } = [];
@@ -265,6 +274,20 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         }
 
         SelectedMilestone = MilestoneOptions.FirstOrDefault(o => o.Id == task.MilestoneId) ?? MilestoneOption.None;
+
+        var projects = await _projectService.GetProjectsAsync(cancellationToken);
+        ProjectOptions.Clear();
+        ProjectOptions.Add(ProjectOption.None);
+        // Archived projects are hidden from the picker (they're "put away," not deleted) —
+        // except the one already assigned to this task, so an existing assignment stays
+        // visible/selected rather than silently reading as "None" the moment its project
+        // gets archived.
+        foreach (var project in projects.Where(p => !p.IsArchived || p.Id == task.ProjectId).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            ProjectOptions.Add(new ProjectOption(project.Id, project.Name));
+        }
+
+        SelectedProject = ProjectOptions.FirstOrDefault(o => o.Id == task.ProjectId) ?? ProjectOption.None;
 
         Subtasks.Clear();
         foreach (var subtask in task.Subtasks.OrderBy(t => t.Title, StringComparer.OrdinalIgnoreCase))
@@ -501,6 +524,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
             task.RecurrenceEndDate = RecurrenceEndDate is { } end ? DateOnly.FromDateTime(end.DateTime) : null;
             task.ParentTaskId = SelectedParentTask.Id;
             task.MilestoneId = SelectedMilestone.Id;
+            task.ProjectId = SelectedProject.Id;
 
             await _taskService.UpdateTaskAsync(task);
             Saved?.Invoke(this, EventArgs.Empty);

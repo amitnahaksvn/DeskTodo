@@ -31,6 +31,9 @@ public sealed partial class TaskGridRowViewModel : ObservableObject
         Notes = task.Notes ?? string.Empty;
         ChecklistTotalCount = task.ChecklistItems.Count;
         ChecklistCheckedCount = task.ChecklistItems.Count(c => c.IsChecked);
+        IsFavorite = task.IsFavorite;
+        IsPinned = task.IsPinned;
+        ProjectId = task.ProjectId;
     }
 
     public Guid Id { get; }
@@ -88,4 +91,13 @@ public sealed partial class TaskGridRowViewModel : ObservableObject
     public int ChecklistCheckedCount { get; }
 
     public string ProgressDisplay => ChecklistTotalCount == 0 ? "—" : $"{ChecklistCheckedCount}/{ChecklistTotalCount}";
+
+    /// <summary>For Phase 25's Smart Lists ("Favorites" quick filter) — not shown as its own grid column/cell (no editing here; toggled from the widget row or full-field editor).</summary>
+    public bool IsFavorite { get; }
+
+    /// <summary>For Phase 25's Smart Lists ("Pinned" quick filter) — same non-editable-here reasoning as <see cref="IsFavorite"/>.</summary>
+    public bool IsPinned { get; }
+
+    /// <summary>For the search bar's project filter and the "No Project" Smart List — no editable Project column here, same as Milestone (only Category got one; see <see cref="GridViewModel"/>'s doc comment).</summary>
+    public Guid? ProjectId { get; }
 }

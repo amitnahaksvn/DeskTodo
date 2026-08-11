@@ -17,7 +17,12 @@ namespace DeskTodo.App.ViewModels;
 /// <c>DataGrid</c> control's own built-in behavior (<c>CanUserResizeColumns</c>/
 /// <c>CanUserReorderColumns</c>/<c>CanUserSortColumns</c> in <c>GridWindow.axaml</c>),
 /// not anything this ViewModel drives. Same for column freezing — a fixed
-/// <c>FrozenColumnCount</c> in XAML, not a user-facing toggle.
+/// <c>FrozenColumnCount</c> in XAML, not a user-facing toggle. As of Phase 25, this is
+/// also the grid's Smart Lists/Saved Searches home — the natural place for cross-day
+/// quick filters, since (unlike the day-scoped widget) this view already spans every
+/// day. Only Category got an editable cell column; Milestone/Project are filter-only
+/// here (assigning either stays in the full-field editor) to keep this grid's own scope
+/// from growing indefinitely as new grouping concepts are added.
 /// </summary>
 /// <remarks>
 /// Each row (<see cref="TaskGridRowViewModel"/>) persists its own edits immediately —
@@ -32,18 +37,32 @@ public sealed partial class GridViewModel : ViewModelBase
 {
     private readonly ITaskService _taskService;
     private readonly ICategoryRepository _categoryRepository;
+    private readonly IProjectService _projectService;
     private readonly ISettingsService _settingsService;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<GridViewModel> _logger;
 
-    public GridViewModel(ITaskService taskService, ICategoryRepository categoryRepository, ISettingsService settingsService, ILogger<GridViewModel> logger)
+    public GridViewModel(
+        ITaskService taskService,
+        ICategoryRepository categoryRepository,
+        IProjectService projectService,
+        ISettingsService settingsService,
+        TimeProvider timeProvider,
+        ILogger<GridViewModel> logger)
     {
         _taskService = taskService;
         _categoryRepository = categoryRepository;
+        _projectService = projectService;
         _settingsService = settingsService;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
+    /// <summary>Every loaded row, unfiltered — what row edits/selection/clipboard copy operate against. <see cref="VisibleRows"/> is what the <c>DataGrid</c> actually binds to.</summary>
     public ObservableCollection<TaskGridRowViewModel> Rows { get; } = [];
+
+    /// <summary><see cref="Rows"/> after the filter bar's search/status/category/project/smart-list criteria — same split as <c>WidgetViewModel.Tasks</c>/<c>VisibleTasks</c>.</summary>
+    public ObservableCollection<TaskGridRowViewModel> VisibleRows { get; } = [];
 
     public ObservableCollection<CategoryOption> Categories { get; } = [CategoryOption.None];
 
@@ -52,9 +71,43 @@ public sealed partial class GridViewModel : ViewModelBase
     /// <summary>The columns a user can hide — Title/Date/Priority/Done stay mandatory, since hiding those would leave the grid meaningless.</summary>
     public IReadOnlyList<string> HideableColumnNames { get; } = ["Category", "Due", "Notes", "Status", "Progress"];
 
+    public ObservableCollection<CategoryFilterOption> CategoryFilterOptions { get; } = [CategoryFilterOption.All];
+
+    public ObservableCollection<ProjectFilterOption> ProjectFilterOptions { get; } = [ProjectFilterOption.All];
+
+    public IReadOnlyList<TaskStatusFilter> StatusFilters { get; } = Enum.GetValues<TaskStatusFilter>();
+
+    public IReadOnlyList<GridSmartFilter> SmartFilters { get; } = Enum.GetValues<GridSmartFilter>();
+
+    [ObservableProperty]
+    public partial string SearchText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial TaskStatusFilter SelectedStatusFilter { get; set; } = TaskStatusFilter.All;
+
+    [ObservableProperty]
+    public partial CategoryFilterOption SelectedCategoryFilter { get; set; } = CategoryFilterOption.All;
+
+    [ObservableProperty]
+    public partial ProjectFilterOption SelectedProjectFilter { get; set; } = ProjectFilterOption.All;
+
+    [ObservableProperty]
+    public partial GridSmartFilter SelectedSmartFilter { get; set; } = GridSmartFilter.None;
+
+    partial void OnSearchTextChanged(string value) => RefreshVisibleRows();
+
+    partial void OnSelectedStatusFilterChanged(TaskStatusFilter value) => RefreshVisibleRows();
+
+    partial void OnSelectedCategoryFilterChanged(CategoryFilterOption value) => RefreshVisibleRows();
+
+    partial void OnSelectedProjectFilterChanged(ProjectFilterOption value) => RefreshVisibleRows();
+
+    partial void OnSelectedSmartFilterChanged(GridSmartFilter value) => RefreshVisibleRows();
+
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
 
+    /// <summary>Counts across every loaded row, not just <see cref="VisibleRows"/> — a filtered-out selection shouldn't silently vanish from "N selected"/bulk-delete just because the filter bar changed.</summary>
     public int SelectedCount => Rows.Count(r => r.IsSelected);
 
     public bool HasSelection => SelectedCount > 0;
@@ -68,9 +121,20 @@ public sealed partial class GridViewModel : ViewModelBase
             var categories = await _categoryRepository.GetAllAsync(cancellationToken);
             Categories.Clear();
             Categories.Add(CategoryOption.None);
+            CategoryFilterOptions.Clear();
+            CategoryFilterOptions.Add(CategoryFilterOption.All);
             foreach (var category in categories.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
             {
                 Categories.Add(new CategoryOption(category.Id, category.Name, category.ColorHex));
+                CategoryFilterOptions.Add(new CategoryFilterOption(category.Id, category.Name));
+            }
+
+            var projects = await _projectService.GetProjectsAsync(cancellationToken);
+            ProjectFilterOptions.Clear();
+            ProjectFilterOptions.Add(ProjectFilterOption.All);
+            foreach (var project in projects.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                ProjectFilterOptions.Add(new ProjectFilterOption(project.Id, project.Name));
             }
 
             var tasks = await _taskService.GetAllTasksAsync(cancellationToken);
@@ -88,6 +152,7 @@ public sealed partial class GridViewModel : ViewModelBase
                 Rows.Add(row);
             }
 
+            RefreshVisibleRows();
             OnPropertyChanged(nameof(SelectedCount));
             OnPropertyChanged(nameof(HasSelection));
         }
@@ -98,6 +163,57 @@ public sealed partial class GridViewModel : ViewModelBase
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    /// <summary>Recomputes <see cref="VisibleRows"/> from <see cref="Rows"/> using the current search text, status/category/project filters and Smart List selection — same shape as <c>WidgetViewModel.RefreshVisibleTasks</c>.</summary>
+    private void RefreshVisibleRows()
+    {
+        IEnumerable<TaskGridRowViewModel> query = Rows;
+
+        if (!string.IsNullOrWhiteSpace(SearchText))
+        {
+            var search = SearchText.Trim();
+            query = query.Where(r =>
+                r.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                r.Notes.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        query = SelectedStatusFilter switch
+        {
+            TaskStatusFilter.Active => query.Where(r => !r.IsCompleted),
+            TaskStatusFilter.Completed => query.Where(r => r.IsCompleted),
+            _ => query,
+        };
+
+        if (SelectedCategoryFilter.Id.HasValue)
+        {
+            var categoryId = SelectedCategoryFilter.Id.Value;
+            query = query.Where(r => r.Category.Id == categoryId);
+        }
+
+        if (SelectedProjectFilter.Id.HasValue)
+        {
+            var projectId = SelectedProjectFilter.Id.Value;
+            query = query.Where(r => r.ProjectId == projectId);
+        }
+
+        var today = DateOnly.FromDateTime(_timeProvider.GetLocalNow().DateTime);
+        query = SelectedSmartFilter switch
+        {
+            GridSmartFilter.Favorites => query.Where(r => r.IsFavorite),
+            GridSmartFilter.Pinned => query.Where(r => r.IsPinned),
+            GridSmartFilter.Overdue => query.Where(r => !r.IsCompleted && r.DueDate.HasValue && DateOnly.FromDateTime(r.DueDate.Value.Date) < today),
+            GridSmartFilter.DueToday => query.Where(r => r.DueDate.HasValue && DateOnly.FromDateTime(r.DueDate.Value.Date) == today),
+            GridSmartFilter.HighPriority => query.Where(r => r.Priority is TaskPriority.High or TaskPriority.Critical),
+            GridSmartFilter.NoProject => query.Where(r => r.ProjectId is null),
+            _ => query,
+        };
+
+        VisibleRows.Clear();
+        foreach (var row in query)
+        {
+            VisibleRows.Add(row);
         }
     }
 
@@ -340,7 +456,13 @@ public sealed partial class GridViewModel : ViewModelBase
         return settings.GridSavedViews;
     }
 
-    /// <summary>Saves the grid's *current* hidden-column set (<see cref="AppSettings.HiddenGridColumns"/>) as a named view, overwriting any existing view with the same name (case-insensitive).</summary>
+    /// <summary>
+    /// Saves the grid's *current* hidden-column set (<see cref="AppSettings.HiddenGridColumns"/>)
+    /// together with the filter bar's current state (Phase 25's "Saved Searches" — see
+    /// <see cref="Settings.GridSavedView"/>'s doc comment for why this isn't a separate
+    /// concept) as one named preset, overwriting any existing preset with the same name
+    /// (case-insensitive).
+    /// </summary>
     public async Task SaveCurrentViewAsync(string name, CancellationToken cancellationToken = default)
     {
         var trimmedName = name.Trim();
@@ -353,7 +475,16 @@ public sealed partial class GridViewModel : ViewModelBase
         {
             var settings = await _settingsService.LoadAsync(cancellationToken);
             settings.GridSavedViews.RemoveAll(v => string.Equals(v.Name, trimmedName, StringComparison.OrdinalIgnoreCase));
-            settings.GridSavedViews.Add(new GridSavedView { Name = trimmedName, HiddenColumns = settings.HiddenGridColumns.ToList() });
+            settings.GridSavedViews.Add(new GridSavedView
+            {
+                Name = trimmedName,
+                HiddenColumns = settings.HiddenGridColumns.ToList(),
+                SearchText = string.IsNullOrEmpty(SearchText) ? null : SearchText,
+                CategoryId = SelectedCategoryFilter.Id,
+                ProjectId = SelectedProjectFilter.Id,
+                StatusFilter = SelectedStatusFilter.ToString(),
+                SmartFilter = SelectedSmartFilter.ToString(),
+            });
             await _settingsService.SaveAsync(settings, cancellationToken);
         }
         catch (Exception ex)
@@ -376,7 +507,13 @@ public sealed partial class GridViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Makes a saved view the grid's *current* layout by copying its hidden-column set into <see cref="AppSettings.HiddenGridColumns"/> — the caller (GridWindow) still needs to re-read <see cref="GetHiddenColumnsAsync"/> afterward to apply it to the live <c>DataGrid</c>/checkboxes.</summary>
+    /// <summary>
+    /// Makes a saved view the grid's *current* layout by copying its hidden-column set into
+    /// <see cref="AppSettings.HiddenGridColumns"/> — the caller (GridWindow) still needs to
+    /// re-read <see cref="GetHiddenColumnsAsync"/> afterward to apply it to the live
+    /// <c>DataGrid</c>/checkboxes. The filter bar half needs no such extra step: it's plain
+    /// data-bound ViewModel state, so setting it here is immediately reflected in the UI.
+    /// </summary>
     public async Task ApplyViewAsync(string name, CancellationToken cancellationToken = default)
     {
         try
@@ -390,6 +527,12 @@ public sealed partial class GridViewModel : ViewModelBase
 
             settings.HiddenGridColumns = view.HiddenColumns.ToList();
             await _settingsService.SaveAsync(settings, cancellationToken);
+
+            SearchText = view.SearchText ?? string.Empty;
+            SelectedCategoryFilter = CategoryFilterOptions.FirstOrDefault(c => c.Id == view.CategoryId) ?? CategoryFilterOption.All;
+            SelectedProjectFilter = ProjectFilterOptions.FirstOrDefault(p => p.Id == view.ProjectId) ?? ProjectFilterOption.All;
+            SelectedStatusFilter = Enum.TryParse<TaskStatusFilter>(view.StatusFilter, out var statusFilter) ? statusFilter : TaskStatusFilter.All;
+            SelectedSmartFilter = Enum.TryParse<GridSmartFilter>(view.SmartFilter, out var smartFilter) ? smartFilter : GridSmartFilter.None;
         }
         catch (Exception ex)
         {

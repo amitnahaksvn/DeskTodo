@@ -25,6 +25,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
 {
     private readonly ITaskService _taskService;
     private readonly ICategoryRepository _categoryRepository;
+    private readonly IProjectService _projectService;
     private readonly ITagService _tagService;
     private readonly ITaskTemplateService _templateService;
     private readonly ISettingsService _settingsService;
@@ -63,6 +64,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     public WidgetViewModel(
         ITaskService taskService,
         ICategoryRepository categoryRepository,
+        IProjectService projectService,
         ITagService tagService,
         ITaskTemplateService templateService,
         ISettingsService settingsService,
@@ -73,6 +75,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     {
         _taskService = taskService;
         _categoryRepository = categoryRepository;
+        _projectService = projectService;
         _tagService = tagService;
         _templateService = templateService;
         _settingsService = settingsService;
@@ -162,6 +165,8 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<CategoryFilterOption> Categories { get; } = [CategoryFilterOption.All];
 
+    public ObservableCollection<ProjectFilterOption> Projects { get; } = [ProjectFilterOption.All];
+
     public ObservableCollection<TagFilterOption> Tags { get; } = [TagFilterOption.All];
 
     /// <summary>Saved templates for the "New from template" picker — a plain ComboBox rather than a separate picker window, since selecting an item is the whole interaction.</summary>
@@ -190,6 +195,9 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     public partial CategoryFilterOption SelectedCategoryFilter { get; set; } = CategoryFilterOption.All;
 
     [ObservableProperty]
+    public partial ProjectFilterOption SelectedProjectFilter { get; set; } = ProjectFilterOption.All;
+
+    [ObservableProperty]
     public partial TagFilterOption SelectedTagFilter { get; set; } = TagFilterOption.All;
 
     /// <summary>Null = no selection (the ComboBox's placeholder state). Picking a template creates a task from it, then this resets to null so the same template can be re-picked later.</summary>
@@ -208,6 +216,8 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     partial void OnSelectedSortOptionChanged(TaskSortOption value) => RefreshVisibleTasks();
 
     partial void OnSelectedCategoryFilterChanged(CategoryFilterOption value) => RefreshVisibleTasks();
+
+    partial void OnSelectedProjectFilterChanged(ProjectFilterOption value) => RefreshVisibleTasks();
 
     partial void OnSelectedTagFilterChanged(TagFilterOption value) => RefreshVisibleTasks();
 
@@ -329,6 +339,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         try
         {
             await RefreshCategoriesAsync(cancellationToken);
+            await RefreshProjectsAsync(cancellationToken);
             await RefreshTagsAsync(cancellationToken);
             await RefreshTemplatesAsync(cancellationToken);
             await MaybeRescheduleOverdueTasksAsync(cancellationToken);
@@ -419,6 +430,53 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load categories for the filter dropdown");
+        }
+    }
+
+    /// <summary>Same in-place-update reasoning as <see cref="RefreshCategoriesAsync"/> — see its doc comment. Archived projects are excluded (same as the "no longer usable" reasoning below for a deleted category), except one already selected as the active filter.</summary>
+    private async Task RefreshProjectsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var projects = await _projectService.GetProjectsAsync(cancellationToken);
+            var previousSelectionId = SelectedProjectFilter.Id;
+
+            var desired = new List<ProjectFilterOption> { ProjectFilterOption.All };
+            desired.AddRange(projects
+                .Where(p => !p.IsArchived || p.Id == previousSelectionId)
+                .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(p => new ProjectFilterOption(p.Id, p.Name)));
+
+            foreach (var item in desired)
+            {
+                if (!Projects.Any(p => p.Id == item.Id))
+                {
+                    Projects.Add(item);
+                }
+            }
+
+            for (var i = Projects.Count - 1; i >= 0; i--)
+            {
+                if (!desired.Any(d => d.Id == Projects[i].Id))
+                {
+                    Projects.RemoveAt(i);
+                }
+            }
+
+            for (var i = 0; i < Projects.Count; i++)
+            {
+                var renamed = desired.FirstOrDefault(d => d.Id == Projects[i].Id && d.Name != Projects[i].Name);
+                if (renamed is not null)
+                {
+                    Projects[i] = renamed;
+                }
+            }
+
+            SelectedProjectFilter = Projects.FirstOrDefault(p => p.Id == previousSelectionId) ?? ProjectFilterOption.All;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load projects for the filter dropdown");
         }
     }
 
@@ -541,6 +599,12 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         {
             var categoryId = SelectedCategoryFilter.Id.Value;
             query = query.Where(t => t.CategoryId == categoryId);
+        }
+
+        if (SelectedProjectFilter.Id.HasValue)
+        {
+            var projectId = SelectedProjectFilter.Id.Value;
+            query = query.Where(t => t.ProjectId == projectId);
         }
 
         if (SelectedTagFilter.Id.HasValue)
