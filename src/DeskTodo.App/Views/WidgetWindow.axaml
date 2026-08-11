@@ -37,11 +37,28 @@
             CornerRadius="16" ClipToBounds="True" BoxShadow="0 8 32 0 #33000000">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
 
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Background="Transparent"
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Background="Transparent"
                   Margin="20,16,12,4" PointerPressed="OnHeaderPointerPressed">
                 <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Text="{Binding DayOfWeekText}" FontSize="20" FontWeight="SemiBold" Foreground="#1E293B" />
                     <TextBlock Text="{Binding DateText}" FontSize="13" Foreground="#64748B" />
+                    <!--
+                      DataContext is set explicitly in code-behind to the DI-singleton
+                      FocusTimerViewModel (not this window's own WidgetViewModel) — see
+                      WidgetWindow.axaml.cs's OnOpened. Bindings below resolve against that
+                      instance, so this indicator reflects a running session started from
+                      anywhere (this widget, the full-field editor's "Start Timer" button)
+                      without WidgetViewModel needing a new constructor dependency.
+                    -->
+                    <Border x:Name="FocusTimerIndicator" x:DataType="vm:FocusTimerViewModel"
+                            Background="#EEF2FF" CornerRadius="8"
+                            Padding="6,2" Margin="0,2,0,0" HorizontalAlignment="Left"
+                            IsVisible="{Binding IsRunning}" ToolTip.Tip="A focus session is running">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="&#x23F1;" FontSize="10" />
+                            <TextBlock Text="{Binding DisplayText}" FontSize="10" FontWeight="SemiBold" Foreground="#4338CA" FontFamily="monospace" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
                 <Button Grid.Column="1" Content="&#x1F50D;" Command="{Binding ToggleSearchBarCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
@@ -63,15 +80,23 @@
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Planner (week / year / agenda / timeline / kanban / matrix)"
                         IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}" />
-                <Button Grid.Column="6" Content="&#x2699;" Command="{Binding OpenSettingsCommand}"
+                <Button Grid.Column="6" Content="&#x23F1;" Command="{Binding OpenFocusTimerCommand}"
+                        Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Focus Timer (Pomodoro / Stopwatch / Countdown)"
+                        IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}" />
+                <Button Grid.Column="7" Content="&#x1F4CA;" Command="{Binding OpenAnalyticsCommand}"
+                        Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Analytics &amp; Reports"
+                        IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}" />
+                <Button Grid.Column="8" Content="&#x2699;" Command="{Binding OpenSettingsCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Settings"
                         IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}" />
-                <Button Grid.Column="7" Content="{Binding IsMiniWidgetMode, Converter={x:Static conv:MiniWidgetModeToGlyphConverter.Instance}}"
+                <Button Grid.Column="9" Content="{Binding IsMiniWidgetMode, Converter={x:Static conv:MiniWidgetModeToGlyphConverter.Instance}}"
                         Command="{Binding ToggleMiniWidgetModeCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Mini widget" />
-                <Button Grid.Column="8" Content="&#x2715;" Click="OnCloseButtonClick"
+                <Button Grid.Column="10" Content="&#x2715;" Click="OnCloseButtonClick"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="11"
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" />
             </Grid>

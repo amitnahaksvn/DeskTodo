@@ -62,6 +62,32 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsLoaded { get; set; }
 
+    /// <summary>See <see cref="AppSettings.PomodoroWorkMinutes"/>/<see cref="AppSettings.PomodoroBreakMinutes"/>. decimal?, not int, to bind directly to NumericUpDown.Value — same reasoning as <see cref="TaskEditViewModel.EstimatedMinutes"/>.</summary>
+    [ObservableProperty]
+    public partial decimal? PomodoroWorkMinutes { get; set; } = 25m;
+
+    [ObservableProperty]
+    public partial decimal? PomodoroBreakMinutes { get; set; } = 5m;
+
+    /// <summary>See <see cref="AppSettings.BreakReminderEnabled"/>/<see cref="AppSettings.BreakReminderIntervalMinutes"/>.</summary>
+    [ObservableProperty]
+    public partial bool BreakReminderEnabled { get; set; }
+
+    [ObservableProperty]
+    public partial decimal? BreakReminderIntervalMinutes { get; set; } = 60m;
+
+    [ObservableProperty]
+    public partial bool WaterReminderEnabled { get; set; }
+
+    [ObservableProperty]
+    public partial decimal? WaterReminderIntervalMinutes { get; set; } = 45m;
+
+    [ObservableProperty]
+    public partial bool StretchReminderEnabled { get; set; }
+
+    [ObservableProperty]
+    public partial decimal? StretchReminderIntervalMinutes { get; set; } = 90m;
+
     /// <summary>
     /// Populated by <c>WidgetWindow</c> (via <see cref="SetAvailableMonitors"/>) before
     /// <see cref="LoadAsync"/> runs — this ViewModel has no Avalonia dependency of its own,
@@ -89,6 +115,14 @@ public sealed partial class SettingsViewModel : ViewModelBase
         ShowInTaskbar = _loaded.ShowInTaskbar;
         AutoRescheduleOverdueTasks = _loaded.AutoRescheduleOverdueTasks;
         SelectedMonitor = Monitors.FirstOrDefault(m => m.Id == _loaded.PreferredMonitorId) ?? MonitorOption.Unspecified;
+        PomodoroWorkMinutes = _loaded.PomodoroWorkMinutes;
+        PomodoroBreakMinutes = _loaded.PomodoroBreakMinutes;
+        BreakReminderEnabled = _loaded.BreakReminderEnabled;
+        BreakReminderIntervalMinutes = _loaded.BreakReminderIntervalMinutes;
+        WaterReminderEnabled = _loaded.WaterReminderEnabled;
+        WaterReminderIntervalMinutes = _loaded.WaterReminderIntervalMinutes;
+        StretchReminderEnabled = _loaded.StretchReminderEnabled;
+        StretchReminderIntervalMinutes = _loaded.StretchReminderIntervalMinutes;
         IsLoaded = true;
     }
 
@@ -117,6 +151,14 @@ public sealed partial class SettingsViewModel : ViewModelBase
             _loaded.ShowInTaskbar = ShowInTaskbar;
             _loaded.AutoRescheduleOverdueTasks = AutoRescheduleOverdueTasks;
             _loaded.PreferredMonitorId = SelectedMonitor.Id.Length == 0 ? null : SelectedMonitor.Id;
+            _loaded.PomodoroWorkMinutes = (int)(PomodoroWorkMinutes ?? 25m);
+            _loaded.PomodoroBreakMinutes = (int)(PomodoroBreakMinutes ?? 5m);
+            _loaded.BreakReminderEnabled = BreakReminderEnabled;
+            _loaded.BreakReminderIntervalMinutes = (int)(BreakReminderIntervalMinutes ?? 60m);
+            _loaded.WaterReminderEnabled = WaterReminderEnabled;
+            _loaded.WaterReminderIntervalMinutes = (int)(WaterReminderIntervalMinutes ?? 45m);
+            _loaded.StretchReminderEnabled = StretchReminderEnabled;
+            _loaded.StretchReminderIntervalMinutes = (int)(StretchReminderIntervalMinutes ?? 90m);
 
             await _settingsService.SaveAsync(_loaded);
 

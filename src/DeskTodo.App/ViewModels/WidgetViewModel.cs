@@ -47,6 +47,19 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     private DateOnly? _lastDailySummaryDate;
     private DateOnly? _lastRescheduleCheckDate;
 
+    // Phase 23's Break/Water/Stretch Reminders — cached from AppSettings on each
+    // LoadSettingsAsync (not re-read from disk on every 30-second tick) alongside their own
+    // session-only "when did this last fire" timestamps, same reasoning as the fields above.
+    private bool _breakReminderEnabled;
+    private int _breakReminderIntervalMinutes = 60;
+    private DateTime? _lastBreakReminderAt;
+    private bool _waterReminderEnabled;
+    private int _waterReminderIntervalMinutes = 45;
+    private DateTime? _lastWaterReminderAt;
+    private bool _stretchReminderEnabled;
+    private int _stretchReminderIntervalMinutes = 90;
+    private DateTime? _lastStretchReminderAt;
+
     public WidgetViewModel(
         ITaskService taskService,
         ICategoryRepository categoryRepository,
@@ -73,12 +86,14 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
 
         // Polls rather than scheduling a single timer for exactly midnight so a
         // sleeping/suspended machine still catches the rollover soon after waking. The same
-        // timer also drives the overdue-task notification check (OnNotificationCheckTick) —
-        // one 30-second poll, two independent Tick subscribers, rather than a second timer
-        // for what's the same "check periodically" need.
+        // timer also drives the overdue-task notification check (OnNotificationCheckTick)
+        // and, as of Phase 23, the Break/Water/Stretch reminder check
+        // (OnWellnessReminderCheckTick) — one 30-second poll, three independent Tick
+        // subscribers, rather than a separate timer per "check periodically" need.
         _dayRolloverTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _dayRolloverTimer.Tick += OnDayRolloverTick;
         _dayRolloverTimer.Tick += OnNotificationCheckTick;
+        _dayRolloverTimer.Tick += OnWellnessReminderCheckTick;
         _dayRolloverTimer.Start();
 
         // Deliberately not "_ = LoadTasksAsync();" here: constructors kicking off
@@ -736,6 +751,18 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenPlannerView() => PlannerViewRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised when the header's timer icon is clicked (Phase 23's Focus Timer). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? FocusTimerRequested;
+
+    [RelayCommand]
+    private void OpenFocusTimer() => FocusTimerRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised when the header's chart icon is clicked (Phase 24's Analytics Dashboard). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? AnalyticsRequested;
+
+    [RelayCommand]
+    private void OpenAnalytics() => AnalyticsRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -752,6 +779,22 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
             ShowInTaskbar = settings.ShowInTaskbar;
             AutoRescheduleOverdueTasks = settings.AutoRescheduleOverdueTasks;
             IsMiniWidgetMode = settings.IsMiniWidgetMode;
+            _breakReminderEnabled = settings.BreakReminderEnabled;
+            _breakReminderIntervalMinutes = settings.BreakReminderIntervalMinutes;
+            _waterReminderEnabled = settings.WaterReminderEnabled;
+            _waterReminderIntervalMinutes = settings.WaterReminderIntervalMinutes;
+            _stretchReminderEnabled = settings.StretchReminderEnabled;
+            _stretchReminderIntervalMinutes = settings.StretchReminderIntervalMinutes;
+
+            // Baselines the "when did this last fire" clock to now, not left null — null
+            // would mean the very first 30-second poll after enabling a reminder fires it
+            // immediately instead of waiting a full interval. ??= (not =) since
+            // LoadSettingsAsync re-runs after the Settings window closes, and that shouldn't
+            // push a real, already-ticking reminder further out each time.
+            var now = _timeProvider.GetLocalNow().DateTime;
+            _lastBreakReminderAt ??= now;
+            _lastWaterReminderAt ??= now;
+            _lastStretchReminderAt ??= now;
         }
         catch (Exception ex)
         {
@@ -847,6 +890,43 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     }
 
     private void OnNotificationCheckTick(object? sender, EventArgs e) => _ = CheckForOverdueTaskNotificationsAsync();
+
+    private void OnWellnessReminderCheckTick(object? sender, EventArgs e) => _ = CheckWellnessRemindersAsync();
+
+    /// <summary>
+    /// Phase 23's Break/Water/Stretch Reminders — each fires independently once its own
+    /// interval has elapsed since it last fired (or since app start, for the first one).
+    /// Deliberately not gated on <see cref="NotificationsEnabled"/> the way overdue-task
+    /// alerts and the daily summary are — a user who's turned off task-due notifications
+    /// hasn't necessarily also opted out of wellness nudges, since these are enabled/disabled
+    /// independently in Settings and default to off regardless. Internal for the same
+    /// direct-test-without-a-real-timer reason as <see cref="CheckForOverdueTaskNotificationsAsync"/>.
+    /// </summary>
+    internal async Task CheckWellnessRemindersAsync()
+    {
+        var now = _timeProvider.GetLocalNow().DateTime;
+
+        if (ShouldRemind(_breakReminderEnabled, _breakReminderIntervalMinutes, _lastBreakReminderAt, now))
+        {
+            _lastBreakReminderAt = now;
+            await _notificationService.NotifyAsync("Break Reminder", "Time for a short break.");
+        }
+
+        if (ShouldRemind(_waterReminderEnabled, _waterReminderIntervalMinutes, _lastWaterReminderAt, now))
+        {
+            _lastWaterReminderAt = now;
+            await _notificationService.NotifyAsync("Water Reminder", "Remember to drink some water.");
+        }
+
+        if (ShouldRemind(_stretchReminderEnabled, _stretchReminderIntervalMinutes, _lastStretchReminderAt, now))
+        {
+            _lastStretchReminderAt = now;
+            await _notificationService.NotifyAsync("Stretch Reminder", "Take a moment to stretch.");
+        }
+    }
+
+    private static bool ShouldRemind(bool enabled, int intervalMinutes, DateTime? lastReminderAt, DateTime now) =>
+        enabled && (lastReminderAt is null || (now - lastReminderAt.Value).TotalMinutes >= intervalMinutes);
 
     /// <summary>
     /// Fires once per task the first time its due time passes while still incomplete —

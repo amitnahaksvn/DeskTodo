@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using DeskTodo.App.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DeskTodo.App.Views;
 
@@ -22,6 +23,7 @@ public partial class TaskEditWindow : Window
         if (DataContext is TaskEditViewModel viewModel)
         {
             viewModel.AttachmentOpenRequested += OnAttachmentOpenRequested;
+            viewModel.StartTimerRequested += OnStartTimerRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             RefreshNotesPreview(viewModel);
         }
@@ -32,10 +34,24 @@ public partial class TaskEditWindow : Window
         if (DataContext is TaskEditViewModel viewModel)
         {
             viewModel.AttachmentOpenRequested -= OnAttachmentOpenRequested;
+            viewModel.StartTimerRequested -= OnStartTimerRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
         base.OnClosed(e);
+    }
+
+    /// <summary>Phase 23 — preselects this task in the DI-singleton <see cref="FocusTimerViewModel"/> before showing/activating the shared Focus Timer window (see <see cref="FocusTimerWindow.ShowOrActivate"/>).</summary>
+    private void OnStartTimerRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not TaskEditViewModel viewModel)
+        {
+            return;
+        }
+
+        var focusTimerViewModel = App.Services.GetRequiredService<FocusTimerViewModel>();
+        focusTimerViewModel.PreselectTask(viewModel.TaskId, viewModel.Title);
+        FocusTimerWindow.ShowOrActivate(focusTimerViewModel);
     }
 
     private void OnNewChecklistItemKeyDown(object? sender, KeyEventArgs e)

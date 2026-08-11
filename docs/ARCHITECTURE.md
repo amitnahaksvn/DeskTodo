@@ -1482,6 +1482,219 @@ when the saved monitor is no longer connected, `Unspecified` mapping to
 `SaveAsync` mapping — without needing to re-prove that Avalonia `ComboBox`
 bindings work, which was never in question.
 
+## Phase 23 — Productivity tools: timers, focus & habits
+
+**Five wishlist items (Pomodoro Timer, Stopwatch, Focus Timer, Focus Mode,
+Deep Work Session) collapse into three real mechanisms, not five.**
+`FocusSessionType` has exactly three members — `Pomodoro`, `Stopwatch`,
+`CountdownTimer` — because that's how many genuinely different *timer
+behaviors* the five names actually describe: an alternating work/break
+cycle, an open-ended count-up, and a count-down to zero. "Focus Timer,"
+"Focus Mode," and "Deep Work Session" are the same countdown mechanism at
+different lengths (25 minutes vs. 50/90), a UI-level preset choice via the
+duration picker's quick buttons, not a reason to add three more enum
+members that would all need identical tick/complete/log logic. Fragmenting
+the domain model to match marketing names rather than actual behavior
+would have meant three redundant code paths with no behavioral difference
+between them.
+
+**`FocusTimerViewModel` is a DI singleton, the first ViewModel in this
+codebase to be registered that way instead of transient.** Every other
+window's ViewModel is resolved fresh each time its window opens — a
+Settings window doesn't need to remember state between openings. A running
+timer is different: it's app-wide state that has to keep ticking whether
+or not `FocusTimerWindow` happens to be open, and the widget header's
+"⏱ MM:SS" indicator needs to reflect that same running session without
+polling or duplicating timer logic. Making the ViewModel itself the
+long-lived thing (rather than, say, a separate always-running service the
+ViewModel reads from) kept the design to one moving part instead of two
+that would need to stay in sync.
+
+**The widget header's indicator binds directly to the singleton
+`FocusTimerViewModel` instance, set as that one `Border`'s `DataContext`
+in `WidgetWindow.axaml.cs`'s `OnOpened` — not routed through
+`WidgetViewModel`.** Threading a `FocusTimerViewModel` dependency into
+`WidgetViewModel`'s constructor to expose it as a property would have
+touched every existing `WidgetViewModelTests` call site (all of which
+construct the ViewModel directly with a fixed parameter list) for a
+dependency `WidgetViewModel` itself never uses — it doesn't start, stop,
+or query the timer, it just needs to *display* its state. Setting
+`DataContext` on one named XAML element to a different object than the
+window's own `DataContext` is an established, narrow Avalonia pattern for
+exactly this — a small piece of UI genuinely belongs to different state
+than the rest of the window — requiring `x:DataType` on that element to
+override the compiled-binding type for that subtree (confirmed live: the
+first attempt without it failed with `AVLN2000`, `IsRunning`/`DisplayText`
+unresolvable against `WidgetViewModel`).
+
+**`FocusTimerWindow.ShowOrActivate` is a static method owning one shared
+window instance, because two independent entry points (the widget
+header's icon, the full-field editor's "Start Timer" button) both need to
+open "the" Focus Timer window without risking two windows over the same
+singleton ViewModel.** A per-window `_focusTimerWindow` field on
+`WidgetWindow` (the first design tried) only prevented duplicates from
+that one entry point — `TaskEditWindow` calling the same pattern
+independently would still have opened a second window showing the same
+running (or not-yet-started) session, confusing rather than helpful.
+Moving the tracking onto `FocusTimerWindow` itself as a static made "only
+one, ever, regardless of who asked" the actual invariant, not "only one
+per caller."
+
+**Completing a session only logs a `FocusSession` (and only credits
+`TaskItem.ActualMinutes`) past one full minute of actual elapsed time —
+and a Pomodoro's break phase is never logged at all.** An accidental
+Start-then-immediately-Stop shouldn't leave a stray zero-minute row in a
+task's time-tracking history; the one-minute floor is the same "don't
+record noise" reasoning as `IGoalRepository.AddCompletionAsync`'s
+idempotency. Breaks aren't logged because they aren't work — crediting
+break time toward a task's `ActualMinutes` would make the number lie about
+how long something actually took.
+
+**`FocusTimerViewModel.OnTick` is `internal`, not `private`, specifically
+so tests can call it directly instead of waiting on the real 1-second
+`DispatcherTimer`** — the exact same `InternalsVisibleTo`-based pattern
+`WidgetViewModel.OnDayRolloverTick`/`OnNotificationCheckTick` already
+established (Phase 12/13). A test simulating a full 25-minute countdown
+calls `OnTick` 1,500 times in a tight loop, deterministically, in
+milliseconds — the alternative (a real `DispatcherTimer` and
+`Task.Delay`-based waiting) would make the test suite itself take as long
+as the feature it's testing.
+
+**Break/Water/Stretch Reminders reuse the widget's existing 30-second
+poll timer (`_dayRolloverTimer`) as a third `Tick` subscriber, not a new
+timer.** This continues the pattern the timer's own doc comment already
+established for the overdue-task check in Phase 13: "one 30-second poll,
+N independent Tick subscribers, rather than a new timer for what's the
+same 'check periodically' need." Each reminder tracks its own "last fired"
+timestamp, baselined to *now* the first time settings load (not left
+`null`) — a `null` baseline would mean the very first poll after enabling
+a reminder fires it immediately, nagging the user within 30 seconds of
+turning it on rather than after the interval they actually configured.
+Live-verified with a controllable fake `TimeProvider` (not real wall-clock
+waiting, the same reasoning as the `OnTick`-directly pattern above):
+confirmed a reminder doesn't fire immediately after being enabled, does
+fire once its interval has genuinely elapsed, and doesn't re-fire early
+on a subsequent poll.
+
+**Habit Tracker and Daily/Weekly/Monthly Goals needed no new entity —
+Phase 21's `Goal` already is a habit tracker**, and its own doc comment
+already said so ("a personal, ongoing habit-style target"). Building a
+second, nearly-identical `Habit` entity to satisfy a differently-named
+wishlist row would have been exactly the kind of near-duplicate this
+project avoids elsewhere (see Phase 21's `Goal`-vs-`Milestone` separation,
+which exists *because* those two are genuinely different — the same
+reasoning argues against a second entity here, where they aren't). The one
+honestly-named gap: `Goal.GetCurrentStreak` walks *consecutive calendar
+days*, so it has no way to represent "3 times a week" or a monthly
+cadence — real limitations, not silently declared solved by checking the
+wishlist box.
+
+**`ITaskService.AddActualMinutesAsync` is additive (`ActualMinutes ??= 0`,
+then `+=`), not a replace, because multiple focus sessions against the
+same task are the normal case, not an edge case.** A task worked on across
+three separate Pomodoro sessions should show all three sessions' time
+summed, not just the last one — the same reasoning `IGoalRepository`'s
+completion log uses for streaks (accumulate from a log of events, don't
+overwrite a single number). `FocusSession` rows themselves are the
+underlying log this could later be recomputed from if `ActualMinutes` ever
+needed correcting; the running total is a convenience derived at write
+time, not the only place the data lives.
+
+**Live-verified beyond unit tests:** started a real `CountdownTimer`
+session from the widget's header icon, watched Avalonia's actual
+`DispatcherTimer` tick it down for real (not simulated), confirmed the
+widget header's indicator — bound to the same singleton instance —
+updated live and independently of the timer window; stopped it after
+several real minutes and confirmed a genuine `FocusSessions` row landed in
+the SQLite database with the correct truncated-to-whole-minutes duration;
+opened a task's full-field editor, clicked "Start Timer," and confirmed
+that exact task appeared preselected in the (already-open, shared)
+`FocusTimerWindow` — proving the cross-window singleton-sharing design
+actually works end to end, not just in isolation per-window.
+
+## Phase 24 — Analytics & reporting
+
+**Weekly/Monthly/Overall completion rates use `TaskItem.PlanDate`; the
+streak and Heat Map use `TaskItem.CompletedAt` instead — two different
+dates, deliberately, not an inconsistency.** `PlanDate` answers "which day
+was this task *for*," matching how every other view in this app already
+organizes work (the widget, Week/Month/Agenda, the Grid). A completion
+streak answers a different question — "did the user actually get
+something done that day" — which only `CompletedAt` (when a task was
+*actually* finished) can answer; a task planned for Monday but finished
+Wednesday should count toward Wednesday's streak, not silently vanish
+because Monday itself had no completions. Conflating the two would make
+completing a backlog of overdue tasks in one sitting *not* count as a
+productive day, which is exactly backwards.
+
+**`TaskItem.CompletedAt` and `FocusSession.StartedAt` are both stored as
+UTC, and every comparison against a `DateOnly` boundary in `AnalyticsService`
+goes through one `LocalDate` helper that converts via the injected
+`TimeProvider.LocalTimeZone` first.** Comparing a raw UTC `DateTime`
+against calendar-day boundaries directly (`DateOnly.FromDateTime(utcValue)`)
+is a real, easy-to-miss bug class: a task completed at 11 PM Pacific time
+is already past midnight UTC, so it would silently count toward the
+*next* calendar day everywhere in the world except UTC itself. This isn't
+a hypothetical — it was the first version of this code, caught and fixed
+before shipping (see `AnalyticsService.LocalDate`'s own doc comment) by
+reasoning through the same "which local day did the user experience this
+as" question `TimeProvider.GetLocalNow()` already answers everywhere else
+in this app.
+
+**The Streak Counter is `AnalyticsService`'s own `ComputeCurrentStreak`,
+not a call into Phase 21's `Goal.GetCurrentStreak`, even though the
+walk-backward algorithm is identical.** `Goal`'s streak walks a
+`GoalCompletion` log (one row per day a specific goal was marked done);
+this streak walks `TaskItem.CompletedAt` across *every* task. Sharing the
+algorithm's *shape* (consecutive days, breaks on the first gap, checks
+today-or-yesterday as the starting cursor) while keeping two separate
+implementations was the right call here — the two feed off structurally
+different data sources (a completion log vs. a raw task list), and forcing
+them through one shared method would need an abstraction over "a sequence
+of dates" that neither call site actually needs on its own.
+
+**Testing the Streak Counter and Heat Map needed backdated
+`TaskItem.CompletedAt` values that the public API has no way to produce —
+`TaskItem.Complete()` always stamps the real `DateTime.UtcNow`, a
+deliberate domain invariant (a task can't be completed in the past).**
+`AnalyticsServiceTests` reaches past that private setter via reflection
+for exactly this reason, with a doc comment explaining why: this is a
+narrow, test-only exception to "test through the public API," made
+because the alternative (only testing "a task completed right this
+instant" scenarios) would barely exercise a walk-backward algorithm whose
+entire point is reasoning about multiple historical days at once.
+
+**"Time Per Project" and "Category Analytics" both resolved to the same
+underlying `CategoryAnalytics` DTO, scoped to `Category` rather than
+"Project."** Phase 25 (Organization: projects, workspaces & lists) hasn't
+been built — there's no `Project` entity to aggregate by yet. This is the
+same substitution Phase 23 made for "Habit Tracker" (satisfied by the
+already-existing `Goal`): reuse what already exists and answers the same
+underlying question, rather than either blocking this phase on Phase 25
+or inventing a throwaway `Project` concept ahead of the phase that's
+actually meant to design it properly.
+
+**The Heat Map is a `WrapPanel` of 84 small colored `Border`s in
+chronological order, not a true GitHub-style column-per-week grid.** A
+real GitHub contribution graph is column-major (each column is one week,
+rows are Sunday-through-Saturday within it), which needs either a custom
+`Canvas`/`UniformGrid` layout keyed by day-of-week *and* week-index, or
+restructuring the flat `DailyCompletionCount` list into a week-of-days
+shape before binding. A chronologically-ordered `WrapPanel` that just
+wraps at a fixed pixel width reads as the same "recent activity density at
+a glance" information — the deliverable's actual ask — for meaningfully
+less layout complexity; the exact grid orientation was never the point.
+
+**Live-verified:** opened the real Dashboard against the actual database
+(not seeded test data) and confirmed all six summary tiles, the heat map's
+color-coded cells, and the full category breakdown (real categories, real
+counts, real per-category colors and percentages) render correctly from
+live data. The report-generation click-through was cut short by the OS
+screen locking mid-session — no attempt was made to work around that: the
+exact Markdown content for a given period is instead covered by
+`AnalyticsServiceTests`' direct string-content assertions, which check the
+same computation the UI would have displayed.
+
 ## What's genuinely verified vs. authored-only (Phases 13–16, 22)
 
 This dev environment is macOS-only with no Windows machine and no
@@ -1528,3 +1741,5 @@ carry equivalent, currently-undiscovered risk until it's actually run.
 | Excel-style grid view | A separate editable `DataGrid` window over every task; TSV clipboard copy/paste; hide/freeze columns; named saved column-layout views; Status/Progress columns | ✅ Done |
 | Calendar & alternate layouts | Month-grid Calendar; Week/Year/Agenda/Timeline/Kanban/Matrix/Goals/Milestones planner tabs — Goals (habit streaks) and Milestones (target-date deliverables tasks can link to) both built as separate entities | ✅ Done |
 | System tray, global shortcuts & quick add | Tray icon/menu bar item (macOS verified live); minimize to tray; Quick Add window; Cmd/Ctrl+Shift+N global shortcut (macOS verified live end-to-end via Carbon; Windows authored-only); Mini Widget collapsed layout; Multi Monitor placement (macOS verified live against a real two-monitor setup) | ✅ Done |
+| Productivity tools: timers, focus & habits | Pomodoro/Stopwatch/Countdown Timer session engine (one shared `FocusTimerViewModel` singleton, live-verified real ticking + DB write + cross-window preselection); Break/Water/Stretch Reminders; Time Tracking writing into `TaskItem.ActualMinutes`; Habit Tracker satisfied by Phase 21's `Goal` (daily cadence only — no weekly/monthly habit cadence yet); Productivity Score deferred to Phase 24 (Analytics) | ✅ Done |
+| Analytics & reporting | Dashboard (live-verified against the real database) with Weekly/Monthly/Overall completion rates, a Streak Counter, Focus Time, a 12-week Heat Map, and a per-category breakdown (Time Per Project delivered as Time Per Category — Phase 25's "Project" concept doesn't exist yet); generated Weekly/Monthly Markdown Reports with copy/save actions | ✅ Done |

@@ -17,7 +17,8 @@
         <TextBlock Grid.Row="0" Text="Settings" FontSize="18" FontWeight="SemiBold"
                    Margin="0,0,0,16" Foreground="#1E293B" />
 
-        <StackPanel Grid.Row="1" Spacing="18">
+        <ScrollViewer Grid.Row="1">
+        <StackPanel Spacing="18" Margin="0,0,12,0">
             <StackPanel Spacing="6">
                 <TextBlock Text="Accent color" FontSize="12" Foreground="#64748B" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -94,10 +95,56 @@
             </Grid>
 
             <StackPanel Spacing="6">
+                <TextBlock Text="Focus Timer — Pomodoro lengths (minutes)" FontSize="12" Foreground="#64748B" />
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Text="Work" FontSize="11" Foreground="#94A3B8" />
+                        <NumericUpDown Value="{Binding PomodoroWorkMinutes}" Minimum="1" Increment="5" HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock Text="Break" FontSize="11" Foreground="#94A3B8" />
+                        <NumericUpDown Value="{Binding PomodoroBreakMinutes}" Minimum="1" Increment="1" HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Text="Wellness reminders" FontSize="12" Foreground="#64748B" />
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="Break Reminder" FontSize="13" Foreground="#1E293B" VerticalAlignment="Center" />
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding BreakReminderEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding BreakReminderEnabled}">
+                    <TextBlock Grid.Column="0" Text="Every (minutes)" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
+                    <NumericUpDown Grid.Column="1" Value="{Binding BreakReminderIntervalMinutes}" Minimum="5" Increment="5" Width="120" />
+                </Grid>
+
+                <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                    <TextBlock Grid.Column="0" Text="Water Reminder" FontSize="13" Foreground="#1E293B" VerticalAlignment="Center" />
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding WaterReminderEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding WaterReminderEnabled}">
+                    <TextBlock Grid.Column="0" Text="Every (minutes)" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
+                    <NumericUpDown Grid.Column="1" Value="{Binding WaterReminderIntervalMinutes}" Minimum="5" Increment="5" Width="120" />
+                </Grid>
+
+                <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                    <TextBlock Grid.Column="0" Text="Stretch Reminder" FontSize="13" Foreground="#1E293B" VerticalAlignment="Center" />
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding StretchReminderEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding StretchReminderEnabled}">
+                    <TextBlock Grid.Column="0" Text="Every (minutes)" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
+                    <NumericUpDown Grid.Column="1" Value="{Binding StretchReminderIntervalMinutes}" Minimum="5" Increment="5" Width="120" />
+                </Grid>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
                 <TextBlock Text="Data" FontSize="12" Foreground="#64748B" />
                 <Button Content="Import / Export tasks…" Click="OnImportExportClick" HorizontalAlignment="Left" />
             </StackPanel>
         </StackPanel>
+        </ScrollViewer>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
             <Button Content="Cancel" Command="{Binding CancelCommand}" Padding="16,8" />

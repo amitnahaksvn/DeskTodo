@@ -371,4 +371,30 @@ public class TaskEditViewModelTests
         _sut.ToggleNotesPreviewCommand.Execute(null);
         Assert.False(_sut.IsNotesPreview);
     }
+
+    [Fact]
+    public async Task LoadAsync_PopulatesActualMinutes()
+    {
+        var task = MakeTask(t => t.ActualMinutes = 42);
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.LoadAsync(task.Id);
+
+        Assert.Equal(42, _sut.ActualMinutes);
+        Assert.Equal(task.Id, _sut.TaskId);
+    }
+
+    [Fact]
+    public async Task StartTimerCommand_RaisesStartTimerRequested()
+    {
+        var task = MakeTask();
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        await _sut.LoadAsync(task.Id);
+        var raised = false;
+        _sut.StartTimerRequested += (_, _) => raised = true;
+
+        _sut.StartTimerCommand.Execute(null);
+
+        Assert.True(raised);
+    }
 }

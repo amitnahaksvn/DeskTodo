@@ -292,4 +292,55 @@ public class SettingsViewModelTests
 
         settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.PreferredMonitorId == null), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task LoadAsync_PopulatesPomodoroAndReminderSettings()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings
+        {
+            PomodoroWorkMinutes = 50,
+            PomodoroBreakMinutes = 10,
+            BreakReminderEnabled = true,
+            BreakReminderIntervalMinutes = 20,
+            WaterReminderEnabled = true,
+            WaterReminderIntervalMinutes = 30,
+            StretchReminderEnabled = true,
+            StretchReminderIntervalMinutes = 40,
+        });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+
+        await sut.LoadAsync();
+
+        Assert.Equal(50m, sut.PomodoroWorkMinutes);
+        Assert.Equal(10m, sut.PomodoroBreakMinutes);
+        Assert.True(sut.BreakReminderEnabled);
+        Assert.Equal(20m, sut.BreakReminderIntervalMinutes);
+        Assert.True(sut.WaterReminderEnabled);
+        Assert.Equal(30m, sut.WaterReminderIntervalMinutes);
+        Assert.True(sut.StretchReminderEnabled);
+        Assert.Equal(40m, sut.StretchReminderIntervalMinutes);
+    }
+
+    [Fact]
+    public async Task SaveAsync_PersistsPomodoroAndReminderSettings()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.PomodoroWorkMinutes = 45m;
+        sut.PomodoroBreakMinutes = 15m;
+        sut.BreakReminderEnabled = true;
+        sut.BreakReminderIntervalMinutes = 25m;
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a =>
+            a.PomodoroWorkMinutes == 45 &&
+            a.PomodoroBreakMinutes == 15 &&
+            a.BreakReminderEnabled &&
+            a.BreakReminderIntervalMinutes == 25),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

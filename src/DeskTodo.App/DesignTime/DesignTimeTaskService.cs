@@ -61,4 +61,7 @@ internal sealed class DesignTimeTaskService : ITaskService
 
     public Task<int> RescheduleOverdueTasksAsync(DateOnly today, CancellationToken cancellationToken = default) =>
         Task.FromResult(0);
+
+    public Task AddActualMinutesAsync(Guid taskId, int minutes, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
 }

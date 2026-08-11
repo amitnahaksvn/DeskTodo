@@ -831,6 +831,75 @@ public class WidgetViewModelTests
     }
 
     [Fact]
+    public async Task CheckWellnessRemindersAsync_ImmediatelyAfterLoadSettings_DoesNotFire()
+    {
+        var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 9, 0, 0, TimeSpan.Zero));
+        var taskRepository = new Mock<ITaskRepository>();
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { BreakReminderEnabled = true, BreakReminderIntervalMinutes = 30 });
+        var notificationService = new Mock<INotificationService>();
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, notificationService.Object, timeProvider, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadSettingsAsync();
+
+        await sut.CheckWellnessRemindersAsync();
+
+        notificationService.Verify(n => n.NotifyAsync("Break Reminder", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CheckWellnessRemindersAsync_AfterTheConfiguredIntervalElapses_Fires()
+    {
+        var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 9, 0, 0, TimeSpan.Zero));
+        var taskRepository = new Mock<ITaskRepository>();
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { BreakReminderEnabled = true, BreakReminderIntervalMinutes = 30 });
+        var notificationService = new Mock<INotificationService>();
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, notificationService.Object, timeProvider, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadSettingsAsync();
+
+        timeProvider.SetUtcNow(new DateTimeOffset(2026, 1, 15, 9, 31, 0, TimeSpan.Zero));
+        await sut.CheckWellnessRemindersAsync();
+
+        notificationService.Verify(n => n.NotifyAsync("Break Reminder", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CheckWellnessRemindersAsync_FiringOnce_DoesNotFireAgainUntilTheNextInterval()
+    {
+        var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 9, 0, 0, TimeSpan.Zero));
+        var taskRepository = new Mock<ITaskRepository>();
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { WaterReminderEnabled = true, WaterReminderIntervalMinutes = 45 });
+        var notificationService = new Mock<INotificationService>();
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, notificationService.Object, timeProvider, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadSettingsAsync();
+        timeProvider.SetUtcNow(new DateTimeOffset(2026, 1, 15, 9, 46, 0, TimeSpan.Zero));
+        await sut.CheckWellnessRemindersAsync();
+
+        timeProvider.SetUtcNow(new DateTimeOffset(2026, 1, 15, 10, 0, 0, TimeSpan.Zero)); // 14 more minutes, still under 45
+        await sut.CheckWellnessRemindersAsync();
+
+        notificationService.Verify(n => n.NotifyAsync("Water Reminder", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CheckWellnessRemindersAsync_WhenDisabled_NeverFires()
+    {
+        var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 9, 0, 0, TimeSpan.Zero));
+        var taskRepository = new Mock<ITaskRepository>();
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { StretchReminderEnabled = false, StretchReminderIntervalMinutes = 5 });
+        var notificationService = new Mock<INotificationService>();
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, notificationService.Object, timeProvider, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadSettingsAsync();
+
+        timeProvider.SetUtcNow(new DateTimeOffset(2026, 1, 15, 10, 0, 0, TimeSpan.Zero));
+        await sut.CheckWellnessRemindersAsync();
+
+        notificationService.Verify(n => n.NotifyAsync("Stretch Reminder", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task CheckForOverdueTaskNotificationsAsync_WhenNotificationsDisabled_DoesNothing()
     {
         var today = DateOnly.FromDateTime(DateTime.Now);

@@ -3,14 +3,14 @@
 > A cross-platform desktop productivity application for Windows & macOS built with .NET.
 
 > **Status key:** `[x]` shipped (see IMPLEMENTATION.md for which phase). `[ ]`
-> not built. Checked/unchecked below reflects the state as of Phase 22
-> completing, including its originally-deferred items (2026-08-11) —
+> not built. Checked/unchecked below reflects the state as of Phase 24
+> completing, including its originally-deferred items (2026-08-12) —
 > cross-referenced item by item against IMPLEMENTATION.md, not assumed;
 > several `[x]` items note a partial scope inline (see IMPLEMENTATION.md's
-> Phase 17–22 sections for the full detail on what shipped vs. what's still
+> Phase 17–24 sections for the full detail on what shipped vs. what's still
 > deliberately out of scope). Everything still `[ ]` here has been carried
-> into IMPLEMENTATION.md's "Extended Roadmap (Phase 23+)" as a planned,
-> not-yet-started item (Phases 23–37).
+> into IMPLEMENTATION.md's "Extended Roadmap (Phase 25+)" as a planned,
+> not-yet-started item (Phases 25–37).
 
 ---
 
@@ -118,40 +118,40 @@
 
 # ⏰ Productivity
 
-- [ ] Pomodoro Timer
-- [ ] Stopwatch
-- [ ] Focus Timer
-- [ ] Focus Mode
-- [ ] Deep Work Session
-- [ ] Break Reminder
-- [ ] Water Reminder
-- [ ] Stretch Reminder
-- [ ] Daily Goals
-- [ ] Weekly Goals
-- [ ] Monthly Goals
-- [ ] Habit Tracker
-- [ ] Time Tracking
+- [x] Pomodoro Timer
+- [x] Stopwatch
+- [x] Focus Timer _(a CountdownTimer preset — see FocusSessionType)_
+- [x] Focus Mode _(same CountdownTimer preset as Focus Timer)_
+- [x] Deep Work Session _(same CountdownTimer preset, longer default length)_
+- [x] Break Reminder
+- [x] Water Reminder
+- [x] Stretch Reminder
+- [x] Daily Goals _(satisfied by Phase 21's Goal — daily-streak habit tracking)_
+- [ ] Weekly Goals _(Goal's streak logic assumes a daily cadence; no 3×/week-style tracking yet)_
+- [ ] Monthly Goals _(same gap as Weekly Goals)_
+- [x] Habit Tracker _(Phase 21's Goal entity; see the Daily Goals note)_
+- [x] Time Tracking
 - [x] Estimated Time
-- [ ] Actual Time _(field exists on the entity; no UI to record it)_
+- [x] Actual Time _(now written by completed Focus Timer sessions, and shown in the full-field editor)_
 - [ ] Productivity Score
 
 ---
 
 # 📈 Analytics
 
-- [ ] Dashboard
+- [x] Dashboard
 - [x] Today's Progress _(the widget's completed/total progress bar)_
-- [ ] Weekly Progress
-- [ ] Monthly Progress
+- [x] Weekly Progress
+- [x] Monthly Progress
 - [ ] Productivity Score
-- [ ] Completion Rate
-- [ ] Focus Time
-- [ ] Time Per Project
-- [ ] Category Analytics
-- [ ] Heat Map
-- [ ] Weekly Report
-- [ ] Monthly Report
-- [ ] Streak Counter
+- [x] Completion Rate
+- [x] Focus Time
+- [x] Time Per Project _(delivered as Time Per Category — "Project" is Phase 25's concept, which doesn't exist yet)_
+- [x] Category Analytics
+- [x] Heat Map
+- [x] Weekly Report
+- [x] Monthly Report
+- [x] Streak Counter
 
 ---
 

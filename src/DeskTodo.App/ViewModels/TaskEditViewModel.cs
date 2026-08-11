@@ -80,6 +80,9 @@ public sealed partial class TaskEditViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsLoaded { get; set; }
 
+    /// <summary>Read by <c>TaskEditWindow</c> on <see cref="StartTimerRequested"/> to preselect this task in the Focus Timer — see <c>FocusTimerViewModel.PreselectTask</c>.</summary>
+    public Guid TaskId => _taskId;
+
     [ObservableProperty]
     public partial string Title { get; set; } = string.Empty;
 
@@ -107,6 +110,15 @@ public sealed partial class TaskEditViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial decimal? EstimatedMinutes { get; set; }
+
+    /// <summary>
+    /// Phase 23's Time Tracking — read-only (unlike <see cref="EstimatedMinutes"/>): it
+    /// accumulates from completed <c>FocusSession</c>s linked to this task
+    /// (<c>IFocusSessionService.CompleteSessionAsync</c>), not something typed in here
+    /// directly, so it isn't part of this editor's staged title/notes/etc. save flow.
+    /// </summary>
+    [ObservableProperty]
+    public partial int? ActualMinutes { get; set; }
 
     /// <summary>Null means "use the category's color" — see <see cref="Domain.Entities.TaskItem.ColorHex"/>.</summary>
     [ObservableProperty]
@@ -176,6 +188,12 @@ public sealed partial class TaskEditViewModel : ViewModelBase
 
     public event EventHandler? CancelRequested;
 
+    /// <summary>Raised when "Start Timer" is clicked (Phase 23) — opening/focusing the Focus Timer window needs the DI-singleton <c>FocusTimerViewModel</c>, which this ViewModel has no reason to depend on directly; <c>TaskEditWindow</c> handles it.</summary>
+    public event EventHandler? StartTimerRequested;
+
+    [RelayCommand]
+    private void StartTimer() => StartTimerRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
         _taskId = taskId;
@@ -205,6 +223,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         SelectedCategory = Categories.FirstOrDefault(c => c.Id == task.CategoryId) ?? CategoryOption.None;
         DueDate = task.DueDate is { } due ? new DateTimeOffset(due) : null;
         EstimatedMinutes = task.EstimatedMinutes;
+        ActualMinutes = task.ActualMinutes;
         SelectedColorHex = task.ColorHex;
         SelectedRecurrenceFrequency = task.RecurrenceFrequency;
         RecurrenceInterval = task.RecurrenceInterval;

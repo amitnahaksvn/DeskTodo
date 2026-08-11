@@ -7,7 +7,7 @@ that one is the reasoning.
 
 **Legend:** ✅ Done · 🚧 Partial · ⬜ Not started
 
-**Last updated:** 2026-08-11 (Phases 1–16 done; Phases 17–22 fully done — including their originally-deferred items; Phases 23–37 still pending)
+**Last updated:** 2026-08-12 (Phases 1–16 done; Phases 17–24 fully done — including their originally-deferred items; Phases 25–37 still pending)
 
 > **Note on numbering:** phases 1–16 mirror the tracked work items
 > one-to-one, with one deliberate exception — the DesktopSheet→DeskTodo
@@ -47,7 +47,7 @@ that one is the reasoning.
 | 15 | [Platform-specific integration](#15-platform-specific-integration) | ✅ |
 | 16 | [Packaging (MSIX / DMG)](#16-packaging-msix--dmg) | 🚧 |
 
-## Phases 17–22 (done)
+## Phases 17–24 (done)
 
 Fully built, including every item their own "Deferred:"/scope notes
 originally named — see each phase's own section below for the full detail.
@@ -60,13 +60,13 @@ originally named — see each phase's own section below for the full detail.
 | 20 | [Excel-style grid view](#20-excel-style-grid-view) | Spreadsheet / Grid View | ✅ |
 | 21 | [Calendar, weekly/monthly/year views & alternate layouts](#21-calendar-weeklymonthlyyear-views--alternate-layouts) | Planning | ✅ |
 | 22 | [System tray, global shortcuts & quick add](#22-system-tray-global-shortcuts--quick-add) | Desktop Features | ✅ |
+| 23 | [Productivity tools: timers, focus & habits](#23-productivity-tools-timers-focus--habits) | Productivity | ✅ |
+| 24 | [Analytics & reporting](#24-analytics--reporting) | Analytics | ✅ |
 
-## Extended Roadmap — Phase 23+
+## Extended Roadmap — Phase 25+
 
 | # | Phase | Source category (Later.Implementation.md) | Status |
 |---|-------|---------------------------------------------|--------|
-| 23 | [Productivity tools: timers, focus & habits](#23-productivity-tools-timers-focus--habits) | Productivity | ⬜ |
-| 24 | [Analytics & reporting](#24-analytics--reporting) | Analytics | ⬜ |
 | 25 | [Organization: projects, workspaces & lists](#25-organization-projects-workspaces--lists) | Organization | ⬜ |
 | 26 | [Reminder enhancements](#26-reminder-enhancements) | Reminders | ⬜ |
 | 27 | [Theming & appearance](#27-theming--appearance) | Appearance, "Later" notes | ⬜ |
@@ -423,9 +423,9 @@ yet either (only the Avalonia template placeholder icon is in the repo — see
 
 # Extended Roadmap (Phase 17+)
 
-Phases 17–22 are now fully built, including every item their own original
+Phases 17–24 are now fully built, including every item their own original
 "Deferred:"/scope-note paragraphs named — see each phase's own section
-below for exactly what shipped and the reasoning behind it. Phases 23–37
+below for exactly what shipped and the reasoning behind it. Phases 25–37
 below remain **planning only — no code has been written for any of them.**
 Each of those phases lists what it covers, why it's grouped that way, the
 concrete deliverables (traced back to `Later.Implementation.md`), and the
@@ -935,75 +935,160 @@ familiarity" discipline exists to catch.
   settings round-trip), `SettingsViewModelTests` (monitor selection,
   persistence, fallback when a saved monitor is no longer connected)
 
-## 23. Productivity tools: timers, focus & habits ⬜
+## 23. Productivity tools: timers, focus & habits ✅
 
-None of this exists yet — DeskTodo currently tracks *what* to do and
-*whether* it's done, not time spent doing it or supporting habits/focus
-routines around it.
+DeskTodo previously tracked only *what* to do and *whether* it's done, not
+time spent doing it or wellness/focus routines around it. Four of the five
+originally-listed deliverables are now fully built; the fifth (Productivity
+Score) was always scoped to Phase 24 by this section's own original text,
+since it overlaps entirely with Analytics — not a new deferral.
 
-**Deliverables:**
+**Delivered:**
 - Pomodoro Timer, Stopwatch, Focus Timer, Focus Mode, Deep Work Session —
-  a family of timed-work-session features, likely sharing one underlying
-  timer engine with different presets/behaviors
-- Break Reminder, Water Reminder, Stretch Reminder — periodic
-  wellness nudges, delivered via the existing `INotificationService`
-  (Phase 13) on a configurable interval
-- Daily/Weekly/Monthly Goals, Habit Tracker — recurring, checkable
-  commitments distinct from one-off tasks (a habit is "do this every day,"
-  tracked via a streak, not a single due date)
-- Time Tracking, Actual Time — start/stop a timer against a specific task
-  and record elapsed time into the `ActualMinutes` field that already
-  exists on `TaskItem` but has no UI (see `Later.Implementation.md`)
-- Productivity Score — a computed metric from completion rate, time
-  tracked vs. estimated, and/or streaks
+  one shared timer engine (`FocusTimerViewModel`, a DI singleton) with
+  three real mechanisms (`FocusSessionType`: Pomodoro's alternating work/
+  break cycle, an open-ended Stopwatch, and a CountdownTimer). "Focus
+  Timer"/"Focus Mode"/"Deep Work Session" are all the CountdownTimer
+  mechanism at different preset lengths (25/50/90-minute quick buttons,
+  or any custom duration), not three separate concepts — see
+  `FocusSessionType`'s own doc comment. A widget header icon opens
+  `FocusTimerWindow`; a header indicator bound to the same singleton
+  instance shows "⏱ MM:SS" whenever a session is running, whether or not
+  the timer window itself is open. Live-verified end-to-end: started a
+  real countdown, watched it tick down for real, confirmed the widget's
+  indicator updates from the same shared instance, stopped it, and
+  confirmed a genuine `FocusSessions` row landed in the database
+- Break Reminder, Water Reminder, Stretch Reminder — three independent
+  toggle+interval settings, each checked on the widget's existing
+  30-second poll timer (the same one Phase 13's overdue-task check
+  already uses) and delivered via the existing `INotificationService`.
+  Off by default. Live-verified via a controllable fake clock in tests
+  (immediate-after-enable doesn't fire; fires once the interval elapses;
+  doesn't re-fire early) and the Settings UI rendering/hiding correctly
+- Time Tracking, Actual Time — a new `FocusSession` log entity (one row
+  per completed/stopped session, written once at stop-time, not ticked)
+  drives `TaskItem.ActualMinutes` — a field that existed since early
+  phases but had no UI or writer until now. Completing a session linked
+  to a task adds its duration onto that task's `ActualMinutes` via a new
+  `ITaskService.AddActualMinutesAsync`. The full-field editor shows
+  "Actual minutes" (read-only — it accumulates from real sessions, not
+  hand-typed) next to a "Start Timer" button that preselects the task in
+  the shared Focus Timer window. Live-verified: opened a task's editor,
+  clicked Start Timer, confirmed the task appeared preselected in the
+  (already-shared, already-singleton) Focus Timer window
 
-**Approach:** A shared `ISessionTimerService` (start/pause/stop/tick,
-optionally OS-backed for accuracy while the app isn't focused) could back
-Pomodoro/Stopwatch/Focus/Deep Work as different presets of the same
-underlying primitive, with a small floating timer window or a
-`WidgetWindow` header indicator while a session is running. Break/Water/
-Stretch reminders are the simplest item here — a new recurring-interval
-setting plus `INotificationService.NotifyAsync` calls, no new UI beyond a
-Settings section. Habit Tracker needs a genuinely new `Habit` entity
-(distinct from `TaskItem` — a habit doesn't have a single due date, it has
-a recurrence + a streak count) and its own small CRUD surface, likely
-reusing patterns from `TaskService`/`TaskItemViewModel` rather than
-literally extending them. Time Tracking wires a timer session's elapsed
-time into `TaskItem.ActualMinutes` via the existing `UpdateTaskAsync`.
-Productivity Score is a derived, computed value (a new method on
-`ITaskService` or a small dedicated analytics service) — see Phase 24,
-since it overlaps heavily with Analytics.
+**Scope note on Habit Tracker / Daily-Weekly-Monthly Goals:** already
+satisfied by Phase 21's `Goal`/`GoalCompletion` entities — a recurring,
+streak-tracked commitment distinct from a one-off task is exactly what a
+habit tracker is. No new entity was built for this; `Goal`'s own doc
+comment already called it "a personal, ongoing habit-style target." The
+one named gap: `Goal`'s streak logic assumes a daily cadence (consecutive
+calendar days), so it doesn't yet model a "3×/week" style habit — an
+honest, named limitation for a future pass, not something silently
+declared done.
 
-## 24. Analytics & reporting ⬜
+**Approach, as built:** `FocusTimerViewModel.OnTick` is `internal` (via
+this project's established `InternalsVisibleTo` pattern, same as
+`WidgetViewModel.OnDayRolloverTick`) so tests drive the timer
+deterministically by calling it directly instead of waiting on the real
+1-second `DispatcherTimer`. Sessions under a minute aren't logged — an
+accidental Start-then-Stop shouldn't leave a stray zero-minute row. A
+Pomodoro's break phase is never logged as time worked, only completed (or
+partially-completed, past one minute) work phases are.
 
-Zero analytics exist beyond the widget's own today's-progress bar (Phase
-7). This phase is about looking *backward* across days/weeks/months,
-which the current day-scoped `WidgetViewModel` architecture doesn't do at
-all.
+- `src/DeskTodo.Domain/Entities/FocusSession.cs`,
+  `src/DeskTodo.Domain/Enums/FocusSessionType.cs`
+- `src/DeskTodo.Infrastructure/Data/Configurations/FocusSessionConfiguration.cs`
+  (SetNull FK to `Tasks`, mirroring Milestone's Phase 21 reasoning),
+  `Repositories/FocusSessionRepository.cs`
+- `src/DeskTodo.Application/Abstractions/IFocusSessionRepository.cs`,
+  `Services/{IFocusSessionService,FocusSessionService}.cs`
+- `src/DeskTodo.Application/Services/ITaskService.cs`/`TaskService.cs`
+  (`AddActualMinutesAsync`)
+- `src/DeskTodo.Application/Settings/AppSettings.cs`
+  (`PomodoroWorkMinutes`/`PomodoroBreakMinutes`,
+  `{Break,Water,Stretch}ReminderEnabled`/`IntervalMinutes`)
+- `src/DeskTodo.App/ViewModels/FocusTimerViewModel.cs` (DI singleton — see
+  `ServiceCollectionExtensions.cs`), `Views/{FocusTimerWindow.axaml,FocusTimerWindow.axaml.cs}`
+  (`ShowOrActivate` — one shared window across every entry point)
+- `src/DeskTodo.App/ViewModels/WidgetViewModel.cs`
+  (`FocusTimerRequested`/`OpenFocusTimerCommand`,
+  `OnWellnessReminderCheckTick`/`CheckWellnessRemindersAsync`),
+  `Views/WidgetWindow.axaml` (⏱ header icon, `FocusTimerIndicator` bound
+  to the singleton `FocusTimerViewModel`, not this window's own ViewModel),
+  `Views/WidgetWindow.axaml.cs` (`OnFocusTimerRequested`)
+- `src/DeskTodo.App/ViewModels/TaskEditViewModel.cs` (`ActualMinutes`,
+  `TaskId`, `StartTimerRequested`/`StartTimerCommand`),
+  `Views/TaskEditWindow.axaml` (Actual minutes + Start Timer row),
+  `Views/TaskEditWindow.axaml.cs` (`OnStartTimerRequested`)
+- `src/DeskTodo.App/ViewModels/SettingsViewModel.cs` (Pomodoro + reminder
+  properties), `Views/SettingsWindow.axaml` (now scrollable; Focus Timer
+  and Wellness reminders sections)
+- Migration: `20260811192129_AddFocusSessions`
+- Tests: `FocusSessionRepositoryTests`, `FocusSessionServiceTests`,
+  `FocusTimerViewModelTests` (the timer state machine, driven via
+  `OnTick` directly), `TaskServiceTests` (`AddActualMinutesAsync`),
+  `WidgetViewModelTests` (wellness reminder timing via a controllable
+  fake clock), `SettingsViewModelTests`, `TaskEditViewModelTests`
 
-**Deliverables:**
-- Dashboard — a summary view combining several of the metrics below
-- Weekly/Monthly Progress, Completion Rate, Streak Counter
-- Focus Time, Time Per Project, Category Analytics (all depend on Phase 23's
-  time tracking and/or Phase 18's tags or a "Project" concept from Phase 25)
-- Heat Map — a calendar-style heat map of completion density per day
-- Weekly Report, Monthly Report — a generated summary, potentially
-  exportable via the existing Phase 14 export pipeline (Markdown/PDF would
-  be natural formats for a "report")
+## 24. Analytics & reporting ✅
 
-**Approach:** Needs a new `IAnalyticsService` (or similar) in the
-Application layer that aggregates over `ITaskService.GetAllTasksAsync`
-(already built) — most of these are read-only computations over existing
-data, not new persistence, with the exception of Streak Counter (which
-either recomputes from history each time or maintains a running counter
-incrementally) and anything depending on Time Tracking (Phase 23) or
-Projects (Phase 25) not existing yet. The Dashboard is a new, dedicated
-window (not the compact widget) with charts/summary tiles — this is a
-natural candidate to reuse whatever charting approach gets picked, if any
-(Avalonia doesn't ship a charting control; a lightweight custom-drawn
-summary using `DrawingContext` may be more appropriate than a full
-charting library dependency, or the artifact/dataviz conventions used
-elsewhere).
+Previously, zero analytics existed beyond the widget's own today's-progress
+bar (Phase 7). This phase looks *backward* across days/weeks/months — all
+six originally-listed deliverables are now built, with "Time Per Project"
+delivered as Time Per Category (Phase 25's "Project" concept doesn't exist
+yet — the same substitution Phase 23 made for "Habit Tracker," not a new
+scoping decision).
+
+**Delivered:**
+- Dashboard — a new `AnalyticsWindow`, opened from a widget header icon,
+  combining every metric below in one scrollable read-only view
+- Weekly/Monthly Progress, Completion Rate — computed from `TaskItem.PlanDate`
+  falling in the current week (Sunday-start, matching `WeekViewModel`'s
+  convention)/month, and all-time, respectively
+- Streak Counter — consecutive days (walking back from today) with at
+  least one task completed, the identical algorithm to Phase 21's
+  `Goal.GetCurrentStreak`, just over `TaskItem.CompletedAt` instead of a
+  `GoalCompletion` log
+- Focus Time, Category Analytics, Time Per Category — aggregated from
+  Phase 23's `FocusSession` log and `Category`, including a "No Category"
+  bucket
+- Heat Map — a 12-week grid of color-intensity squares (GitHub-contribution-graph
+  style) showing completion density per day
+- Weekly Report, Monthly Report — a generated Markdown summary (completed
+  vs. still-open tasks, focus time logged) with Copy-to-clipboard and
+  Save-as-.md actions, reusing the same `StorageProvider.SaveFilePickerAsync`
+  pattern Phase 14's export already established
+
+**A genuine domain-model constraint surfaced while testing:** `TaskItem.CompletedAt`
+has a private setter and is only ever stamped with the real `DateTime.UtcNow`
+via `TaskItem.Complete()` — a deliberate invariant (you can't complete a
+task in the past) — so multi-day streak/heat-map test scenarios needed a
+small, clearly-scoped reflection helper to backdate it for test data only;
+the production code path never does this.
+
+**Live-verified:** opened the real Dashboard against the actual database —
+confirmed all 6 summary tiles, the heat map's color-coded cells, and the
+full category breakdown (6 real categories with correct counts/colors/
+percentages) render correctly from live data. Report generation itself
+(exact Markdown content for a given period) is covered by
+`AnalyticsServiceTests`' content assertions rather than a second live
+click-through — the interactive session was interrupted by the OS screen
+lock partway through, and no attempt was made to work around that.
+
+- `src/DeskTodo.Application/DTOs/{AnalyticsSummary,DailyCompletionCount,CategoryAnalytics}.cs`
+- `src/DeskTodo.Application/Services/{IAnalyticsService,AnalyticsService}.cs`
+- `src/DeskTodo.Application/Services/IFocusSessionService.cs`/`FocusSessionService.cs`
+  (`GetAllSessionsAsync` — keeps `IFocusSessionRepository` behind the
+  service layer, matching this codebase's "services depend on services"
+  layering)
+- `src/DeskTodo.App/ViewModels/{AnalyticsViewModel,AnalyticsTile}.cs`,
+  `Views/{AnalyticsWindow.axaml,AnalyticsWindow.axaml.cs}`
+- `src/DeskTodo.App/Converters/{CompletionCountToHeatColorConverter,StringNotEmptyConverter,IntEqualsZeroConverter}.cs`
+- `src/DeskTodo.App/ViewModels/WidgetViewModel.cs` (`AnalyticsRequested`/`OpenAnalyticsCommand`),
+  `Views/WidgetWindow.axaml` (📊 header icon), `Views/WidgetWindow.axaml.cs`
+  (`OnAnalyticsRequested`)
+- Tests: `AnalyticsServiceTests`, `AnalyticsViewModelTests`
 
 ## 25. Organization: projects, workspaces & lists ⬜
 

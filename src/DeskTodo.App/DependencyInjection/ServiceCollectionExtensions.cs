@@ -28,6 +28,12 @@ public static class ServiceCollectionExtensions
         services.AddTransient<GoalsViewModel>();
         services.AddTransient<MilestonesViewModel>();
         services.AddTransient<QuickAddViewModel>();
+        services.AddTransient<AnalyticsViewModel>();
+
+        // Singleton, not transient: a running timer is app-wide state that must keep
+        // ticking (and stay reflected in the widget header's indicator) whether or not
+        // FocusTimerWindow is currently open — see FocusTimerViewModel's own doc comment.
+        services.AddSingleton<FocusTimerViewModel>();
 
         return services;
     }

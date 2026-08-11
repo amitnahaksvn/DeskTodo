@@ -253,4 +253,27 @@ public class TaskServiceTests
         Assert.Equal(0, movedCount);
         _taskRepository.Verify(r => r.GetMaxDayOrderAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task AddActualMinutesAsync_WithNoPriorActualMinutes_SetsItToTheGivenAmount()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Write report" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.AddActualMinutesAsync(task.Id, 25);
+
+        Assert.Equal(25, task.ActualMinutes);
+        _taskRepository.Verify(r => r.UpdateAsync(task, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task AddActualMinutesAsync_WithExistingActualMinutes_Accumulates()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Write report", ActualMinutes = 30 };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.AddActualMinutesAsync(task.Id, 25);
+
+        Assert.Equal(55, task.ActualMinutes);
+    }
 }

@@ -1,0 +1,116 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:conv="using:DeskTodo.App.Converters"
+        xmlns:dto="using:DeskTodo.Application.DTOs"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="720"
+        x:Class="DeskTodo.App.Views.AnalyticsWindow"
+        x:DataType="vm:AnalyticsViewModel"
+        Title="Analytics &amp; Reports"
+        Width="680" Height="720"
+        MinWidth="560" MinHeight="500"
+        WindowStartupLocation="CenterOwner"
+        Background="#F8FAFC">
+
+    <!--
+      Phase 24's Dashboard — read-only: summary tiles, a 12-week Heat Map, a per-category
+      breakdown, and a generated Weekly/Monthly Report. Every value comes from
+      IAnalyticsService's aggregation over already-persisted Task/FocusSession data; nothing
+      here writes anything back (see AnalyticsViewModel's own doc comment).
+    -->
+    <Grid RowDefinitions="Auto,*" Margin="20">
+        <TextBlock Grid.Row="0" Text="Analytics &amp; Reports" FontSize="18" FontWeight="SemiBold"
+                   Margin="0,0,0,16" Foreground="#1E293B" />
+
+        <ScrollViewer Grid.Row="1">
+        <StackPanel Spacing="20" Margin="0,0,12,0">
+
+            <!-- Summary tiles -->
+            <ItemsControl ItemsSource="{Binding Tiles}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AnalyticsTile">
+                        <Border Background="White" CornerRadius="8" Padding="14,10" Margin="0,0,10,10"
+                                BorderBrush="#E2E8F0" BorderThickness="1" Width="150">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{Binding Label}" FontSize="11" Foreground="#64748B" />
+                                <TextBlock Text="{Binding Value}" FontSize="22" FontWeight="Bold" Foreground="#1E293B" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Heat map -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Last 12 weeks" FontSize="12" Foreground="#64748B" />
+                <ItemsControl ItemsSource="{Binding HeatMapDays}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" Width="546" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dto:DailyCompletionCount">
+                            <Border Width="12" Height="12" Margin="1" CornerRadius="2"
+                                    Background="{Binding CompletedCount, Converter={x:Static conv:CompletionCountToHeatColorConverter.Instance}}"
+                                    ToolTip.Tip="{Binding Date}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Category breakdown -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="By category" FontSize="12" Foreground="#64748B" />
+                <ItemsControl ItemsSource="{Binding CategoryBreakdown}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dto:CategoryAnalytics">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,6">
+                                <Ellipse Grid.Column="0" Width="10" Height="10" VerticalAlignment="Center" Margin="0,0,8,0"
+                                         Fill="{Binding ColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
+                                <TextBlock Grid.Column="1" Text="{Binding CategoryName}" VerticalAlignment="Center" Foreground="#1E293B" />
+                                <TextBlock Grid.Column="2" FontSize="12" Foreground="#64748B" Margin="0,0,12,0" VerticalAlignment="Center">
+                                    <Run Text="{Binding CompletedCount}" /><Run Text="/" /><Run Text="{Binding TotalCount}" />
+                                    <Run Text=" • " /><Run Text="{Binding FocusMinutes}" /><Run Text="m" />
+                                </TextBlock>
+                                <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center">
+                                    <Run Text="{Binding CompletionRate, StringFormat={}{0:F0}}" /><Run Text="%" />
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="No completed or in-progress tasks yet." FontSize="12" Foreground="#94A3B8"
+                           IsVisible="{Binding CategoryBreakdown.Count, Converter={x:Static conv:IntEqualsZeroConverter.Instance}}" />
+            </StackPanel>
+
+            <!-- Report -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Report" FontSize="12" Foreground="#64748B" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="This Week" Command="{Binding GenerateWeeklyReportCommand}" Padding="12,6" />
+                    <Button Content="This Month" Command="{Binding GenerateMonthlyReportCommand}" Padding="12,6" />
+                    <Button Content="Copy" Click="OnCopyReportClick" Padding="12,6"
+                            IsEnabled="{Binding ReportText, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
+                    <Button Content="Save as .md…" Click="OnSaveReportClick" Padding="12,6"
+                            IsEnabled="{Binding ReportText, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
+                </StackPanel>
+                <TextBlock Text="{Binding ReportPeriodLabel}" FontSize="11" Foreground="#94A3B8"
+                           IsVisible="{Binding ReportPeriodLabel, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
+                <TextBox Text="{Binding ReportText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                         FontFamily="monospace" FontSize="11" Height="220"
+                         IsVisible="{Binding ReportText, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
+            </StackPanel>
+
+        </StackPanel>
+        </ScrollViewer>
+    </Grid>
+
+</Window>

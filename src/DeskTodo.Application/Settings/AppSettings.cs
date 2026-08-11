@@ -89,4 +89,34 @@ public sealed class AppSettings
     /// the user explicitly picks a monitor in Settings.
     /// </summary>
     public string? PreferredMonitorId { get; set; }
+
+    /// <summary>
+    /// Phase 23's Pomodoro preset lengths — the one piece of session-timer configuration
+    /// worth exposing (everything else about a session, like which task it's linked to, is
+    /// chosen per-session in the Focus Timer window itself, not a standing setting). Defaults
+    /// match the classic 25-minute-work/5-minute-break technique.
+    /// </summary>
+    public int PomodoroWorkMinutes { get; set; } = 25;
+
+    public int PomodoroBreakMinutes { get; set; } = 5;
+
+    /// <summary>
+    /// Phase 23's Break/Water/Stretch Reminders — periodic wellness nudges delivered via the
+    /// existing <see cref="Abstractions.INotificationService"/> (Phase 13), on the widget's
+    /// existing 30-second poll (see <c>WidgetViewModel</c>'s doc comment on why this reuses
+    /// that timer rather than adding a new one). All three default to disabled — an unasked-for
+    /// recurring notification is exactly the kind of thing that should be opt-in, not a
+    /// surprise the first time this ships.
+    /// </summary>
+    public bool BreakReminderEnabled { get; set; }
+
+    public int BreakReminderIntervalMinutes { get; set; } = 60;
+
+    public bool WaterReminderEnabled { get; set; }
+
+    public int WaterReminderIntervalMinutes { get; set; } = 45;
+
+    public bool StretchReminderEnabled { get; set; }
+
+    public int StretchReminderIntervalMinutes { get; set; } = 90;
 }

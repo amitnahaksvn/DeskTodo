@@ -71,6 +71,22 @@
                                    HorizontalAlignment="Stretch" />
                 </StackPanel>
 
+                <!--
+                  Phase 23's Time Tracking — Actual minutes is read-only here (it accumulates
+                  from completed Focus Timer sessions, see TaskEditViewModel.ActualMinutes'
+                  doc comment), so this row surfaces the running total plus a way to add to
+                  it, rather than a NumericUpDown someone could hand-edit out of sync with
+                  the real session log.
+                -->
+                <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Bottom">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock Text="Actual minutes" FontSize="12" Foreground="#64748B" />
+                        <TextBlock Text="{Binding ActualMinutes, TargetNullValue='0', FallbackValue='0'}" FontSize="14" Foreground="#1E293B" VerticalAlignment="Center" Height="32" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="&#x23F1; Start Timer" Command="{Binding StartTimerCommand}"
+                            VerticalAlignment="Bottom" Padding="10,6" FontSize="12" />
+                </Grid>
+
                 <StackPanel Spacing="4">
                     <TextBlock Text="Parent task" FontSize="12" Foreground="#64748B" />
                     <ComboBox ItemsSource="{Binding SameDayTasks}" SelectedItem="{Binding SelectedParentTask}"

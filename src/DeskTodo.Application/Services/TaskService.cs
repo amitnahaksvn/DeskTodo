@@ -139,6 +139,9 @@ public sealed class TaskService(ITaskRepository taskRepository) : ITaskService
     public Task ReorderTasksAsync(DateOnly planDate, IReadOnlyList<Guid> orderedTaskIds, CancellationToken cancellationToken = default) =>
         taskRepository.ReorderAsync(planDate, orderedTaskIds, cancellationToken);
 
+    public Task AddActualMinutesAsync(Guid taskId, int minutes, CancellationToken cancellationToken = default) =>
+        MutateAsync(taskId, task => { task.ActualMinutes = (task.ActualMinutes ?? 0) + minutes; task.Touch(); }, cancellationToken);
+
     public async Task<int> RescheduleOverdueTasksAsync(DateOnly today, CancellationToken cancellationToken = default)
     {
         var overdueTasks = await taskRepository.GetIncompleteBeforeDateAsync(today, cancellationToken);

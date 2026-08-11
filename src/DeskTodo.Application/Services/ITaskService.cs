@@ -67,6 +67,14 @@ public interface ITaskService
     Task ReorderTasksAsync(DateOnly planDate, IReadOnlyList<Guid> orderedTaskIds, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Adds <paramref name="minutes"/> onto <see cref="TaskItem.ActualMinutes"/> (starting from
+    /// 0 if it was never set) — backs Phase 23's Time Tracking, called when a focus session
+    /// linked to this task completes. Additive, not a replace, so multiple sessions against
+    /// the same task accumulate rather than each overwriting the last.
+    /// </summary>
+    Task AddActualMinutesAsync(Guid taskId, int minutes, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Bumps every incomplete, non-archived, non-deleted task whose <see cref="TaskItem.PlanDate"/>
     /// is before <paramref name="today"/> to land on <paramref name="today"/> instead (appended to
     /// the end of that day's list). Backs the "auto-reschedule overdue tasks" setting. Returns how

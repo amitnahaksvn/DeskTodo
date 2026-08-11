@@ -47,9 +47,19 @@ public partial class WidgetWindow : Window
             viewModel.GridViewRequested += OnGridViewRequested;
             viewModel.CalendarViewRequested += OnCalendarViewRequested;
             viewModel.PlannerViewRequested += OnPlannerViewRequested;
+            viewModel.FocusTimerRequested += OnFocusTimerRequested;
+            viewModel.AnalyticsRequested += OnAnalyticsRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
+        }
+
+        // The header's running-session indicator binds directly to the DI-singleton
+        // FocusTimerViewModel (not this window's own WidgetViewModel) — see
+        // FocusTimerIndicator's doc comment in the XAML for why.
+        if (App.Services is not null)
+        {
+            FocusTimerIndicator.DataContext = App.Services.GetRequiredService<FocusTimerViewModel>();
         }
     }
 
@@ -120,6 +130,8 @@ public partial class WidgetWindow : Window
             viewModel.GridViewRequested -= OnGridViewRequested;
             viewModel.CalendarViewRequested -= OnCalendarViewRequested;
             viewModel.PlannerViewRequested -= OnPlannerViewRequested;
+            viewModel.FocusTimerRequested -= OnFocusTimerRequested;
+            viewModel.AnalyticsRequested -= OnAnalyticsRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -239,6 +251,36 @@ public partial class WidgetWindow : Window
 
         await plannerViewModel.LoadAsync(viewModel.PlanDate);
         await plannerWindow.ShowDialog(this);
+    }
+
+    /// <summary>
+    /// Non-modal (<c>Show</c>, not <c>ShowDialog</c>) — unlike every other header icon's
+    /// window, a running timer needs the widget to stay interactive (checking off tasks
+    /// while a Pomodoro runs is the whole point). <see cref="FocusTimerWindow.ShowOrActivate"/>
+    /// reuses one window over the DI-singleton <see cref="FocusTimerViewModel"/> rather than
+    /// opening a new one per click — shared with <c>TaskEditWindow</c>'s "Start Timer" entry
+    /// point too, so neither can end up duplicating the other's window.
+    /// </summary>
+    private void OnFocusTimerRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        FocusTimerWindow.ShowOrActivate(App.Services.GetRequiredService<FocusTimerViewModel>());
+    }
+
+    private async void OnAnalyticsRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var analyticsViewModel = App.Services.GetRequiredService<AnalyticsViewModel>();
+        var analyticsWindow = new AnalyticsWindow { DataContext = analyticsViewModel };
+        await analyticsWindow.ShowDialog(this);
     }
 
     private async void OnTaskEditRequested(object? sender, Guid taskId)
