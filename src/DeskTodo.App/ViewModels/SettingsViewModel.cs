@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeskTodo.Application.Abstractions;
@@ -61,6 +62,18 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsLoaded { get; set; }
 
+    /// <summary>
+    /// Populated by <c>WidgetWindow</c> (via <see cref="SetAvailableMonitors"/>) before
+    /// <see cref="LoadAsync"/> runs — this ViewModel has no Avalonia dependency of its own,
+    /// so it can't enumerate <c>Screens</c> itself; the View hands it over, same
+    /// "give the item what it needs directly" pattern used elsewhere in this codebase.
+    /// </summary>
+    public ObservableCollection<MonitorOption> Monitors { get; } = [MonitorOption.Unspecified];
+
+    /// <summary>See <see cref="AppSettings.PreferredMonitorId"/>.</summary>
+    [ObservableProperty]
+    public partial MonitorOption SelectedMonitor { get; set; } = MonitorOption.Unspecified;
+
     /// <summary>Raised after a successful save; the view closes itself and the widget re-applies settings in response.</summary>
     public event EventHandler? Saved;
 
@@ -75,7 +88,19 @@ public sealed partial class SettingsViewModel : ViewModelBase
         AutoStartEnabled = _autoStartService.IsEnabled;
         ShowInTaskbar = _loaded.ShowInTaskbar;
         AutoRescheduleOverdueTasks = _loaded.AutoRescheduleOverdueTasks;
+        SelectedMonitor = Monitors.FirstOrDefault(m => m.Id == _loaded.PreferredMonitorId) ?? MonitorOption.Unspecified;
         IsLoaded = true;
+    }
+
+    /// <summary>Called by <c>WidgetWindow</c> before <see cref="LoadAsync"/>, once per Settings-window opening (the set of connected monitors can change between openings).</summary>
+    public void SetAvailableMonitors(IReadOnlyList<MonitorOption> monitors)
+    {
+        Monitors.Clear();
+        Monitors.Add(MonitorOption.Unspecified);
+        foreach (var monitor in monitors)
+        {
+            Monitors.Add(monitor);
+        }
     }
 
     [RelayCommand]
@@ -91,6 +116,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             _loaded.NotificationsEnabled = NotificationsEnabled;
             _loaded.ShowInTaskbar = ShowInTaskbar;
             _loaded.AutoRescheduleOverdueTasks = AutoRescheduleOverdueTasks;
+            _loaded.PreferredMonitorId = SelectedMonitor.Id.Length == 0 ? null : SelectedMonitor.Id;
 
             await _settingsService.SaveAsync(_loaded);
 

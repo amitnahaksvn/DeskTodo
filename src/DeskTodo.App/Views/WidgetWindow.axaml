@@ -37,7 +37,7 @@
             CornerRadius="16" ClipToBounds="True" BoxShadow="0 8 32 0 #33000000">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
 
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Background="Transparent"
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Background="Transparent"
                   Margin="20,16,12,4" PointerPressed="OnHeaderPointerPressed">
                 <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Text="{Binding DayOfWeekText}" FontSize="20" FontWeight="SemiBold" Foreground="#1E293B" />
@@ -45,28 +45,39 @@
                 </StackPanel>
                 <Button Grid.Column="1" Content="&#x1F50D;" Command="{Binding ToggleSearchBarCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
-                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Search &amp; filter" />
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Search &amp; filter"
+                        IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}" />
                 <Button Grid.Column="2" Content="&#x2611;" Command="{Binding ToggleSelectModeCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
-                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Select multiple" />
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Select multiple"
+                        IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}" />
                 <Button Grid.Column="3" Content="&#x25A6;" Command="{Binding OpenGridViewCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
-                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Grid view (all tasks)" />
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Grid view (all tasks)"
+                        IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}" />
                 <Button Grid.Column="4" Content="&#x1F4C5;" Command="{Binding OpenCalendarViewCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
-                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Calendar view" />
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Calendar view"
+                        IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}" />
                 <Button Grid.Column="5" Content="&#x1F4CB;" Command="{Binding OpenPlannerViewCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
-                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Planner (week / year / agenda / timeline / kanban / matrix)" />
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Planner (week / year / agenda / timeline / kanban / matrix)"
+                        IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}" />
                 <Button Grid.Column="6" Content="&#x2699;" Command="{Binding OpenSettingsCommand}"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
-                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Settings" />
-                <Button Grid.Column="7" Content="&#x2715;" Click="OnCloseButtonClick"
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Settings"
+                        IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}" />
+                <Button Grid.Column="7" Content="{Binding IsMiniWidgetMode, Converter={x:Static conv:MiniWidgetModeToGlyphConverter.Instance}}"
+                        Command="{Binding ToggleMiniWidgetModeCommand}"
+                        Background="Transparent" BorderThickness="0" Padding="6" FontSize="13"
+                        Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" ToolTip.Tip="Mini widget" />
+                <Button Grid.Column="8" Content="&#x2715;" Click="OnCloseButtonClick"
                         Background="Transparent" BorderThickness="0" Padding="6" FontSize="11"
                         Foreground="#94A3B8" VerticalAlignment="Top" Cursor="Hand" />
             </Grid>
 
-            <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,*,Auto" Margin="20,0,20,4">
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,*,Auto" Margin="20,0,20,4"
+                  IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}">
                 <Button Grid.Column="0" Content="&#x2039;" Command="{Binding GoToPreviousDayCommand}"
                         Padding="10,4" FontSize="16" ToolTip.Tip="Previous day" />
                 <Button Grid.Column="1" Content="Today" Command="{Binding GoToTodayCommand}"
@@ -78,7 +89,8 @@
                                      Width="130" ToolTip.Tip="Jump to a date" />
             </Grid>
 
-            <StackPanel Grid.Row="2" Margin="20,0,20,8" Spacing="6" IsVisible="{Binding IsSearchBarVisible}">
+            <Panel Grid.Row="2" IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}">
+            <StackPanel Margin="20,0,20,8" Spacing="6" IsVisible="{Binding IsSearchBarVisible}">
                 <ItemsControl ItemsSource="{Binding RecentlyViewed}" IsVisible="{Binding RecentlyViewed.Count, Converter={x:Static conv:IntGreaterThanZeroConverter.Instance}}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -110,8 +122,10 @@
                 <ComboBox x:Name="TagFilterComboBox" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTagFilter}"
                           HorizontalAlignment="Stretch" ToolTip.Tip="Filter by tag" />
             </StackPanel>
+            </Panel>
 
-            <Panel Grid.Row="3" Margin="20,4,20,8">
+            <Panel Grid.Row="3" Margin="20,4,20,8"
+                   IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}">
                 <Grid IsVisible="{Binding IsSelectMode, Converter={x:Static convCore:BoolConverters.Not}}"
                       ColumnDefinitions="*,Auto" ColumnSpacing="6">
                     <TextBox Grid.Column="0" PlaceholderText="Add a task…" Text="{Binding NewTaskTitle}" KeyDown="OnAddTaskKeyDown" />
@@ -132,7 +146,8 @@
                 </Grid>
             </Panel>
 
-            <Panel Grid.Row="4" Margin="8,0">
+            <Panel Grid.Row="4" Margin="8,0"
+                   IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}">
                 <ScrollViewer>
                     <ItemsControl ItemsSource="{Binding VisibleTasks}">
                         <ItemsControl.ItemTemplate>

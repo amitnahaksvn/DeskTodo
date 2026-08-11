@@ -20,16 +20,19 @@ public static class PlatformServiceCollectionExtensions
         {
             services.AddSingleton<INotificationService, MacNotificationService>();
             services.AddSingleton<IAutoStartService, MacAutoStartService>();
+            services.AddSingleton<IGlobalHotkeyService, MacGlobalHotkeyService>();
         }
         else if (OperatingSystem.IsWindows())
         {
             services.AddSingleton<INotificationService, WindowsNotificationService>();
             services.AddSingleton<IAutoStartService, WindowsAutoStartService>();
+            services.AddSingleton<IGlobalHotkeyService, WindowsGlobalHotkeyService>();
         }
         else
         {
             services.AddSingleton<INotificationService, NullNotificationService>();
             services.AddSingleton<IAutoStartService, NullAutoStartService>();
+            services.AddSingleton<IGlobalHotkeyService, NullGlobalHotkeyService>();
         }
 
         return services;

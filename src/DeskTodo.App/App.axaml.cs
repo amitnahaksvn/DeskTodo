@@ -1,10 +1,15 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
+using Avalonia.Threading;
 using DeskTodo.App.DesignTime;
 using DeskTodo.App.ViewModels;
 using DeskTodo.App.Views;
+using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,6 +32,14 @@ public partial class App : global::Avalonia.Application
     /// never runs against a real container.
     /// </summary>
     public static IServiceProvider? Services { get; set; }
+
+    /// <summary>
+    /// Set just before the tray icon's "Quit" item calls <c>TryShutdown</c> — the one signal
+    /// <see cref="Views.WidgetWindow.OnClosing"/> needs to tell "the user wants to genuinely
+    /// exit" apart from "the user clicked the widget's own close button," which now hides it
+    /// to the tray instead (see the "Minimize to Tray" deliverable, Phase 22).
+    /// </summary>
+    public static bool IsQuitting { get; set; }
 
     public override void Initialize()
     {
@@ -74,7 +87,19 @@ public partial class App : global::Avalonia.Application
                 widgetWindow.Height = height;
             }
 
-            if (widgetViewModel.WindowLeft is { } left && widgetViewModel.WindowTop is { } top)
+            // A chosen monitor (Phase 22's "Multi Monitor Support") wins over the raw saved
+            // WindowLeft/Top — those coordinates go stale the moment the monitor arrangement
+            // changes, whereas re-resolving the monitor by identity and re-centering on it
+            // stays correct across reboots/reconnects as long as that same monitor is present.
+            var preferredScreen = MonitorIdentity.Resolve(widgetWindow.Screens, widgetViewModel.PreferredMonitorId);
+            if (preferredScreen is not null)
+            {
+                var area = preferredScreen.WorkingArea;
+                widgetWindow.Position = new PixelPoint(
+                    area.X + (area.Width - (int)widgetWindow.Width) / 2,
+                    area.Y + (area.Height - (int)widgetWindow.Height) / 2);
+            }
+            else if (widgetViewModel.WindowLeft is { } left && widgetViewModel.WindowTop is { } top)
             {
                 widgetWindow.Position = new PixelPoint((int)left, (int)top);
             }
@@ -82,9 +107,124 @@ public partial class App : global::Avalonia.Application
             ApplyAccentColor(widgetViewModel.AccentColorHex);
 
             desktop.MainWindow = widgetWindow;
+
+            // Windows never auto-exits the app just because a window closed — the tray
+            // icon's "Quit" item (SetupTrayIcon below) is the only path to a real shutdown,
+            // matching "Minimize to Tray" (Phase 22): closing the widget hides it instead.
+            desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            SetupTrayIcon(desktop, widgetWindow, widgetViewModel);
+            SetupGlobalHotkey(desktop, widgetWindow, widgetViewModel);
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// Phase 22's tray icon (Windows) / menu bar item (macOS) — Avalonia's <see cref="TrayIcon"/>
+    /// is the same cross-platform API for both, confirmed via reflection against the pinned
+    /// 12.1.0 package before use, the same discipline as every other Avalonia API this
+    /// project depends on. Built directly here (not raised as a WidgetViewModel event the
+    /// way Settings/Grid/Calendar/Planner are) since the tray icon isn't owned by or
+    /// scoped to the widget window's own lifecycle — it exists independently, for as long
+    /// as the app runs, widget hidden or not.
+    /// </summary>
+    private static void SetupTrayIcon(IClassicDesktopStyleApplicationLifetime desktop, WidgetWindow widgetWindow, WidgetViewModel widgetViewModel)
+    {
+        var icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri("avares://DeskTodo/Assets/avalonia-logo.ico"))));
+
+        var toggleVisibilityItem = new NativeMenuItem("Show/Hide Widget");
+        toggleVisibilityItem.Click += (_, _) => ToggleWidgetVisibility(widgetWindow);
+
+        var quickAddItem = new NativeMenuItem("Quick Add…");
+        quickAddItem.Click += (_, _) => OpenQuickAdd(widgetWindow, widgetViewModel);
+
+        var settingsItem = new NativeMenuItem("Settings…");
+        settingsItem.Click += (_, _) => widgetViewModel.OpenSettingsCommand.Execute(null);
+
+        var quitItem = new NativeMenuItem("Quit");
+        quitItem.Click += (_, _) =>
+        {
+            IsQuitting = true;
+            desktop.TryShutdown();
+        };
+
+        var trayIcon = new TrayIcon
+        {
+            Icon = icon,
+            ToolTipText = "DeskTodo",
+            Menu = new NativeMenu
+            {
+                toggleVisibilityItem,
+                quickAddItem,
+                settingsItem,
+                new NativeMenuItemSeparator(),
+                quitItem,
+            },
+        };
+        trayIcon.Clicked += (_, _) => ToggleWidgetVisibility(widgetWindow);
+
+        TrayIcon.SetIcons(Current!, new TrayIcons { trayIcon });
+    }
+
+    private static void ToggleWidgetVisibility(Window widgetWindow)
+    {
+        if (widgetWindow.IsVisible)
+        {
+            widgetWindow.Hide();
+        }
+        else
+        {
+            widgetWindow.Show();
+            widgetWindow.Activate();
+        }
+    }
+
+    /// <summary>Opens Quick Add from the tray — always re-shows the widget first if it's hidden, since Quick Add's own "created task" feedback (Phase 22) is a row appearing in the widget's list, which would be invisible otherwise.</summary>
+    private static void OpenQuickAdd(WidgetWindow widgetWindow, WidgetViewModel widgetViewModel)
+    {
+        if (!widgetWindow.IsVisible)
+        {
+            widgetWindow.Show();
+        }
+
+        if (Services is null)
+        {
+            return;
+        }
+
+        var quickAddViewModel = Services.GetRequiredService<QuickAddViewModel>();
+        var quickAddWindow = new QuickAddWindow { DataContext = quickAddViewModel };
+        quickAddViewModel.Closed += (_, _) =>
+        {
+            quickAddWindow.Close();
+            _ = widgetViewModel.LoadTasksAsync();
+        };
+
+        quickAddWindow.Show();
+        quickAddWindow.Activate();
+    }
+
+    /// <summary>
+    /// Wires Quick Add to Cmd/Ctrl+Shift+N, systemwide (Phase 22's "Global Shortcut"
+    /// deliverable). Resolved from DI rather than constructed here so
+    /// <see cref="DependencyInjection.PlatformServiceCollectionExtensions"/> stays the single place that knows
+    /// which platform implementation applies. A failed <c>Register()</c> (already claimed by
+    /// another app, or an unverified Windows P/Invoke path failing) is logged by the service
+    /// itself and left as a silently-unavailable feature rather than surfaced to the user —
+    /// the tray menu's "Quick Add…" item is still there as a fallback either way.
+    /// </summary>
+    private static void SetupGlobalHotkey(IClassicDesktopStyleApplicationLifetime desktop, WidgetWindow widgetWindow, WidgetViewModel widgetViewModel)
+    {
+        if (Services is null)
+        {
+            return;
+        }
+
+        var hotkeyService = Services.GetRequiredService<IGlobalHotkeyService>();
+        hotkeyService.Pressed += (_, _) => Dispatcher.UIThread.Post(() => OpenQuickAdd(widgetWindow, widgetViewModel));
+        hotkeyService.Register();
+
+        desktop.ShutdownRequested += (_, _) => hotkeyService.Unregister();
     }
 
     /// <summary>

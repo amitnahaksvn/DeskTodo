@@ -3,14 +3,14 @@
 > A cross-platform desktop productivity application for Windows & macOS built with .NET.
 
 > **Status key:** `[x]` shipped (see IMPLEMENTATION.md for which phase). `[ ]`
-> not built. Checked/unchecked below reflects the state as of Phases 17–21
-> completing, including their originally-deferred items (2026-08-04) —
+> not built. Checked/unchecked below reflects the state as of Phase 22
+> completing, including its originally-deferred items (2026-08-11) —
 > cross-referenced item by item against IMPLEMENTATION.md, not assumed;
 > several `[x]` items note a partial scope inline (see IMPLEMENTATION.md's
-> Phase 17–21 sections for the full detail on what shipped vs. what's still
+> Phase 17–22 sections for the full detail on what shipped vs. what's still
 > deliberately out of scope). Everything still `[ ]` here has been carried
-> into IMPLEMENTATION.md's "Extended Roadmap (Phase 22+)" as a planned,
-> not-yet-started item (Phases 22–37).
+> into IMPLEMENTATION.md's "Extended Roadmap (Phase 23+)" as a planned,
+> not-yet-started item (Phases 23–37).
 
 ---
 
@@ -101,17 +101,17 @@
 - [x] Always On Top Widget
 - [x] Floating Widget
 - [x] Transparent Widget
-- [ ] Mini Widget
+- [x] Mini Widget
 - [ ] Sticky Notes
 - [ ] Desktop Notes
 - [x] Desktop Reminder Popup _(native OS notifications)_
-- [ ] System Tray
-- [ ] macOS Menu Bar
-- [ ] Global Shortcut
-- [ ] Quick Add Window
+- [x] System Tray
+- [x] macOS Menu Bar
+- [x] Global Shortcut
+- [x] Quick Add Window
 - [x] Auto Start
-- [ ] Minimize to Tray
-- [ ] Multi Monitor Support _(no explicit monitor-choice feature; relies on default OS/toolkit placement)_
+- [x] Minimize to Tray
+- [x] Multi Monitor Support
 - [x] Native Notifications
 
 ---
@@ -200,7 +200,7 @@
 - [ ] Command Palette
 - [ ] Keyboard Shortcuts _(app-wide; only per-field Enter/Escape exist today)_
 - [x] Quick Search _(in-app search bar; no global hotkey)_
-- [ ] Quick Add _(an inline add-task box exists in the widget; no standalone global quick-add popup)_
+- [x] Quick Add _(standalone Quick Add window, summoned from the tray or the Cmd/Ctrl+Shift+N global shortcut)_
 - [ ] Undo / Redo
 - [ ] Clipboard History
 - [ ] Activity Log
@@ -398,7 +398,7 @@
 - [x] Desktop Notifications
 - [ ] Dark Theme
 - [x] Auto Start
-- [ ] Global Shortcut
+- [x] Global Shortcut
 - [x] CSV Import/Export
 
 ---

@@ -1299,7 +1299,190 @@ in `SaveAsync`) exactly like `CategoryId`/`SelectedCategory` already work —
 the existing task-update path already does this without needing a
 dedicated method.
 
-## What's genuinely verified vs. authored-only (Phases 13–16)
+## Phase 22 — System tray, global shortcuts & quick add
+
+**The tray icon and macOS menu bar item are the same Avalonia `TrayIcon`,
+built directly in `App.axaml.cs` rather than raised as a `WidgetViewModel`
+event the way Settings/Grid/Calendar/Planner are.** Every other window this
+app opens is scoped to the widget's own lifecycle — summoned from a header
+icon, closed, gone. The tray icon isn't: it exists independently for as
+long as the process runs, widget hidden or not, so it doesn't belong to the
+"ViewModel raises an event, `WidgetWindow` builds the View" pattern that
+assumes a `WidgetWindow` instance is the thing initiating the request.
+
+**`Avalonia.Native` (the real macOS backend `TrayIcon`/`NSStatusItem`
+support needs) didn't need an explicit package reference or builder call —
+it's already a transitive dependency of `Avalonia.Desktop`, confirmed by
+checking the build output for `Avalonia.Native.dll` before writing any
+tray code.** `AppBuilder.UsePlatformDetect()` picks it up automatically at
+runtime on macOS. This mattered because the tray icon's *first* live test
+showed a status item that existed (a real 24×24pt `NSStatusItem`, confirmed
+via `System Events` querying its position/size) but rendered completely
+blank — which pointed at the icon bitmap, not the backend, and turned out
+to be exactly that: see the `avares://` paragraph below.
+
+**The tray icon's `WindowIcon` is decoded through Avalonia's own
+`Bitmap`/`AssetLoader`, and the existing `.ico` asset works there — the
+blank-icon symptom during live testing was a screenshot-tooling coordinate
+mistake, not a decode failure.** `AssetLoader.Open(new Uri("avares://DeskTodo/Assets/avalonia-logo.ico"))`
+resolving successfully (confirmed by the process not crashing — a failed
+resolve throws synchronously inside `OnFrameworkInitializationCompleted`,
+uncaught, which would show up as a `Log.Fatal` in the Serilog output) was
+the first signal; a zoomed, correctly-cropped screenshot at the
+`NSStatusItem`'s exact reported coordinates then confirmed the Avalonia
+logo genuinely renders in the real menu bar. The `AssemblyName` override in
+`DeskTodo.App.csproj` (`<AssemblyName>DeskTodo</AssemblyName>`) is the
+correct `avares://` host, not the project file name.
+
+**A tray icon with a `Menu` attached never fires its own `Clicked` event on
+macOS — every click opens the menu instead, confirmed live.** `TrayIcon`
+exposes both a `Menu` property and a `Clicked` event, and this app wires
+both (`Clicked` toggles widget visibility; the menu's "Show/Hide Widget"
+item does the same thing as a click-target that isn't shadowed). That
+duplication is deliberate, not an oversight: `NSStatusItem`'s native
+behavior is that any click opens the attached menu if one exists, so
+`Clicked` is effectively unreachable dead code on macOS the moment a `Menu`
+is set — but Avalonia's cross-platform contract doesn't guarantee that
+holds on every backend, and the menu item covers the exact same action
+regardless, so both stay wired rather than one being silently trusted to
+work everywhere.
+
+**Minimize to Tray is gated on `App.Services is not null && !App.IsQuitting`,
+not a simpler single flag.** `App.Services` is only ever set outside
+headless tests (`Program.cs` sets it after the host starts; test code
+constructs `WidgetWindow` directly and never touches the static), so this
+half of the condition is what keeps every existing headless render test's
+`.Close()` call behaving exactly as before — the gate is invisible to tests
+by construction, not by a test-only branch. `App.IsQuitting` is the second
+half: set to `true` for exactly one moment, immediately before the tray's
+"Quit" item calls `desktop.TryShutdown()`, so `WidgetWindow.OnClosing` can
+tell "the user wants to genuinely exit" apart from "the user clicked the
+widget's own close button" (which now hides it instead). `desktop.ShutdownMode`
+is set to `OnExplicitShutdown` for the same reason — without it, Avalonia's
+default `OnLastWindowClose` would exit the app the first time the widget
+(the app's only window) closes, which is precisely the behavior this
+deliverable removes.
+
+**A real bug, caught by this project's "verify against the compiled thing"
+discipline rather than assumed away: Carbon's `NewEventHandlerUPP` isn't
+actually callable on modern macOS.** The global hotkey's first
+implementation followed the shape of real-world Carbon hotkey code —
+construct a UPP via `NewEventHandlerUPP` before passing the handler to
+`InstallEventHandler`. Live-testing that exact call (in a bare console
+host, deliberately simpler than the full Avalonia app, to isolate whether
+the failure was Carbon-specific or Avalonia-specific) threw
+`EntryPointNotFoundException`: the symbol isn't exported from the 64-bit
+`Carbon.framework` shared library at all. Apple's own headers `#define
+NewEventHandlerUPP(x) (x)` in 64-bit builds — the trampoline only ever
+existed for 32-bit compatibility, and a UPP *is* just a raw C function
+pointer on 64-bit. The fix was to delete the call and pass
+`Marshal.GetFunctionPointerForDelegate(handler)` straight into
+`InstallEventHandler`. Confirmed working end-to-end afterward: registered
+Cmd+Shift+N for real, ran an actual `RunApplicationEventLoop`/
+`QuitApplicationEventLoop` Carbon event loop (not just "the call didn't
+throw"), and verified `Pressed` fired after simulating the exact key combo
+via `osascript`.
+
+**`RegisterEventHotKey` (Carbon), not an `NSEvent` global monitor, is what
+actually captures the shortcut on macOS — the tradeoff is a deprecated
+framework in exchange for a permission-free API.** An `NSEvent` global
+monitor needs the user to grant Accessibility/Input Monitoring permission
+in System Settings, a one-time manual step with no programmatic path to
+grant it (and nothing to click "yes" on on a dev machine driving the UI
+via synthetic events). `RegisterEventHotKey` needs no such grant. Carbon is
+long deprecated, but this specific API has no modern replacement and
+remains present and functional — the same category of tradeoff as this
+project already made for macOS notifications (Phase 13) and auto-start
+(Phase 15): the older, unglamorous API that actually works beats the
+modern one that needs permissions this environment can't grant itself.
+
+**The Windows global hotkey runs on its own dedicated thread with a raw
+Win32 message loop, not a hidden window.** `RegisterHotKey`'s `hWnd`
+parameter accepts `NULL`, which delivers `WM_HOTKEY` to the *calling
+thread's* message queue instead of a window's — so `WindowsGlobalHotkeyService`
+spins up one background thread, registers the hotkey from inside it (thread
+affinity means `UnregisterHotKey` must later run on that same thread, which
+is why it happens at the natural end of that thread's loop, not wherever
+`Unregister()` is called from), and pumps `GetMessage`/dispatch until a
+posted `WM_QUIT` breaks the loop. This needed no hidden `CreateWindowEx`
+message-only window at all, less interop surface for a codepath that (see
+below) can't be runtime-verified here. The registration call is wrapped in
+a `try`/`catch` specifically because it runs on a background thread — an
+unhandled exception there would crash the whole process outright, a risk
+class that's specific to unverified P/Invoke signatures rather than
+something this codebase's usual "trust framework guarantees, don't
+defensively catch" default applies to.
+
+**Mini Widget reuses the widget's existing `ProgressSummaryText`/
+`ProgressPercentage` rather than inventing a new "compact stats" concept,
+and shrinks the actual `Window`, not just its content.** The footer
+progress bar was already exactly "today's progress ring/count" the
+deliverable asked for, so the collapsed layout is the header row plus that
+same footer, with the day-nav/search/add-task/task-list rows' `IsVisible`
+bound to `!IsMiniWidgetMode` — a runtime show/hide of existing XAML, one of
+the two approaches the phase's own original scoping notes named as
+acceptable. Toggling the *content's* visibility alone would leave a mostly
+blank, still-tall window (the task-list row is `*`-sized, so it claims
+whatever vertical space is left over regardless of its content's
+visibility) — genuinely defeating "minimal desktop footprint," the
+deliverable's actual point. `WidgetWindow` code-behind reacts to
+`IsMiniWidgetMode` changes by setting `Height` directly, remembering the
+prior height to restore on toggle-off. `MinHeight` has to be lowered
+alongside `Height` for this to work at all — the XAML's default
+`MinHeight="360"` would otherwise silently clamp the window back up the
+moment `Height` drops to the mini size, a real bug caught before it shipped
+by reasoning through the Grid's own constraints rather than just running it
+once and eyeballing the result.
+
+**Multi Monitor Support persists a `DisplayName`+`Bounds` composite string
+as the "which monitor" identity, because Avalonia's `Screen` exposes no
+native unique/stable ID cross-platform** — confirmed by reflecting the
+compiled `Avalonia.Controls.dll`: `DisplayName`, `Bounds`, `WorkingArea`,
+`Scaling`, `IsPrimary`, and a `TryGetPlatformHandle` that returns an opaque
+native handle, nothing an app should serialize to JSON and expect to
+resolve correctly after a reboot. The composite key is stable exactly as
+long as the monitor arrangement itself doesn't change (same displays, same
+position) — which is the case this feature needs to handle *gracefully*,
+not guarantee against: `MonitorIdentity.Resolve` returns `null` if no
+connected screen's current id matches the saved one (monitor unplugged, or
+System Settings' arrangement changed), and every caller treats `null` as
+"fall back to whatever placement would otherwise apply" rather than an
+error. Live-verified against this dev machine's real two-monitor setup —
+the Settings picker correctly listed both "Built-in Retina Display
+(1512×982) — Primary" and "SAMSUNG (1920×1080)" with accurate resolutions
+and the primary flag, confirming the `Screens.All` integration end to end,
+independent of the ComboBox-selection round trip (which unit tests cover
+instead — see below).
+
+**Choosing a monitor repositions the widget immediately (if the Settings
+dialog was saved, not cancelled), and separately, resolving the preferred
+monitor at app startup wins over the raw saved `WindowLeft`/`WindowTop`
+coordinates.** Both center the window in the target screen's `WorkingArea`
+rather than its full `Bounds`, so the widget doesn't get placed underneath
+a menu bar or dock. The startup-preference-over-raw-coordinates ordering
+matters because `WindowLeft`/`WindowTop` are just numbers with no memory of
+which monitor they were on — if the arrangement changes (a monitor
+repositioned in System Settings, or reconnected at different coordinates),
+stale raw coordinates could place the widget somewhere nonsensical, while
+re-resolving the monitor by identity and re-centering stays correct as long
+as that same monitor is still connected.
+
+**Why the Settings→monitor round trip is proven by unit tests rather than
+a second live UI walkthrough:** live-testing the tray icon, minimize-to-
+tray, Quick Add, and the global hotkey all justified themselves — each
+exercises real OS-level integration (a native status item, a native
+process-lifecycle signal, real window show/hide, a real systemwide key
+event) that no unit test can touch. The Monitor `ComboBox`'s selection
+persistence, by contrast, is the same `SelectedItem`-bound-to-a-record
+pattern already proven live in this exact session (Quick Add's Priority/
+Category pickers, driven end-to-end including a real synthesized click),
+so `SettingsViewModelTests`' six new cases (select-and-persist, fallback
+when the saved monitor is no longer connected, `Unspecified` mapping to
+`null`) cover the actually-novel logic — the `SetAvailableMonitors`/
+`SaveAsync` mapping — without needing to re-prove that Avalonia `ComboBox`
+bindings work, which was never in question.
+
+## What's genuinely verified vs. authored-only (Phases 13–16, 22)
 
 This dev environment is macOS-only with no Windows machine and no
 Windows SDK. Every macOS-specific piece below was actually exercised — real
@@ -1314,6 +1497,12 @@ explicitly (`<b>Authored but not runtime-verified</b>`) rather than reading
 identically to its tested macOS counterpart. Don't take "the code compiles
 and looks right" as equivalent to "this was confirmed working" for those
 paths — that distinction is the whole point of stating it this plainly.
+`WindowsGlobalHotkeyService` (Phase 22) is the newest member of this same
+category — its macOS counterpart (`MacGlobalHotkeyService`) was not just
+compiled but actually caught a real bug on first live attempt (see Phase
+22's section above), which is exactly the kind of mistake unverified P/Invoke
+code can carry silently; the Windows implementation should be assumed to
+carry equivalent, currently-undiscovered risk until it's actually run.
 
 ## Roadmap
 
@@ -1338,3 +1527,4 @@ paths — that distinction is the whole point of stating it this plainly.
 | Recurrence & auto-reschedule | Daily/Weekly/Monthly recurrence; opt-in auto-reschedule; Task Dependencies with a completion guard; Recently Viewed | ✅ Done |
 | Excel-style grid view | A separate editable `DataGrid` window over every task; TSV clipboard copy/paste; hide/freeze columns; named saved column-layout views; Status/Progress columns | ✅ Done |
 | Calendar & alternate layouts | Month-grid Calendar; Week/Year/Agenda/Timeline/Kanban/Matrix/Goals/Milestones planner tabs — Goals (habit streaks) and Milestones (target-date deliverables tasks can link to) both built as separate entities | ✅ Done |
+| System tray, global shortcuts & quick add | Tray icon/menu bar item (macOS verified live); minimize to tray; Quick Add window; Cmd/Ctrl+Shift+N global shortcut (macOS verified live end-to-end via Carbon; Windows authored-only); Mini Widget collapsed layout; Multi Monitor placement (macOS verified live against a real two-monitor setup) | ✅ Done |

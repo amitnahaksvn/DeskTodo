@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="220"
+        x:Class="DeskTodo.App.Views.QuickAddWindow"
+        x:DataType="vm:QuickAddViewModel"
+        Title="Quick Add"
+        Width="360" Height="220"
+        MinWidth="360" MinHeight="220"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Topmost="True"
+        Background="#F8FAFC"
+        Activated="OnActivated">
+
+    <!--
+      Phase 22's Quick Add — title + priority + category only, deliberately not the
+      full-field editor (see QuickAddViewModel's doc comment). CenterScreen (not
+      CenterOwner — this window has no owner, it's summoned from the tray independently
+      of the widget) and Topmost, since the whole point of a fast-capture window is that
+      it doesn't get lost behind whatever else is on screen.
+    -->
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Quick Add" FontSize="16" FontWeight="SemiBold"
+                   Foreground="#1E293B" Margin="0,0,0,12" />
+
+        <TextBox Grid.Row="1" x:Name="TitleTextBox" Text="{Binding Title}"
+                  PlaceholderText="What needs doing?" FontSize="14" KeyDown="OnTitleKeyDown" />
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,*" Margin="0,10,0,0">
+            <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,6,0">
+                <TextBlock Text="Priority" FontSize="12" Foreground="#64748B" />
+                <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding Priority}"
+                          HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="4" Margin="6,0,0,0">
+                <TextBlock Text="Category" FontSize="12" Foreground="#64748B" />
+                <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
+                          HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:CategoryOption">
+                            <TextBlock Text="{Binding Name}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+            <Button Content="Cancel" Command="{Binding CancelCommand}" Padding="16,8" />
+            <Button Content="Add" Command="{Binding AddCommand}" Padding="16,8"
+                    Background="#3B82F6" Foreground="White" />
+        </StackPanel>
+    </Grid>
+
+</Window>

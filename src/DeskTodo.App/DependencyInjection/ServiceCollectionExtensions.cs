@@ -27,6 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<MatrixViewModel>();
         services.AddTransient<GoalsViewModel>();
         services.AddTransient<MilestonesViewModel>();
+        services.AddTransient<QuickAddViewModel>();
 
         return services;
     }

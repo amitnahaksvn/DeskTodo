@@ -49,6 +49,18 @@
                         ToolTip.Tip="Takes effect the next time DeskTodo opens" HorizontalAlignment="Left" />
             </StackPanel>
 
+            <StackPanel Spacing="6">
+                <TextBlock Text="Monitor" FontSize="12" Foreground="#64748B" />
+                <ComboBox ItemsSource="{Binding Monitors}" SelectedItem="{Binding SelectedMonitor}"
+                          HorizontalAlignment="Stretch" ToolTip.Tip="Which monitor the widget opens on">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:MonitorOption">
+                            <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Text="Notifications" FontSize="13" Foreground="#1E293B" />

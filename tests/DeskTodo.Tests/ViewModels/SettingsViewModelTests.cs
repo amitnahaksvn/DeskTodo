@@ -222,4 +222,74 @@ public class SettingsViewModelTests
 
         settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.AutoRescheduleOverdueTasks), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task LoadAsync_WithNoMonitorsSet_SelectsUnspecified()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+
+        await sut.LoadAsync();
+
+        Assert.Equal(MonitorOption.Unspecified, sut.SelectedMonitor);
+        Assert.Single(sut.Monitors); // Just Unspecified — SetAvailableMonitors was never called.
+    }
+
+    [Fact]
+    public async Task SetAvailableMonitors_ThenLoadAsync_SelectsThePersistedMonitor_WhenStillConnected()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PreferredMonitorId = "monitor-2" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        sut.SetAvailableMonitors([new MonitorOption("monitor-1", "Built-in"), new MonitorOption("monitor-2", "External")]);
+
+        await sut.LoadAsync();
+
+        Assert.Equal("monitor-2", sut.SelectedMonitor.Id);
+        Assert.Equal(["Default (current position)", "Built-in", "External"], sut.Monitors.Select(m => m.Label));
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenThePersistedMonitorIsNoLongerConnected_FallsBackToUnspecified()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PreferredMonitorId = "unplugged-monitor" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        sut.SetAvailableMonitors([new MonitorOption("monitor-1", "Built-in")]);
+
+        await sut.LoadAsync();
+
+        Assert.Equal(MonitorOption.Unspecified, sut.SelectedMonitor);
+    }
+
+    [Fact]
+    public async Task SaveAsync_PersistsTheSelectedMonitorId()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        sut.SetAvailableMonitors([new MonitorOption("monitor-1", "Built-in")]);
+        await sut.LoadAsync();
+        sut.SelectedMonitor = sut.Monitors.Single(m => m.Id == "monitor-1");
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.PreferredMonitorId == "monitor-1"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WithUnspecifiedMonitor_PersistsNull()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PreferredMonitorId = "monitor-1" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        sut.SetAvailableMonitors([new MonitorOption("monitor-1", "Built-in")]);
+        await sut.LoadAsync();
+        sut.SelectedMonitor = MonitorOption.Unspecified;
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.PreferredMonitorId == null), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

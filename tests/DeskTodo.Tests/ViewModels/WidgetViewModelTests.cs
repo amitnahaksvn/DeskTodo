@@ -640,6 +640,8 @@ public class WidgetViewModelTests
             WindowWidth = 340,
             WindowHeight = 560,
             ShowInTaskbar = false,
+            IsMiniWidgetMode = true,
+            PreferredMonitorId = "monitor-2",
         });
         using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
 
@@ -652,6 +654,28 @@ public class WidgetViewModelTests
         Assert.Equal(340, sut.WindowWidth);
         Assert.Equal(560, sut.WindowHeight);
         Assert.False(sut.ShowInTaskbar);
+        Assert.True(sut.IsMiniWidgetMode);
+        Assert.Equal("monitor-2", sut.PreferredMonitorId);
+    }
+
+    [Fact]
+    public async Task ToggleMiniWidgetModeCommand_FlipsTheFlag_AndPersistsIt()
+    {
+        var taskRepository = new Mock<ITaskRepository>();
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(() => new AppSettings());
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        Assert.False(sut.IsMiniWidgetMode);
+
+        await sut.ToggleMiniWidgetModeCommand.ExecuteAsync(null);
+
+        Assert.True(sut.IsMiniWidgetMode);
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.IsMiniWidgetMode), It.IsAny<CancellationToken>()), Times.Once);
+
+        await sut.ToggleMiniWidgetModeCommand.ExecuteAsync(null);
+
+        Assert.False(sut.IsMiniWidgetMode);
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => !a.IsMiniWidgetMode), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

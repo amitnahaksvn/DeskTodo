@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -10,12 +12,24 @@ namespace DeskTodo.App.Views;
 
 public partial class WidgetWindow : Window
 {
+    // Mini Widget mode's compact size (Phase 22) — small enough to be a genuine "minimal
+    // desktop footprint," tall enough to still fit the header row and footer progress bar
+    // without clipping.
+    private const double MiniModeHeight = 148;
+    private const double MiniModeMinHeight = 120;
+    private const double DefaultMinHeight = 360;
+    private const double DefaultHeight = 560;
+
     // Tracks the row being dragged for reordering. A private field (rather than routing
     // the task's Guid through Avalonia's IDataTransfer/DataFormat payload machinery) is
     // enough because this drag never leaves the window it started in — DoDragDropAsync is
     // still used for the actual gesture (visual feedback, DragOver/Drop routing), just not
     // for carrying the payload.
     private Guid? _draggedTaskId;
+
+    // Remembers the window's height from just before entering Mini Widget mode, so toggling
+    // back out restores it exactly rather than snapping to a fixed default.
+    private double? _preMiniModeHeight;
 
     public WidgetWindow()
     {
@@ -33,7 +47,35 @@ public partial class WidgetWindow : Window
             viewModel.GridViewRequested += OnGridViewRequested;
             viewModel.CalendarViewRequested += OnCalendarViewRequested;
             viewModel.PlannerViewRequested += OnPlannerViewRequested;
+            viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
+        }
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(WidgetViewModel.IsMiniWidgetMode) && DataContext is WidgetViewModel viewModel)
+        {
+            ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
+        }
+    }
+
+    // MinHeight is lowered/restored alongside Height — the XAML's default MinHeight="360"
+    // would otherwise silently clamp the window back up the moment Height drops below it.
+    private void ApplyMiniWidgetModeSize(bool isMiniWidgetMode)
+    {
+        if (isMiniWidgetMode)
+        {
+            _preMiniModeHeight ??= Height;
+            MinHeight = MiniModeMinHeight;
+            Height = MiniModeHeight;
+        }
+        else
+        {
+            MinHeight = DefaultMinHeight;
+            Height = _preMiniModeHeight ?? DefaultHeight;
+            _preMiniModeHeight = null;
         }
     }
 
@@ -57,6 +99,16 @@ public partial class WidgetWindow : Window
         }
 
         base.OnClosing(e);
+
+        // "Minimize to Tray" (Phase 22): the widget's own close button hides it rather than
+        // exiting the app — only the tray icon's "Quit" item (App.IsQuitting) really closes it.
+        // Gated on App.Services being set so headless tests, which construct WidgetWindow
+        // directly and never touch that static, keep closing for real exactly as before.
+        if (App.Services is not null && !App.IsQuitting)
+        {
+            e.Cancel = true;
+            Hide();
+        }
     }
 
     protected override void OnClosed(EventArgs e)
@@ -68,6 +120,7 @@ public partial class WidgetWindow : Window
             viewModel.GridViewRequested -= OnGridViewRequested;
             viewModel.CalendarViewRequested -= OnCalendarViewRequested;
             viewModel.PlannerViewRequested -= OnPlannerViewRequested;
+            viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
         (DataContext as IDisposable)?.Dispose();
@@ -83,8 +136,12 @@ public partial class WidgetWindow : Window
 
         var settingsViewModel = App.Services.GetRequiredService<SettingsViewModel>();
         var settingsWindow = new SettingsWindow { DataContext = settingsViewModel };
-        settingsViewModel.Saved += (_, _) => settingsWindow.Close();
+        var wasSaved = false;
+        settingsViewModel.Saved += (_, _) => { wasSaved = true; settingsWindow.Close(); };
         settingsViewModel.CancelRequested += (_, _) => settingsWindow.Close();
+
+        var monitorOptions = Screens.All.Select(screen => new MonitorOption(MonitorIdentity.GetId(screen), MonitorIdentity.GetLabel(screen))).ToList();
+        settingsViewModel.SetAvailableMonitors(monitorOptions);
 
         await settingsViewModel.LoadAsync();
         await settingsWindow.ShowDialog(this);
@@ -94,10 +151,33 @@ public partial class WidgetWindow : Window
         await viewModel.LoadSettingsAsync();
         App.ApplyAccentColor(viewModel.AccentColorHex);
 
+        // Only on Save, not Cancel: repositioning is a real action (moves the window the
+        // user is looking at), not just re-applying already-persisted state like the two
+        // calls above.
+        if (wasSaved)
+        {
+            RepositionOnMonitor(settingsViewModel.SelectedMonitor.Id);
+        }
+
         // Also reloads tasks: an Import/Export round trip through Settings (see
         // SettingsWindow's "Import / Export tasks…" button) may have added tasks for the
         // day currently being viewed.
         await viewModel.LoadTasksAsync();
+    }
+
+    /// <summary>Phase 22's "Multi Monitor Support" — centers the widget on the chosen monitor's working area immediately. A no-op for <see cref="MonitorOption.Unspecified"/> (empty id) or a since-disconnected monitor, both of which <see cref="MonitorIdentity.Resolve"/> reports as null.</summary>
+    private void RepositionOnMonitor(string monitorId)
+    {
+        var screen = MonitorIdentity.Resolve(Screens, monitorId);
+        if (screen is null)
+        {
+            return;
+        }
+
+        var area = screen.WorkingArea;
+        Position = new PixelPoint(
+            area.X + (area.Width - (int)Width) / 2,
+            area.Y + (area.Height - (int)Height) / 2);
     }
 
     private async void OnGridViewRequested(object? sender, EventArgs e)

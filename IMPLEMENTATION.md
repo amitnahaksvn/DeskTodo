@@ -7,7 +7,7 @@ that one is the reasoning.
 
 **Legend:** ✅ Done · 🚧 Partial · ⬜ Not started
 
-**Last updated:** 2026-08-04 (Phases 1–16 done; Phases 17–21 fully done — including their originally-deferred items; Phases 22–37 still pending)
+**Last updated:** 2026-08-11 (Phases 1–16 done; Phases 17–22 fully done — including their originally-deferred items; Phases 23–37 still pending)
 
 > **Note on numbering:** phases 1–16 mirror the tracked work items
 > one-to-one, with one deliberate exception — the DesktopSheet→DeskTodo
@@ -47,7 +47,7 @@ that one is the reasoning.
 | 15 | [Platform-specific integration](#15-platform-specific-integration) | ✅ |
 | 16 | [Packaging (MSIX / DMG)](#16-packaging-msix--dmg) | 🚧 |
 
-## Phases 17–21 (done)
+## Phases 17–22 (done)
 
 Fully built, including every item their own "Deferred:"/scope notes
 originally named — see each phase's own section below for the full detail.
@@ -59,12 +59,12 @@ originally named — see each phase's own section below for the full detail.
 | 19 | [Recurring tasks, dependencies & auto-reschedule](#19-recurring-tasks-dependencies--auto-reschedule) | Core Task Management, "Later" notes | ✅ |
 | 20 | [Excel-style grid view](#20-excel-style-grid-view) | Spreadsheet / Grid View | ✅ |
 | 21 | [Calendar, weekly/monthly/year views & alternate layouts](#21-calendar-weeklymonthlyyear-views--alternate-layouts) | Planning | ✅ |
+| 22 | [System tray, global shortcuts & quick add](#22-system-tray-global-shortcuts--quick-add) | Desktop Features | ✅ |
 
-## Extended Roadmap — Phase 22+
+## Extended Roadmap — Phase 23+
 
 | # | Phase | Source category (Later.Implementation.md) | Status |
 |---|-------|---------------------------------------------|--------|
-| 22 | [System tray, global shortcuts & quick add](#22-system-tray-global-shortcuts--quick-add) | Desktop Features | ⬜ |
 | 23 | [Productivity tools: timers, focus & habits](#23-productivity-tools-timers-focus--habits) | Productivity | ⬜ |
 | 24 | [Analytics & reporting](#24-analytics--reporting) | Analytics | ⬜ |
 | 25 | [Organization: projects, workspaces & lists](#25-organization-projects-workspaces--lists) | Organization | ⬜ |
@@ -423,9 +423,9 @@ yet either (only the Avalonia template placeholder icon is in the repo — see
 
 # Extended Roadmap (Phase 17+)
 
-Phases 17–21 are now fully built, including every item their own original
+Phases 17–22 are now fully built, including every item their own original
 "Deferred:"/scope-note paragraphs named — see each phase's own section
-below for exactly what shipped and the reasoning behind it. Phases 22–37
+below for exactly what shipped and the reasoning behind it. Phases 23–37
 below remain **planning only — no code has been written for any of them.**
 Each of those phases lists what it covers, why it's grouped that way, the
 concrete deliverables (traced back to `Later.Implementation.md`), and the
@@ -844,44 +844,96 @@ way every other tab's rows do.
   `TaskEditViewModelTests`, `WidgetViewModelTests`, `CalendarWindowRenderTests`,
   `PlannerWindowRenderTests` (headless, incl. a screenshot-verified render of every tab)
 
-## 22. System tray, global shortcuts & quick add ⬜
+## 22. System tray, global shortcuts & quick add ✅
 
-The widget currently only exists as its own window — there's no tray icon,
-no way to summon it via a keyboard shortcut, and no lightweight "just add a
-task from anywhere" flow. This phase is about *ambient* access to the app.
+The widget previously only existed as its own window — there was no tray
+icon, no way to summon it via a keyboard shortcut, and no lightweight "just
+add a task from anywhere" flow. This phase is about *ambient* access to
+the app, and all seven originally-listed deliverables are fully built.
 
-**Deliverables:**
-- System Tray icon (Windows) with a context menu (show/hide widget, quick
-  add, settings, quit)
-- macOS Menu Bar item (the macOS equivalent of the tray)
-- Minimize to Tray — closing the widget's window hides it to the tray
-  instead of exiting the process
-- Global Shortcut — a systemwide hotkey (works even when DeskTodo isn't
-  focused) to show/hide the widget or open Quick Add
-- Quick Add Window — a small, separate, fast-to-summon window for typing a
-  new task without bringing the full widget to the front
-- Mini Widget — a further-collapsed display mode (e.g. just today's
-  progress ring/count, no task list) for users who want minimal desktop
-  footprint
-- Multi Monitor Support — an explicit "which monitor" placement option in
-  Settings, rather than relying on default window placement
+**Delivered:**
+- System Tray icon (Windows) / macOS Menu Bar item, via Avalonia's
+  cross-platform `TrayIcon` API — a context menu (Show/Hide Widget, Quick
+  Add…, Settings…, Quit), live-verified rendering correctly in the real
+  macOS menu bar (confirmed both visually and via `System Events`
+  querying the live `NSStatusItem`)
+- Minimize to Tray — the widget's own close button hides it instead of
+  exiting; only the tray's "Quit" item calls `TryShutdown`
+- Global Shortcut (Cmd/Ctrl+Shift+N, opens Quick Add) — `IGlobalHotkeyService`
+  abstraction, macOS via Carbon's `RegisterEventHotKey`, Windows via
+  User32's `RegisterHotKey`. Live-verified end-to-end on macOS: registered
+  the real hotkey, ran an actual Carbon event loop, and confirmed
+  `Pressed` fired after simulating the exact key combo via `osascript`
+- Quick Add Window — `QuickAddViewModel` (title + priority + category,
+  deliberately not the full editor) + `QuickAddWindow`, live-verified:
+  opens with focus and populated dropdowns, Enter creates the task and
+  refreshes the widget
+- Mini Widget — an `IsMiniWidgetMode` Settings-persisted toggle that
+  collapses the widget to just its header + today's progress bar (reusing
+  the existing `ProgressSummaryText`/`ProgressPercentage`, not a new
+  concept), with `WidgetWindow` shrinking to a fixed compact size and
+  restoring on toggle-off. Live-verified via both a full toggle-off round
+  trip and the accessibility-reported window geometry (340×148 in mini
+  mode vs. 340×560 default)
+- Multi Monitor Support — a "Monitor" picker in Settings backed by
+  `Screens.All`, persisting a `DisplayName`+`Bounds` identity string
+  (`MonitorIdentity`) since Avalonia's `Screen` exposes no native unique
+  ID. Live-verified: the picker correctly listed this dev machine's two
+  real connected monitors ("Built-in Retina Display (1512×982) —
+  Primary" and "SAMSUNG (1920×1080)") with accurate resolutions
 
-**Approach:** Avalonia has a `TrayIcon` API (`Avalonia.Controls.TrayIcon`)
-usable cross-platform for the tray/menu-bar piece — this is the most
-"just wire it up" item in this phase. Global shortcuts need OS-level
-interop, similar in spirit to Phase 15's auto-start work: a Win32
-`RegisterHotKey` call on Windows, an `NSEvent` global monitor (or the
-`Carbon` `RegisterEventHotKey` API) on macOS — same
-`IGlobalHotkeyService` abstraction / per-platform-project pattern already
-established for `INotificationService`/`IAutoStartService`. Quick Add is a
-new small window + `QuickAddViewModel` (title + maybe priority/category,
-intentionally NOT the full editor) that creates a task and closes itself.
-Mini Widget is a new `WidgetUiScale`-like Settings toggle plus a
-significantly trimmed alternate `WidgetWindow` layout (or a runtime
-show/hide of most of the existing XAML). Multi-monitor placement needs
-`Screens` enumeration (Avalonia exposes this via `TopLevel.Screens`) and a
-monitor-identity value persisted alongside the existing `WindowLeft/Top`
-in `AppSettings`.
+**Scope note on the Global Shortcut's Windows implementation:** authored
+but not runtime-verified, matching this whole project's established
+Windows-code precedent (no Windows machine in this dev environment) — see
+`WindowsGlobalHotkeyService`'s own doc comment for the specific risk that
+caveat covers (an unverified P/Invoke signature throwing on a background
+thread, defensively caught to avoid crashing the whole process).
+
+**A genuine bug caught during live verification:** the original
+`MacGlobalHotkeyService` implementation called Carbon's
+`NewEventHandlerUPP` to wrap the event handler delegate before passing it
+to `InstallEventHandler` — standard-looking Carbon usage modeled on
+real-world hotkey libraries. Live-testing in a bare console host (not
+just the full Avalonia app) surfaced an `EntryPointNotFoundException`:
+`NewEventHandlerUPP` isn't actually exported from the modern 64-bit
+Carbon.framework shared library at all — it only ever existed as a
+32-bit compatibility trampoline, and Apple's own headers `#define` it as
+a no-op identity macro in 64-bit builds. The fix was to pass the raw
+marshaled function pointer directly to `InstallEventHandler`, skipping
+the call entirely — exactly the kind of assumption this project's
+"verify against the real compiled thing, don't trust general API
+familiarity" discipline exists to catch.
+
+- `src/DeskTodo.Application/Abstractions/IGlobalHotkeyService.cs`,
+  `src/DeskTodo.Application/Services/NullGlobalHotkeyService.cs`
+- `src/DeskTodo.Platform.Mac/MacGlobalHotkeyService.cs` (Carbon P/Invoke),
+  `src/DeskTodo.Platform.Windows/WindowsGlobalHotkeyService.cs` (User32
+  P/Invoke, dedicated Win32 message-loop thread)
+- `src/DeskTodo.App/DependencyInjection/PlatformServiceCollectionExtensions.cs`
+  (per-OS `IGlobalHotkeyService` registration), `ServiceCollectionExtensions.cs`
+  (`QuickAddViewModel` registration)
+- `src/DeskTodo.App/ViewModels/QuickAddViewModel.cs`,
+  `Views/{QuickAddWindow.axaml,QuickAddWindow.axaml.cs}`
+- `src/DeskTodo.App/App.axaml.cs` (`IsQuitting`, `SetupTrayIcon`,
+  `ToggleWidgetVisibility`, `OpenQuickAdd`, `SetupGlobalHotkey`, monitor
+  resolution at startup)
+- `src/DeskTodo.App/Views/WidgetWindow.axaml.cs` (`OnClosing` minimize-to-tray,
+  `ApplyMiniWidgetModeSize`, `RepositionOnMonitor`),
+  `Views/WidgetWindow.axaml` (mini-toggle header button, mini-mode
+  `IsVisible` bindings on the day-nav/search/add-task/task-list rows)
+- `src/DeskTodo.App/ViewModels/WidgetViewModel.cs` (`IsMiniWidgetMode`,
+  `ToggleMiniWidgetModeCommand`, `PreferredMonitorId`),
+  `Converters/MiniWidgetModeToGlyphConverter.cs`
+- `src/DeskTodo.App/{MonitorIdentity.cs,ViewModels/MonitorOption.cs}`,
+  `ViewModels/SettingsViewModel.cs` (`Monitors`/`SelectedMonitor`/`SetAvailableMonitors`),
+  `Views/SettingsWindow.axaml` ("Monitor" picker)
+- `src/DeskTodo.Application/Settings/AppSettings.cs`
+  (`IsMiniWidgetMode`, `PreferredMonitorId`)
+- Tests: `QuickAddViewModelTests`, `MacGlobalHotkeyServiceTests` (exercised
+  for real against the live Carbon APIs, same precedent as
+  `MacAutoStartServiceTests`), `WidgetViewModelTests` (mini widget toggle,
+  settings round-trip), `SettingsViewModelTests` (monitor selection,
+  persistence, fallback when a saved monitor is no longer connected)
 
 ## 23. Productivity tools: timers, focus & habits ⬜
 

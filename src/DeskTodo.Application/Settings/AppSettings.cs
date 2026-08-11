@@ -72,4 +72,21 @@ public sealed class AppSettings
     /// distinct from the single "current" layout in <see cref="HiddenGridColumns"/>.
     /// </summary>
     public List<GridSavedView> GridSavedViews { get; set; } = [];
+
+    /// <summary>
+    /// Phase 22's Mini Widget — when true, the widget collapses to just its header and
+    /// today's progress summary (no day-nav, search, add-task row, or task list), for users
+    /// who want a smaller desktop footprint. Defaults to <c>false</c> (today's full layout).
+    /// </summary>
+    public bool IsMiniWidgetMode { get; set; }
+
+    /// <summary>
+    /// Phase 22's Multi Monitor Support — an opaque identifier (built by the App layer from
+    /// the platform's screen enumeration; this project doesn't know its shape) for the
+    /// monitor the widget should open on. Null means "use whatever
+    /// <see cref="WindowLeft"/>/<see cref="WindowTop"/> already resolve to" (today's
+    /// behavior) rather than actively re-placing the window — this is only consulted when
+    /// the user explicitly picks a monitor in Settings.
+    /// </summary>
+    public string? PreferredMonitorId { get; set; }
 }

@@ -677,6 +677,9 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
 
     public double? WindowHeight { get; private set; }
 
+    /// <summary>See <see cref="Application.Settings.AppSettings.PreferredMonitorId"/>. Read once by <c>App.axaml.cs</c> at startup to place the widget on the chosen monitor instead of the raw <see cref="WindowLeft"/>/<see cref="WindowTop"/> coordinates, which can go stale if the monitor arrangement changed since they were saved.</summary>
+    public string? PreferredMonitorId { get; private set; }
+
     [ObservableProperty]
     public partial bool NotificationsEnabled { get; set; } = true;
 
@@ -687,6 +690,27 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     /// <summary>See <see cref="Application.Settings.AppSettings.AutoRescheduleOverdueTasks"/>.</summary>
     [ObservableProperty]
     public partial bool AutoRescheduleOverdueTasks { get; set; }
+
+    /// <summary>See <see cref="Application.Settings.AppSettings.IsMiniWidgetMode"/>. <c>WidgetWindow</c> reacts to changes on this to shrink/restore its own bounds — a ViewModel shouldn't touch Window.Height directly.</summary>
+    [ObservableProperty]
+    public partial bool IsMiniWidgetMode { get; set; }
+
+    [RelayCommand]
+    private async Task ToggleMiniWidgetModeAsync(CancellationToken cancellationToken = default)
+    {
+        IsMiniWidgetMode = !IsMiniWidgetMode;
+
+        try
+        {
+            var settings = await _settingsService.LoadAsync(cancellationToken);
+            settings.IsMiniWidgetMode = IsMiniWidgetMode;
+            await _settingsService.SaveAsync(settings, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist mini widget mode");
+        }
+    }
 
     /// <summary>Raised when the header's gear icon is clicked. Mirrors <see cref="TaskEditRequested"/> — a ViewModel shouldn't construct Views, so this just bubbles the request up to <c>WidgetWindow</c>.</summary>
     public event EventHandler? SettingsRequested;
@@ -723,9 +747,11 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
             WindowTop = settings.WindowTop;
             WindowWidth = settings.WindowWidth;
             WindowHeight = settings.WindowHeight;
+            PreferredMonitorId = settings.PreferredMonitorId;
             NotificationsEnabled = settings.NotificationsEnabled;
             ShowInTaskbar = settings.ShowInTaskbar;
             AutoRescheduleOverdueTasks = settings.AutoRescheduleOverdueTasks;
+            IsMiniWidgetMode = settings.IsMiniWidgetMode;
         }
         catch (Exception ex)
         {
