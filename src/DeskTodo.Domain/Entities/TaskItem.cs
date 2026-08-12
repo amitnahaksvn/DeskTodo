@@ -65,6 +65,15 @@ public sealed class TaskItem
 
     public bool IsPinned { get; private set; }
 
+    /// <summary>
+    /// Phase 26's Snooze — while this is in the future, <c>WidgetViewModel</c>'s overdue-task
+    /// notification check skips re-notifying for this task, even though it's still overdue.
+    /// Not cleared automatically once it passes; the next overdue check just resumes
+    /// notifying normally, the same way <see cref="TaskItem"/>'s other transient per-check
+    /// state (<c>_notifiedOverdueTaskIds</c>) works.
+    /// </summary>
+    public DateTime? SnoozedUntil { get; private set; }
+
     public bool IsArchived { get; private set; }
 
     /// <summary>Soft-delete flag. Deleted tasks are excluded from normal queries but remain recoverable.</summary>
@@ -162,6 +171,12 @@ public sealed class TaskItem
     public void Unpin()
     {
         IsPinned = false;
+        Touch();
+    }
+
+    public void Snooze(DateTime until)
+    {
+        SnoozedUntil = until;
         Touch();
     }
 

@@ -8,5 +8,13 @@ namespace DeskTodo.Application.Abstractions;
 /// </summary>
 public interface INotificationService
 {
-    Task NotifyAsync(string title, string message, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// <paramref name="playSound"/> is Phase 26's Sound Notification setting
+    /// (<see cref="Settings.AppSettings.NotificationSoundEnabled"/>) — the caller decides
+    /// whether this particular notification should play a sound, this interface just carries
+    /// that choice through to the platform implementation. Defaults to <c>true</c> (today's
+    /// existing behavior, since every platform's notification facility already plays some
+    /// sound by default) so existing call sites are unaffected.
+    /// </summary>
+    Task NotifyAsync(string title, string message, bool playSound = true, CancellationToken cancellationToken = default);
 }

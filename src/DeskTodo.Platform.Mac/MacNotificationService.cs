@@ -15,9 +15,13 @@ namespace DeskTodo.Platform.Mac;
 /// </summary>
 public sealed class MacNotificationService(ILogger<MacNotificationService> logger) : INotificationService
 {
-    public async Task NotifyAsync(string title, string message, CancellationToken cancellationToken = default)
+    /// <summary>Phase 26's Sound Notification setting — <c>display notification</c> takes an optional <c>sound name</c> clause naming one of the system's built-in alert sounds; omitting the clause entirely (not just naming a silent one) is what actually suppresses the sound.</summary>
+    private const string DefaultSoundName = "Glass";
+
+    public async Task NotifyAsync(string title, string message, bool playSound = true, CancellationToken cancellationToken = default)
     {
-        var script = $"display notification {AppleScriptString(message)} with title {AppleScriptString(title)}";
+        var soundClause = playSound ? $" sound name \"{DefaultSoundName}\"" : string.Empty;
+        var script = $"display notification {AppleScriptString(message)} with title {AppleScriptString(title)}{soundClause}";
 
         try
         {

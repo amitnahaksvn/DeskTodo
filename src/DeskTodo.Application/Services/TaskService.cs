@@ -121,6 +121,9 @@ public sealed class TaskService(ITaskRepository taskRepository) : ITaskService
     public Task UnpinTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
         MutateAsync(taskId, task => task.Unpin(), cancellationToken);
 
+    public Task SnoozeTaskAsync(Guid taskId, DateTime until, CancellationToken cancellationToken = default) =>
+        MutateAsync(taskId, task => task.Snooze(until), cancellationToken);
+
     public Task FavoriteTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
         MutateAsync(taskId, task => task.MarkFavorite(), cancellationToken);
 

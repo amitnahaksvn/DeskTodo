@@ -3,14 +3,16 @@
 > A cross-platform desktop productivity application for Windows & macOS built with .NET.
 
 > **Status key:** `[x]` shipped (see IMPLEMENTATION.md for which phase). `[ ]`
-> not built. Checked/unchecked below reflects the state as of Phase 25
-> completing, including its originally-deferred items (2026-08-12) —
-> cross-referenced item by item against IMPLEMENTATION.md, not assumed;
-> several `[x]` items note a partial scope inline (see IMPLEMENTATION.md's
-> Phase 17–25 sections for the full detail on what shipped vs. what's still
-> deliberately out of scope). Everything still `[ ]` here has been carried
-> into IMPLEMENTATION.md's "Extended Roadmap (Phase 26+)" as a planned,
-> not-yet-started item (Phases 26–37).
+> not built. Checked/unchecked below reflects the state as of Phase 29
+> completing (2026-08-12) — Phase 27 was explicitly skipped for this pass
+> (see IMPLEMENTATION.md's own Phase 27 section), Phases 28–29 both
+> shipped scoped down — cross-referenced item by item against
+> IMPLEMENTATION.md, not assumed; several `[x]` items note a partial
+> scope inline (see IMPLEMENTATION.md's Phase 17–29 sections for the full
+> detail on what shipped vs. what's still deliberately out of scope).
+> Everything still `[ ]` here has been carried into IMPLEMENTATION.md's
+> "Extended Roadmap" as a planned, not-yet-started item (Phase 27 and
+> Phases 30–37).
 
 ---
 
@@ -172,11 +174,11 @@
 # 🔔 Reminders
 
 - [x] One Time Reminder _(overdue-task alert)_
-- [ ] Recurring Reminder _(Recurring Tasks now exists; a reminder that itself repeats per-occurrence still isn't built)_
+- [x] Recurring Reminder _(satisfied by `Type = Reminder` + Phase 19's `RecurrenceFrequency` — each occurrence is its own `TaskItem` with its own overdue notification, no new mechanism needed)_
 - [x] Desktop Notification
-- [ ] Sound Notification _(relies on OS default notification sound; no custom sound)_
-- [ ] Snooze
-- [ ] Reminder History
+- [x] Sound Notification _(a Settings toggle controls it; macOS maps to `display notification`'s `sound name` clause, Windows' balloon tip always plays the OS default with no documented way to suppress just the sound — a documented platform gap, not silently ignored)_
+- [x] Snooze _("Snooze 1 hour" on any overdue task row's context menu)_
+- [ ] Reminder History _(deferred — needs a new entity/repository/service/migration/UI surface; left for a future pass rather than shipped half-built)_
 - [x] Missed Reminder Alert _(overdue-task alert)_
 
 ---
@@ -197,13 +199,13 @@
 
 # ⚡ Power User Features
 
-- [ ] Command Palette
-- [ ] Keyboard Shortcuts _(app-wide; only per-field Enter/Escape exist today)_
+- [x] Command Palette _(Cmd/Ctrl+K — a searchable list of every WidgetWindow header-icon action, live-verified end-to-end)_
+- [x] Keyboard Shortcuts _(app-wide Cmd/Ctrl+K/F/, added; not exhaustive — a starting set, not every conceivable binding)_
 - [x] Quick Search _(in-app search bar; no global hotkey)_
 - [x] Quick Add _(standalone Quick Add window, summoned from the tray or the Cmd/Ctrl+Shift+N global shortcut)_
-- [ ] Undo / Redo
-- [ ] Clipboard History
-- [ ] Activity Log
+- [ ] Undo / Redo _(deferred — an architecturally significant command-stack pattern shift touching nearly every mutating operation; needs its own dedicated pass)_
+- [ ] Clipboard History _(deferred — needs OS clipboard-change monitoring with no existing precedent in this codebase)_
+- [ ] Activity Log _(deferred — overlaps with Phase 26's already-deferred Reminder History; better designed as one shared piece of infrastructure for both in a future pass)_
 - [x] Batch Actions _(bulk complete/delete on a multi-selection)_
 - [x] Task Templates _(same feature already listed under Core Task Management, above)_
 
@@ -303,14 +305,14 @@
 # 🔐 Security
 
 - [x] Local SQLite Database
-- [ ] Database Encryption
-- [ ] Password Lock
-- [ ] PIN Lock
-- [ ] Windows Hello
-- [ ] Touch ID
-- [ ] Face ID
-- [ ] Secure Backup
-- [ ] Auto Lock
+- [ ] Database Encryption _(deferred — switching the EF Core SQLite provider to a SQLCipher-supporting variant is a meaningful infra change with real migration risk; deserves its own dedicated pass)_
+- [x] Password Lock _(satisfied by PIN Lock below — the field isn't digit-only, so it works as a short passphrase gate too)_
+- [x] PIN Lock _(a new lock screen shown at startup when enabled, PBKDF2-hashed, live-verified to correctly block/show the widget and refuse a bypass via the OS close button)_
+- [ ] Windows Hello _(deferred — needs a signed app bundle identity, the same Phase 16 packaging prerequisite already flagged for Phase 26's richer macOS notification API)_
+- [ ] Touch ID _(deferred, same reasoning as Windows Hello — plus no way to exercise real biometric hardware in this dev environment)_
+- [ ] Face ID _(not a macOS/Windows desktop API — this wishlist item doesn't apply to this app's platforms)_
+- [ ] Secure Backup _(deferred — a natural extension of Phase 14's export/import pattern, but for a new full-state format; real design work of its own)_
+- [ ] Auto Lock _(deferred — a genuine idle-timeout re-lock needs real OS-level idle detection, a separate concern from PIN verification itself)_
 
 ---
 

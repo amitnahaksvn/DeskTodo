@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:conv="using:DeskTodo.App.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="220"
+        x:Class="DeskTodo.App.Views.LockScreenWindow"
+        x:DataType="vm:LockScreenViewModel"
+        Title="DeskTodo — Locked"
+        Width="320" Height="220"
+        MinWidth="320" MinHeight="220"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="#F8FAFC">
+
+    <!--
+      Phase 29's PIN Lock — shown instead of the widget at startup when App Lock is on.
+      Closing this window via the OS close button is refused (see LockScreenWindow.axaml.cs's
+      OnClosing) unless the PIN was actually entered correctly or the app is genuinely
+      quitting via the tray's "Quit" item — otherwise this would just be a decoration, not a
+      lock.
+    -->
+    <StackPanel Margin="24" Spacing="12">
+        <TextBlock Text="🔒 DeskTodo is locked" FontSize="16" FontWeight="SemiBold" Foreground="#1E293B" />
+        <TextBox x:Name="PinBox" Text="{Binding EnteredPin}" PasswordChar="•" PlaceholderText="Enter PIN" KeyDown="OnPinKeyDown" />
+        <TextBlock Text="{Binding ErrorMessage}" FontSize="12" Foreground="#DC2626"
+                   IsVisible="{Binding ErrorMessage, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
+        <Button Content="Unlock" Command="{Binding UnlockCommand}" HorizontalAlignment="Right" Padding="16,8" />
+    </StackPanel>
+
+</Window>

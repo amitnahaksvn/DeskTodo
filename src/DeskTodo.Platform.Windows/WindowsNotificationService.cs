@@ -22,7 +22,14 @@ namespace DeskTodo.Platform.Windows;
 /// </summary>
 public sealed class WindowsNotificationService(ILogger<WindowsNotificationService> logger) : INotificationService
 {
-    public async Task NotifyAsync(string title, string message, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// <paramref name="playSound"/> is accepted for interface symmetry with
+    /// <c>MacNotificationService</c> but has no effect here: a <c>NotifyIcon</c> balloon tip
+    /// always plays the OS's default notification sound with no documented way to suppress
+    /// just the sound while keeping the balloon — an honest, documented gap rather than a
+    /// silently-ignored parameter.
+    /// </summary>
+    public async Task NotifyAsync(string title, string message, bool playSound = true, CancellationToken cancellationToken = default)
     {
         var script = $$"""
             Add-Type -AssemblyName System.Windows.Forms

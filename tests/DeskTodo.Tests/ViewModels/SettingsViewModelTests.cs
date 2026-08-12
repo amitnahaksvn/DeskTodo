@@ -139,6 +139,166 @@ public class SettingsViewModelTests
     }
 
     [Fact]
+    public async Task LoadAsync_PopulatesNotificationSoundEnabledFromSettings()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { NotificationSoundEnabled = false });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+
+        await sut.LoadAsync();
+
+        Assert.False(sut.NotificationSoundEnabled);
+    }
+
+    [Fact]
+    public async Task SaveAsync_PersistsNotificationSoundEnabled()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { NotificationSoundEnabled = true });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.NotificationSoundEnabled = false;
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => !a.NotificationSoundEnabled), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task LoadAsync_PopulatesHasPinSet_FromWhetherAHashIsStored()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PinLockEnabled = true, PinHash = "somehash", PinSalt = "somesalt" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+
+        await sut.LoadAsync();
+
+        Assert.True(sut.PinLockEnabled);
+        Assert.True(sut.HasPinSet);
+        Assert.Equal(string.Empty, sut.NewPin); // The actual PIN is never round-tripped back into the UI.
+    }
+
+    [Fact]
+    public async Task SaveAsync_WithPinLockOffAndNoPreviousPin_SavesSuccessfully()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+
+        var saved = false;
+        sut.Saved += (_, _) => saved = true;
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        Assert.True(saved);
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => !a.PinLockEnabled && a.PinHash == null), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveAsync_TogglingPinLockOn_WithAMatchingNewPinAndConfirmation_HashesAndSaves()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.PinLockEnabled = true;
+        sut.NewPin = "4242";
+        sut.ConfirmPin = "4242";
+
+        var saved = false;
+        sut.Saved += (_, _) => saved = true;
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        Assert.True(saved);
+        settingsService.Verify(s => s.SaveAsync(
+            It.Is<AppSettings>(a => a.PinLockEnabled && !string.IsNullOrEmpty(a.PinHash) && !string.IsNullOrEmpty(a.PinSalt) && a.PinHash != "4242"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveAsync_TogglingPinLockOn_WithMismatchedPins_DoesNotSave_AndSetsAnError()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.PinLockEnabled = true;
+        sut.NewPin = "4242";
+        sut.ConfirmPin = "0000";
+
+        var saved = false;
+        sut.Saved += (_, _) => saved = true;
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        Assert.False(saved);
+        Assert.NotEqual(string.Empty, sut.PinErrorMessage);
+        settingsService.Verify(s => s.SaveAsync(It.IsAny<AppSettings>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SaveAsync_TogglingPinLockOn_WithATooShortPin_DoesNotSave_AndSetsAnError()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.PinLockEnabled = true;
+        sut.NewPin = "12";
+        sut.ConfirmPin = "12";
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        Assert.NotEqual(string.Empty, sut.PinErrorMessage);
+        settingsService.Verify(s => s.SaveAsync(It.IsAny<AppSettings>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SaveAsync_TogglingPinLockOn_WithNoPinEnteredAndNoneAlreadySet_DoesNotSave_AndSetsAnError()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.PinLockEnabled = true;
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        Assert.NotEqual(string.Empty, sut.PinErrorMessage);
+        settingsService.Verify(s => s.SaveAsync(It.IsAny<AppSettings>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SaveAsync_PinLockAlreadyOnWithAnExistingPin_LeftBlank_KeepsTheExistingHash()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PinLockEnabled = true, PinHash = "existinghash", PinSalt = "existingsalt" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        // NewPin/ConfirmPin left blank — user didn't intend to change the PIN.
+
+        var saved = false;
+        sut.Saved += (_, _) => saved = true;
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        Assert.True(saved);
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.PinHash == "existinghash" && a.PinSalt == "existingsalt"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveAsync_TogglingPinLockOff_ClearsTheStoredHash()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PinLockEnabled = true, PinHash = "existinghash", PinSalt = "existingsalt" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.PinLockEnabled = false;
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => !a.PinLockEnabled && a.PinHash == null && a.PinSalt == null), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task SaveAsync_WhenAutoStartToggledOn_CallsEnable()
     {
         var settingsService = new Mock<ISettingsService>();

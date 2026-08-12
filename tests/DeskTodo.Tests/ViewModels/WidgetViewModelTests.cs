@@ -839,7 +839,7 @@ public class WidgetViewModelTests
         await sut.CheckForOverdueTaskNotificationsAsync();
         await sut.CheckForOverdueTaskNotificationsAsync(); // A second poll tick shouldn't re-notify.
 
-        notificationService.Verify(n => n.NotifyAsync("Task overdue", It.Is<string>(m => m.Contains("Pay rent")), It.IsAny<CancellationToken>()), Times.Once);
+        notificationService.Verify(n => n.NotifyAsync("Task overdue", It.Is<string>(m => m.Contains("Pay rent")), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -857,7 +857,57 @@ public class WidgetViewModelTests
 
         await sut.CheckForOverdueTaskNotificationsAsync();
 
-        notificationService.Verify(n => n.NotifyAsync("Task overdue", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        notificationService.Verify(n => n.NotifyAsync("Task overdue", It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CheckForOverdueTaskNotificationsAsync_SkipsATaskSnoozedIntoTheFuture()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var snoozedTask = CreateTask(today, 0, "Snoozed", dueDate: DateTime.Now.AddHours(-1));
+        snoozedTask.Snooze(DateTime.Now.AddHours(1));
+        var taskRepository = CreateRepositoryWithTasks(today, [snoozedTask]);
+        var notificationService = new Mock<INotificationService>();
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyProjectService(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadTasksAsync();
+
+        await sut.CheckForOverdueTaskNotificationsAsync();
+
+        notificationService.Verify(n => n.NotifyAsync("Task overdue", It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CheckForOverdueTaskNotificationsAsync_ReNotifies_OnceASnoozeHasPassed()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var task = CreateTask(today, 0, "Pay rent", dueDate: DateTime.Now.AddHours(-2));
+        task.Snooze(DateTime.Now.AddMinutes(-1)); // Already in the past — the snooze has expired.
+        var taskRepository = CreateRepositoryWithTasks(today, [task]);
+        var notificationService = new Mock<INotificationService>();
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyProjectService(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadTasksAsync();
+
+        await sut.CheckForOverdueTaskNotificationsAsync();
+
+        notificationService.Verify(n => n.NotifyAsync("Task overdue", It.Is<string>(m => m.Contains("Pay rent")), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CheckForOverdueTaskNotificationsAsync_PassesTheNotificationSoundSetting()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var overdueTask = CreateTask(today, 0, "Pay rent", dueDate: DateTime.Now.AddHours(-1));
+        var taskRepository = CreateRepositoryWithTasks(today, [overdueTask]);
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { NotificationSoundEnabled = false });
+        var notificationService = new Mock<INotificationService>();
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyProjectService(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService.Object, notificationService.Object, TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadSettingsAsync();
+        await sut.LoadTasksAsync();
+
+        await sut.CheckForOverdueTaskNotificationsAsync();
+
+        notificationService.Verify(n => n.NotifyAsync("Task overdue", It.IsAny<string>(), false, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -873,7 +923,7 @@ public class WidgetViewModelTests
 
         await sut.CheckWellnessRemindersAsync();
 
-        notificationService.Verify(n => n.NotifyAsync("Break Reminder", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        notificationService.Verify(n => n.NotifyAsync("Break Reminder", It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -890,7 +940,7 @@ public class WidgetViewModelTests
         timeProvider.SetUtcNow(new DateTimeOffset(2026, 1, 15, 9, 31, 0, TimeSpan.Zero));
         await sut.CheckWellnessRemindersAsync();
 
-        notificationService.Verify(n => n.NotifyAsync("Break Reminder", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        notificationService.Verify(n => n.NotifyAsync("Break Reminder", It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -909,7 +959,7 @@ public class WidgetViewModelTests
         timeProvider.SetUtcNow(new DateTimeOffset(2026, 1, 15, 10, 0, 0, TimeSpan.Zero)); // 14 more minutes, still under 45
         await sut.CheckWellnessRemindersAsync();
 
-        notificationService.Verify(n => n.NotifyAsync("Water Reminder", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        notificationService.Verify(n => n.NotifyAsync("Water Reminder", It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -926,7 +976,7 @@ public class WidgetViewModelTests
         timeProvider.SetUtcNow(new DateTimeOffset(2026, 1, 15, 10, 0, 0, TimeSpan.Zero));
         await sut.CheckWellnessRemindersAsync();
 
-        notificationService.Verify(n => n.NotifyAsync("Stretch Reminder", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        notificationService.Verify(n => n.NotifyAsync("Stretch Reminder", It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -944,7 +994,7 @@ public class WidgetViewModelTests
 
         await sut.CheckForOverdueTaskNotificationsAsync();
 
-        notificationService.Verify(n => n.NotifyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        notificationService.Verify(n => n.NotifyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -958,7 +1008,7 @@ public class WidgetViewModelTests
 
         await sut.LoadTasksAsync();
 
-        notificationService.Verify(n => n.NotifyAsync("Today's tasks", It.Is<string>(m => m.Contains("2 tasks")), It.IsAny<CancellationToken>()), Times.Once);
+        notificationService.Verify(n => n.NotifyAsync("Today's tasks", It.Is<string>(m => m.Contains("2 tasks")), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -972,7 +1022,7 @@ public class WidgetViewModelTests
         await sut.LoadTasksAsync();
         await sut.LoadTasksAsync(); // e.g. a drag-reorder reload later the same day.
 
-        notificationService.Verify(n => n.NotifyAsync("Today's tasks", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        notificationService.Verify(n => n.NotifyAsync("Today's tasks", It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -986,7 +1036,7 @@ public class WidgetViewModelTests
 
         await sut.GoToPreviousDayCommand.ExecuteAsync(null);
 
-        notificationService.Verify(n => n.NotifyAsync("Today's tasks", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        notificationService.Verify(n => n.NotifyAsync("Today's tasks", It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

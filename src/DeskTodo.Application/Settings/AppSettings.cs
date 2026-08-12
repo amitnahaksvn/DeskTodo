@@ -119,4 +119,26 @@ public sealed class AppSettings
     public bool StretchReminderEnabled { get; set; }
 
     public int StretchReminderIntervalMinutes { get; set; } = 90;
+
+    /// <summary>
+    /// Phase 26's Sound Notification — whether overdue/daily-summary/wellness notifications
+    /// play a sound (see <see cref="Abstractions.INotificationService.NotifyAsync"/>'s
+    /// <c>playSound</c> parameter). Defaults to <c>true</c> — today's existing behavior —
+    /// so introducing this setting doesn't silently go quiet for existing users.
+    /// </summary>
+    public bool NotificationSoundEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Phase 29's PIN Lock — when true (and <see cref="PinHash"/> is set), a lock screen is
+    /// shown at app startup instead of the widget, requiring the correct PIN before it
+    /// appears. Defaults to <c>false</c> so introducing this setting doesn't lock anyone out
+    /// the first time it ships.
+    /// </summary>
+    public bool PinLockEnabled { get; set; }
+
+    /// <summary>PBKDF2 hash of the PIN, base64-encoded — see <see cref="Security.PinHasher"/>. Never the plaintext PIN itself.</summary>
+    public string? PinHash { get; set; }
+
+    /// <summary>Random per-installation salt for <see cref="PinHash"/>, base64-encoded.</summary>
+    public string? PinSalt { get; set; }
 }

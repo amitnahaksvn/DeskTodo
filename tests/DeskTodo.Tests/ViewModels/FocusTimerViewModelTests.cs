@@ -73,7 +73,7 @@ public class FocusTimerViewModelTests
 
         Assert.False(_sut.IsRunning);
         _focusSessionService.Verify(s => s.CompleteSessionAsync(FocusSessionType.CountdownTimer, It.IsAny<DateTime>(), It.IsAny<DateTime>(), 1, null, It.IsAny<CancellationToken>()), Times.Once);
-        _notificationService.Verify(n => n.NotifyAsync("Focus Timer", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _notificationService.Verify(n => n.NotifyAsync("Focus Timer", It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -159,7 +159,7 @@ public class FocusTimerViewModelTests
         Assert.True(_sut.IsBreak);
         Assert.Equal(60, _sut.RemainingSeconds); // Break phase just started.
         _focusSessionService.Verify(s => s.CompleteSessionAsync(FocusSessionType.Pomodoro, It.IsAny<DateTime>(), It.IsAny<DateTime>(), 1, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Once);
-        _notificationService.Verify(n => n.NotifyAsync("Pomodoro", It.Is<string>(m => m.Contains("break")), It.IsAny<CancellationToken>()), Times.Once);
+        _notificationService.Verify(n => n.NotifyAsync("Pomodoro", It.Is<string>(m => m.Contains("break")), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

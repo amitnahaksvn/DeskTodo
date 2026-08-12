@@ -46,6 +46,7 @@ public sealed partial class TaskItemViewModel : ViewModelBase
         IsCompleted = task.IsCompleted;
         IsPinned = task.IsPinned;
         IsFavorite = task.IsFavorite;
+        SnoozedUntil = task.SnoozedUntil;
         DisplayColorHex = task.ColorHex ?? PriorityColorHex;
         TagIds = task.Tags.Select(t => t.Id).ToList();
         IsSubtask = task.ParentTaskId.HasValue;
@@ -140,6 +141,13 @@ public sealed partial class TaskItemViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsFavorite { get; set; }
 
+    /// <summary>Phase 26's Snooze — while in the future, suppresses this task's overdue re-notification; see <see cref="Domain.Entities.TaskItem.SnoozedUntil"/>.</summary>
+    [ObservableProperty]
+    public partial DateTime? SnoozedUntil { get; set; }
+
+    /// <summary>True once this task is actually overdue (not just any task) — the row's Snooze action only makes sense to offer then.</summary>
+    public bool IsOverdue => !IsCompleted && DueDate is { } due && due < DateTime.UtcNow;
+
     /// <summary>What the row's priority dot actually renders — <see cref="Domain.Entities.TaskItem.ColorHex"/> (the editor's color picker) when set, else the priority color it used to always show.</summary>
     public string DisplayColorHex { get; }
 
@@ -215,6 +223,24 @@ public sealed partial class TaskItemViewModel : ViewModelBase
         if (await TryAsync(() => newValue ? _taskService.FavoriteTaskAsync(Id) : _taskService.UnfavoriteTaskAsync(Id), "toggle favorite for"))
         {
             IsFavorite = newValue;
+        }
+    }
+
+    /// <summary>
+    /// Snoozes this task's overdue re-notification for one hour — bound to the row's
+    /// context-menu "Snooze" item, only shown while <see cref="IsOverdue"/>. Local time, not
+    /// UTC — <c>WidgetViewModel.CheckForOverdueTaskNotificationsAsync</c> compares
+    /// <see cref="Domain.Entities.TaskItem.SnoozedUntil"/> against <c>DueDate</c> using the
+    /// same local "now" it already uses for the overdue check itself, so this has to match.
+    /// </summary>
+    [RelayCommand]
+    private async Task SnoozeAsync()
+    {
+        var until = DateTime.Now.AddHours(1);
+
+        if (await TryAsync(() => _taskService.SnoozeTaskAsync(Id, until), "snooze"))
+        {
+            SnoozedUntil = until;
         }
     }
 

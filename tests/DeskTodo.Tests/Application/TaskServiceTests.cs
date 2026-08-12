@@ -118,6 +118,18 @@ public class TaskServiceTests
     }
 
     [Fact]
+    public async Task SnoozeTaskAsync_SetsSnoozedUntil()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Pay rent" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        var until = new DateTime(2026, 8, 15, 10, 0, 0, DateTimeKind.Utc);
+
+        await _sut.SnoozeTaskAsync(task.Id, until);
+
+        Assert.Equal(until, task.SnoozedUntil);
+    }
+
+    [Fact]
     public async Task UnfavoriteTaskAsync_ClearsIsFavorite()
     {
         var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Big Goal" };

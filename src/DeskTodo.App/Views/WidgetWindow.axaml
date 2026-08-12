@@ -188,6 +188,7 @@
                                             <MenuItem Header="Duplicate" Command="{Binding DuplicateCommand}" />
                                             <MenuItem Header="Pin / Unpin" Command="{Binding TogglePinCommand}" />
                                             <MenuItem Header="Favorite / Unfavorite" Command="{Binding ToggleFavoriteCommand}" />
+                                            <MenuItem Header="Snooze 1 hour" Command="{Binding SnoozeCommand}" IsVisible="{Binding IsOverdue}" />
                                             <Separator />
                                             <MenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
                                             <MenuItem Header="Delete" Click="OnDeleteTaskClick" />

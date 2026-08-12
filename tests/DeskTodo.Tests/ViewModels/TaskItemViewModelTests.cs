@@ -153,6 +153,21 @@ public class TaskItemViewModelTests
     }
 
     [Fact]
+    public async Task SnoozeCommand_SetsSnoozedUntilAboutOneHourFromNow()
+    {
+        var task = CreateTask(completed: false);
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        var taskService = new TaskService(taskRepository.Object);
+        var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
+
+        await sut.SnoozeCommand.ExecuteAsync(null);
+
+        Assert.NotNull(sut.SnoozedUntil);
+        Assert.True(sut.SnoozedUntil > DateTime.Now.AddMinutes(55) && sut.SnoozedUntil < DateTime.Now.AddMinutes(65));
+    }
+
+    [Fact]
     public async Task ArchiveCommand_RequestsAListRefresh()
     {
         var task = CreateTask(completed: false);

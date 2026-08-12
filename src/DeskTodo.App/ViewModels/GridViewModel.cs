@@ -459,7 +459,7 @@ public sealed partial class GridViewModel : ViewModelBase
     /// <summary>
     /// Saves the grid's *current* hidden-column set (<see cref="AppSettings.HiddenGridColumns"/>)
     /// together with the filter bar's current state (Phase 25's "Saved Searches" — see
-    /// <see cref="Settings.GridSavedView"/>'s doc comment for why this isn't a separate
+    /// <see cref="GridSavedView"/>'s doc comment for why this isn't a separate
     /// concept) as one named preset, overwriting any existing preset with the same name
     /// (case-insensitive).
     /// </summary>

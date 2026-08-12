@@ -52,6 +52,9 @@ public interface ITaskService
 
     Task UnpinTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
 
+    /// <summary>Suppresses re-notifying this task's overdue alert until <paramref name="until"/> — see <see cref="Domain.Entities.TaskItem.SnoozedUntil"/>.</summary>
+    Task SnoozeTaskAsync(Guid taskId, DateTime until, CancellationToken cancellationToken = default);
+
     Task FavoriteTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
 
     Task UnfavoriteTaskAsync(Guid taskId, CancellationToken cancellationToken = default);

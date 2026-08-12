@@ -61,6 +61,10 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     private int _stretchReminderIntervalMinutes = 90;
     private DateTime? _lastStretchReminderAt;
 
+    // Phase 26's Sound Notification setting — cached the same way as the reminder settings
+    // above, not re-read from disk on every notification.
+    private bool _notificationSoundEnabled = true;
+
     public WidgetViewModel(
         ITaskService taskService,
         ICategoryRepository categoryRepository,
@@ -827,6 +831,12 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenAnalytics() => AnalyticsRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised by Cmd/Ctrl+K (Phase 28's Command Palette). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/> — <c>WidgetWindow</c> builds the palette's entry list from this instance's own commands.</summary>
+    public event EventHandler? CommandPaletteRequested;
+
+    [RelayCommand]
+    private void OpenCommandPalette() => CommandPaletteRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -849,6 +859,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
             _waterReminderIntervalMinutes = settings.WaterReminderIntervalMinutes;
             _stretchReminderEnabled = settings.StretchReminderEnabled;
             _stretchReminderIntervalMinutes = settings.StretchReminderIntervalMinutes;
+            _notificationSoundEnabled = settings.NotificationSoundEnabled;
 
             // Baselines the "when did this last fire" clock to now, not left null — null
             // would mean the very first 30-second poll after enabling a reminder fires it
@@ -973,19 +984,19 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         if (ShouldRemind(_breakReminderEnabled, _breakReminderIntervalMinutes, _lastBreakReminderAt, now))
         {
             _lastBreakReminderAt = now;
-            await _notificationService.NotifyAsync("Break Reminder", "Time for a short break.");
+            await _notificationService.NotifyAsync("Break Reminder", "Time for a short break.", _notificationSoundEnabled);
         }
 
         if (ShouldRemind(_waterReminderEnabled, _waterReminderIntervalMinutes, _lastWaterReminderAt, now))
         {
             _lastWaterReminderAt = now;
-            await _notificationService.NotifyAsync("Water Reminder", "Remember to drink some water.");
+            await _notificationService.NotifyAsync("Water Reminder", "Remember to drink some water.", _notificationSoundEnabled);
         }
 
         if (ShouldRemind(_stretchReminderEnabled, _stretchReminderIntervalMinutes, _lastStretchReminderAt, now))
         {
             _lastStretchReminderAt = now;
-            await _notificationService.NotifyAsync("Stretch Reminder", "Take a moment to stretch.");
+            await _notificationService.NotifyAsync("Stretch Reminder", "Take a moment to stretch.", _notificationSoundEnabled);
         }
     }
 
@@ -1016,12 +1027,24 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
                 continue;
             }
 
+            if (task.SnoozedUntil is { } snoozedUntil)
+            {
+                if (snoozedUntil > now)
+                {
+                    continue;
+                }
+
+                // The snooze window has passed — allow one more notification even if this
+                // task was already notified once before being snoozed.
+                _notifiedOverdueTaskIds.Remove(task.Id);
+            }
+
             if (!_notifiedOverdueTaskIds.Add(task.Id))
             {
                 continue;
             }
 
-            await _notificationService.NotifyAsync("Task overdue", $"\"{task.Title}\" was due.");
+            await _notificationService.NotifyAsync("Task overdue", $"\"{task.Title}\" was due.", _notificationSoundEnabled);
         }
     }
 
@@ -1048,7 +1071,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         }
 
         var message = incompleteCount == 1 ? "You have 1 task today." : $"You have {incompleteCount} tasks today.";
-        await _notificationService.NotifyAsync("Today's tasks", message, cancellationToken);
+        await _notificationService.NotifyAsync("Today's tasks", message, _notificationSoundEnabled, cancellationToken);
     }
 
     public void Dispose()

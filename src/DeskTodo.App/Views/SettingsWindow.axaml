@@ -72,6 +72,14 @@
 
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Notification sound" FontSize="13" Foreground="#1E293B" />
+                    <TextBlock Text="Play a sound with overdue/summary/wellness notifications" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotificationSoundEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Text="Start at login" FontSize="13" Foreground="#1E293B" />
                     <TextBlock Text="Open DeskTodo automatically when you log in" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
                 </StackPanel>
@@ -137,6 +145,24 @@
                     <TextBlock Grid.Column="0" Text="Every (minutes)" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
                     <NumericUpDown Grid.Column="1" Value="{Binding StretchReminderIntervalMinutes}" Minimum="5" Increment="5" Width="120" />
                 </Grid>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Text="App Lock" FontSize="12" Foreground="#64748B" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Text="Require a PIN to open DeskTodo" FontSize="13" Foreground="#1E293B" />
+                        <TextBlock Text="{Binding HasPinSet, Converter={x:Static conv:PinStatusTextConverter.Instance}}"
+                                   FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding PinLockEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                </Grid>
+                <StackPanel Spacing="6" IsVisible="{Binding PinLockEnabled}" Margin="0,4,0,0">
+                    <TextBox Text="{Binding NewPin}" PasswordChar="•" PlaceholderText="{Binding HasPinSet, Converter={x:Static conv:PinFieldWatermarkConverter.Instance}}" />
+                    <TextBox Text="{Binding ConfirmPin}" PasswordChar="•" PlaceholderText="Confirm PIN" />
+                    <TextBlock Text="{Binding PinErrorMessage}" FontSize="11" Foreground="#DC2626"
+                               IsVisible="{Binding PinErrorMessage, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
+                </StackPanel>
             </StackPanel>
 
             <StackPanel Spacing="6">

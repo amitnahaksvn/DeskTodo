@@ -46,6 +46,8 @@ internal sealed class DesignTimeTaskService : ITaskService
 
     public Task UnpinTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+    public Task SnoozeTaskAsync(Guid taskId, DateTime until, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
     public Task FavoriteTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public Task UnfavoriteTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => Task.CompletedTask;

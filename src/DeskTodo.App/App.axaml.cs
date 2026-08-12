@@ -12,6 +12,7 @@ using DeskTodo.App.Views;
 using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DeskTodo.App;
@@ -107,17 +108,56 @@ public partial class App : global::Avalonia.Application
 
             ApplyAccentColor(widgetViewModel.AccentColorHex);
 
-            desktop.MainWindow = widgetWindow;
-
             // Windows never auto-exits the app just because a window closed — the tray
             // icon's "Quit" item (SetupTrayIcon below) is the only path to a real shutdown,
             // matching "Minimize to Tray" (Phase 22): closing the widget hides it instead.
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+            // Tray/hotkey are wired unconditionally, against the widgetWindow instance,
+            // *before* deciding whether to show it or a lock screen first — a locked session
+            // still needs a working "Quit" path (see LockScreenWindow.OnClosing), and the
+            // widget itself is fully built either way, just not yet visible.
             SetupTrayIcon(desktop, widgetWindow, widgetViewModel);
             SetupGlobalHotkey(desktop, widgetWindow, widgetViewModel);
+
+            desktop.MainWindow = (Window?)TrySetupLockScreen(widgetWindow) ?? widgetWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// Phase 29's PIN Lock — returns a <see cref="LockScreenWindow"/> to show first (instead
+    /// of <paramref name="widgetWindow"/>) when <see cref="DeskTodo.Application.Settings.AppSettings.PinLockEnabled"/>
+    /// is on and a PIN is actually set, or null to proceed straight to the widget (either PIN
+    /// Lock is off, or this is the design-time/no-DI path). <paramref name="widgetWindow"/> is
+    /// already fully constructed either way — unlocking just calls <c>Show()</c>/<c>Activate()</c>
+    /// on it, no further setup needed.
+    /// </summary>
+    private static LockScreenWindow? TrySetupLockScreen(WidgetWindow widgetWindow)
+    {
+        if (Services is null)
+        {
+            return null;
+        }
+
+        var settingsService = Services.GetRequiredService<ISettingsService>();
+        var settings = Task.Run(() => settingsService.LoadAsync()).GetAwaiter().GetResult();
+
+        if (!settings.PinLockEnabled || string.IsNullOrEmpty(settings.PinHash))
+        {
+            return null;
+        }
+
+        var lockScreenViewModel = new LockScreenViewModel(settingsService, Services.GetRequiredService<ILogger<LockScreenViewModel>>());
+        var lockScreenWindow = new LockScreenWindow { DataContext = lockScreenViewModel };
+        lockScreenViewModel.Unlocked += (_, _) =>
+        {
+            widgetWindow.Show();
+            widgetWindow.Activate();
+        };
+
+        return lockScreenWindow;
     }
 
     /// <summary>

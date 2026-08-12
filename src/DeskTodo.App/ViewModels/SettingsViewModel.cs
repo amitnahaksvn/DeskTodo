@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeskTodo.Application.Abstractions;
+using DeskTodo.Application.Security;
 using DeskTodo.Application.Settings;
 using Microsoft.Extensions.Logging;
 
@@ -62,6 +63,24 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsLoaded { get; set; }
 
+    /// <summary>See <see cref="AppSettings.PinLockEnabled"/>.</summary>
+    [ObservableProperty]
+    public partial bool PinLockEnabled { get; set; }
+
+    /// <summary>True once a PIN has actually been set — distinct from <see cref="PinLockEnabled"/>, which can be freshly toggled on with no PIN chosen yet. Drives whether the UI shows "Change PIN" or prompts to set one.</summary>
+    [ObservableProperty]
+    public partial bool HasPinSet { get; set; }
+
+    /// <summary>Staged, never round-tripped from <see cref="AppSettings.PinHash"/> — the actual PIN is never recoverable once hashed, and shouldn't be pre-filled even if it were.</summary>
+    [ObservableProperty]
+    public partial string NewPin { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string ConfirmPin { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string PinErrorMessage { get; set; } = string.Empty;
+
     /// <summary>See <see cref="AppSettings.PomodoroWorkMinutes"/>/<see cref="AppSettings.PomodoroBreakMinutes"/>. decimal?, not int, to bind directly to NumericUpDown.Value — same reasoning as <see cref="TaskEditViewModel.EstimatedMinutes"/>.</summary>
     [ObservableProperty]
     public partial decimal? PomodoroWorkMinutes { get; set; } = 25m;
@@ -87,6 +106,10 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial decimal? StretchReminderIntervalMinutes { get; set; } = 90m;
+
+    /// <summary>See <see cref="AppSettings.NotificationSoundEnabled"/>.</summary>
+    [ObservableProperty]
+    public partial bool NotificationSoundEnabled { get; set; } = true;
 
     /// <summary>
     /// Populated by <c>WidgetWindow</c> (via <see cref="SetAvailableMonitors"/>) before
@@ -123,6 +146,12 @@ public sealed partial class SettingsViewModel : ViewModelBase
         WaterReminderIntervalMinutes = _loaded.WaterReminderIntervalMinutes;
         StretchReminderEnabled = _loaded.StretchReminderEnabled;
         StretchReminderIntervalMinutes = _loaded.StretchReminderIntervalMinutes;
+        NotificationSoundEnabled = _loaded.NotificationSoundEnabled;
+        PinLockEnabled = _loaded.PinLockEnabled;
+        HasPinSet = !string.IsNullOrEmpty(_loaded.PinHash);
+        NewPin = string.Empty;
+        ConfirmPin = string.Empty;
+        PinErrorMessage = string.Empty;
         IsLoaded = true;
     }
 
@@ -140,11 +169,65 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private void SelectAccentColor(string hex) => AccentColorHex = hex;
 
+    /// <summary>
+    /// Validates and stages the PIN Lock fields into <see cref="_loaded"/> — returns false
+    /// (with <see cref="PinErrorMessage"/> set) to abort <see cref="SaveAsync"/> without
+    /// persisting or closing the window, the one validation-can-fail path this form has.
+    /// </summary>
+    private bool TryApplyPinSettings()
+    {
+        PinErrorMessage = string.Empty;
+
+        if (!PinLockEnabled)
+        {
+            _loaded.PinLockEnabled = false;
+            _loaded.PinHash = null;
+            _loaded.PinSalt = null;
+            return true;
+        }
+
+        if (string.IsNullOrEmpty(NewPin) && string.IsNullOrEmpty(ConfirmPin))
+        {
+            if (string.IsNullOrEmpty(_loaded.PinHash))
+            {
+                PinErrorMessage = "Enter a PIN to turn on App Lock.";
+                return false;
+            }
+
+            // Toggled on with an existing PIN and no new one entered — keep it unchanged.
+            _loaded.PinLockEnabled = true;
+            return true;
+        }
+
+        if (NewPin.Length < 4)
+        {
+            PinErrorMessage = "PIN must be at least 4 digits.";
+            return false;
+        }
+
+        if (NewPin != ConfirmPin)
+        {
+            PinErrorMessage = "PINs don't match.";
+            return false;
+        }
+
+        var (salt, hash) = PinHasher.Hash(NewPin);
+        _loaded.PinLockEnabled = true;
+        _loaded.PinSalt = salt;
+        _loaded.PinHash = hash;
+        return true;
+    }
+
     [RelayCommand]
     private async Task SaveAsync()
     {
         try
         {
+            if (!TryApplyPinSettings())
+            {
+                return;
+            }
+
             _loaded.AccentColorHex = AccentColorHex;
             _loaded.WidgetOpacity = Math.Clamp(OpacityPercent / 100.0, 0.4, 1.0);
             _loaded.NotificationsEnabled = NotificationsEnabled;
@@ -159,6 +242,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             _loaded.WaterReminderIntervalMinutes = (int)(WaterReminderIntervalMinutes ?? 45m);
             _loaded.StretchReminderEnabled = StretchReminderEnabled;
             _loaded.StretchReminderIntervalMinutes = (int)(StretchReminderIntervalMinutes ?? 90m);
+            _loaded.NotificationSoundEnabled = NotificationSoundEnabled;
 
             await _settingsService.SaveAsync(_loaded);
 

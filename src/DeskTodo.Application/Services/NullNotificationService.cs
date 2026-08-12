@@ -9,5 +9,5 @@ namespace DeskTodo.Application.Services;
 /// </summary>
 public sealed class NullNotificationService : INotificationService
 {
-    public Task NotifyAsync(string title, string message, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task NotifyAsync(string title, string message, bool playSound = true, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

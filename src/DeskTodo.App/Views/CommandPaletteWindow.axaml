@@ -1,0 +1,37 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="360"
+        x:Class="DeskTodo.App.Views.CommandPaletteWindow"
+        x:DataType="vm:CommandPaletteViewModel"
+        Title="Command Palette"
+        Width="440" Height="360"
+        MinWidth="440" MinHeight="200"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SizeToContent="Height"
+        Background="#F8FAFC">
+
+    <!--
+      Phase 28's Command Palette — every WidgetWindow header-icon action in one searchable
+      list, summoned via Cmd/Ctrl+K. No footer/buttons: Enter runs the selected (or first
+      matching) entry, Escape cancels, matching the palette convention most users already
+      know from editors/IDEs rather than inventing this app's own interaction model.
+    -->
+    <Grid RowDefinitions="Auto,Auto" Margin="16">
+        <TextBox Grid.Row="0" x:Name="SearchBox" Text="{Binding SearchText}"
+                 PlaceholderText="Type a command…" FontSize="14" KeyDown="OnSearchBoxKeyDown" />
+
+        <ListBox Grid.Row="1" x:Name="EntriesListBox" ItemsSource="{Binding VisibleEntries}"
+                  SelectedItem="{Binding SelectedEntry}" Margin="0,8,0,0" MaxHeight="280">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:CommandPaletteEntry">
+                    <TextBlock Text="{Binding Label}" FontSize="13" Padding="4" DoubleTapped="OnEntryDoubleTapped" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
+
+</Window>

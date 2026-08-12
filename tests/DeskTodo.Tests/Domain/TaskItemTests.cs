@@ -48,6 +48,17 @@ public class TaskItemTests
     }
 
     [Fact]
+    public void Snooze_SetsSnoozedUntil()
+    {
+        var task = CreateTask();
+        var until = new DateTime(2026, 8, 15, 10, 0, 0, DateTimeKind.Utc);
+
+        task.Snooze(until);
+
+        Assert.Equal(until, task.SnoozedUntil);
+    }
+
+    [Fact]
     public void Archive_ThenRestore_ClearsArchivedAndDeleted()
     {
         var task = CreateTask();

@@ -49,9 +49,11 @@ public partial class WidgetWindow : Window
             viewModel.PlannerViewRequested += OnPlannerViewRequested;
             viewModel.FocusTimerRequested += OnFocusTimerRequested;
             viewModel.AnalyticsRequested += OnAnalyticsRequested;
+            viewModel.CommandPaletteRequested += OnCommandPaletteRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
+            RegisterKeyboardShortcuts(viewModel);
         }
 
         // The header's running-session indicator binds directly to the DI-singleton
@@ -61,6 +63,23 @@ public partial class WidgetWindow : Window
         {
             FocusTimerIndicator.DataContext = App.Services.GetRequiredService<FocusTimerViewModel>();
         }
+    }
+
+    /// <summary>
+    /// Phase 28's app-wide keyboard shortcuts, added programmatically rather than declared
+    /// as static <c>KeyBinding</c>s in XAML — Avalonia's <c>KeyGesture</c> string parser has
+    /// no OS-conditional translation between "Cmd" and "Ctrl", so a single XAML gesture
+    /// string can't correctly mean Cmd on macOS and Ctrl on Windows/Linux at once. Choosing
+    /// the modifier explicitly per-OS here is what's actually verified to press correctly on
+    /// each platform, rather than assumed from an unverified gesture string.
+    /// </summary>
+    private void RegisterKeyboardShortcuts(WidgetViewModel viewModel)
+    {
+        var modifier = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
+
+        KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.K, modifier), Command = viewModel.OpenCommandPaletteCommand });
+        KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.F, modifier), Command = viewModel.ToggleSearchBarCommand });
+        KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.OemComma, modifier), Command = viewModel.OpenSettingsCommand });
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -132,6 +151,7 @@ public partial class WidgetWindow : Window
             viewModel.PlannerViewRequested -= OnPlannerViewRequested;
             viewModel.FocusTimerRequested -= OnFocusTimerRequested;
             viewModel.AnalyticsRequested -= OnAnalyticsRequested;
+            viewModel.CommandPaletteRequested -= OnCommandPaletteRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -281,6 +301,34 @@ public partial class WidgetWindow : Window
         var analyticsViewModel = App.Services.GetRequiredService<AnalyticsViewModel>();
         var analyticsWindow = new AnalyticsWindow { DataContext = analyticsViewModel };
         await analyticsWindow.ShowDialog(this);
+    }
+
+    /// <summary>Phase 28's Command Palette — built fresh on every summon (not cached) from this window's own live <c>WidgetViewModel</c>'s commands, so a state change (e.g. Mini Widget mode) is reflected the next time it's opened without extra bookkeeping.</summary>
+    private async void OnCommandPaletteRequested(object? sender, EventArgs e)
+    {
+        if (DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var paletteViewModel = new CommandPaletteViewModel();
+        paletteViewModel.SetEntries([
+            new CommandPaletteEntry("Go to Today", viewModel.GoToTodayCommand),
+            new CommandPaletteEntry("Previous Day", viewModel.GoToPreviousDayCommand),
+            new CommandPaletteEntry("Next Day", viewModel.GoToNextDayCommand),
+            new CommandPaletteEntry("Toggle Search & Filter", viewModel.ToggleSearchBarCommand),
+            new CommandPaletteEntry("Toggle Select Mode", viewModel.ToggleSelectModeCommand),
+            new CommandPaletteEntry("Open Grid View", viewModel.OpenGridViewCommand),
+            new CommandPaletteEntry("Open Calendar View", viewModel.OpenCalendarViewCommand),
+            new CommandPaletteEntry("Open Planner", viewModel.OpenPlannerViewCommand),
+            new CommandPaletteEntry("Open Focus Timer", viewModel.OpenFocusTimerCommand),
+            new CommandPaletteEntry("Open Analytics & Reports", viewModel.OpenAnalyticsCommand),
+            new CommandPaletteEntry("Open Settings", viewModel.OpenSettingsCommand),
+            new CommandPaletteEntry("Toggle Mini Widget", viewModel.ToggleMiniWidgetModeCommand),
+        ]);
+
+        var paletteWindow = new CommandPaletteWindow { DataContext = paletteViewModel };
+        await paletteWindow.ShowDialog(this);
     }
 
     private async void OnTaskEditRequested(object? sender, Guid taskId)
