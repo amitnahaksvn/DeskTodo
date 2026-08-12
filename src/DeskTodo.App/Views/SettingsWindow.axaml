@@ -169,6 +169,19 @@
                 <TextBlock Text="Data" FontSize="12" Foreground="#64748B" />
                 <Button Content="Import / Export tasks…" Click="OnImportExportClick" HorizontalAlignment="Left" />
             </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Text="About" FontSize="12" Foreground="#64748B" />
+                <TextBlock FontSize="12" Foreground="#64748B">
+                    <Run Text="Version " /><Run Text="{Binding AppVersion}" />
+                </TextBlock>
+                <Button Content="Check for Updates" Command="{Binding CheckForUpdatesCommand}"
+                        IsEnabled="{Binding !IsCheckingForUpdate}" HorizontalAlignment="Left" />
+                <TextBlock Text="{Binding UpdateStatusMessage}" FontSize="11" Foreground="#64748B"
+                           IsVisible="{Binding UpdateStatusMessage, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
+                <Button Content="View Release" Command="{Binding OpenReleasePageCommand}" HorizontalAlignment="Left"
+                        IsVisible="{Binding AvailableUpdateUrl, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
+            </StackPanel>
         </StackPanel>
         </ScrollViewer>
 

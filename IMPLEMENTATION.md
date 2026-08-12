@@ -7,7 +7,7 @@ that one is the reasoning.
 
 **Legend:** ✅ Done · 🚧 Partial · ⬜ Not started
 
-**Last updated:** 2026-08-12 (Phases 1–16 done; Phases 17–26 fully done — including their originally-deferred items; Phase 27 skipped for now — see its own section; Phases 28–29 done (both scoped down); Phases 30–37 still pending)
+**Last updated:** 2026-08-12 (Phases 1–16 done; Phases 17–26 fully done — including their originally-deferred items; Phase 27 skipped for now — see its own section; Phases 28–30 done (all three scoped down); Phases 31–37 still pending)
 
 > **Note on numbering:** phases 1–16 mirror the tracked work items
 > one-to-one, with one deliberate exception — the DesktopSheet→DeskTodo
@@ -72,7 +72,7 @@ originally named — see each phase's own section below for the full detail.
 | 27 | [Theming & appearance](#27-theming--appearance) | Appearance, "Later" notes | ⬜ |
 | 28 | [Power user tools](#28-power-user-tools) | Power User Features | ✅ (scoped down) |
 | 29 | [Security & data protection](#29-security--data-protection) | Security, Import/Export | ✅ (scoped down) |
-| 30 | [Auto-update system](#30-auto-update-system) | "Later" notes | ⬜ |
+| 30 | [Auto-update system](#30-auto-update-system) | "Later" notes | ✅ (scoped down) |
 | 31 | [Cloud sync & multi-device](#31-cloud-sync--multi-device) | Cloud Features | ⬜ |
 | 32 | [Team collaboration & sharing](#32-team-collaboration--sharing) | Team Features, "Later" notes | ⬜ |
 | 33 | [Third-party integrations](#33-third-party-integrations) | Integrations | ⬜ |
@@ -423,12 +423,12 @@ yet either (only the Avalonia template placeholder icon is in the repo — see
 
 # Extended Roadmap (Phase 17+)
 
-Phases 17–26 and 28–29 are now fully built (28 and 29 both scoped down —
-see each one's own section), including every item their own original
-"Deferred:"/scope-note paragraphs named — see each phase's own section
-below for exactly what shipped and the reasoning behind it. Phase 27 was
-explicitly skipped for this pass (see its own section for why) and Phases
-30–37 remain **planning only — no code has been written for any of them.**
+Phases 17–26 and 28–30 are now fully built (28, 29, and 30 all scoped
+down — see each one's own section), including every item their own
+original "Deferred:"/scope-note paragraphs named — see each phase's own
+section below for exactly what shipped and the reasoning behind it. Phase
+27 was explicitly skipped for this pass (see its own section for why) and
+Phases 31–37 remain **planning only — no code has been written for any of them.**
 Each of those phases lists what it covers, why it's grouped that way, the
 concrete deliverables (traced back to `Later.Implementation.md`), and the
 architectural approach in prose — new entities, services, or UI surfaces —
@@ -1428,41 +1428,65 @@ unlock path itself is covered by `LockScreenViewModelTests.UnlockAsync_WithTheCo
 - Tests: `PinHasherTests`, `LockScreenViewModelTests`, `LockScreenWindowRenderTests`,
   plus additions to `SettingsViewModelTests`
 
-## 30. Auto-update system ⬜
+## 30. Auto-update system ✅ (scoped down)
 
 From the "later" notes directly: *add app version and when a new version
 comes, ask the user to update — updating should never delete old/existing
 data.*
 
-**Deliverables:**
-- Display the current app version somewhere in the UI (e.g. Settings)
-- Check for a newer version (against some update feed/endpoint — needs a
-  decision on hosting: GitHub Releases' API is a natural zero-infrastructure
-  option given this is a git-hosted project)
-- Prompt the user when an update is available, with a way to install it
-- Guarantee the update process never touches the user's SQLite database or
-  `AppSettings` — both already live outside the app's install directory
-  (`AppStoragePaths.ResolveDefaultRootDirectory()`, Phase 4/12), which is
-  the right foundation for this to already be safe, but the *update
-  mechanism itself* still needs to be built and needs to actually replace
-  only the application binaries
+**Delivered:** the read-only half of this phase — display the current
+version, check GitHub Releases for a newer one, and hand the user off to
+the release page. **Not delivered:** actually downloading/installing an
+update, which was always the harder, platform/distribution-dependent half
+(see the original approach note's own framing: "partly a
+distribution-strategy decision, not purely an engineering one" — that
+decision hasn't been made, so the engineering for it wasn't attempted
+either).
 
-**Approach:** A new `IUpdateCheckService` (or similar) that periodically
-(or on startup) queries a version-feed endpoint and compares against the
-running assembly's version, surfacing an "update available" notification
-via the existing `INotificationService` (Phase 13) or a dedicated
-in-app banner. The actual update mechanism is platform-specific and
-non-trivial: on Windows, MSIX packages (Phase 16) get free auto-update
-support from the OS itself if distributed through a store or an App
-Installer URI, which would mean the *packaging* choice from Phase 16
-directly determines how much custom update-installation code needs
-writing at all; on macOS, an unsigned/non-MAS `.dmg` distribution
-typically means either building a Sparkle-style updater or directing
-users to redownload — this needs a decision on distribution channel
-(direct download vs. Mac App Store vs. Microsoft Store) before the
-implementation approach can even be chosen, making this phase's design
-work partly a distribution-strategy decision, not purely an engineering
-one.
+- A new `IUpdateCheckService`/`GitHubUpdateCheckService`
+  (`DeskTodo.Infrastructure.Updates`) queries
+  `api.github.com/repos/amitnahaksvn/DeskTodo/releases/latest` — confirmed
+  live, before writing any code, that the real repo is public (200) and
+  currently has no releases published yet (404 on that specific endpoint,
+  which the service treats as "already current," not an error). Uses a
+  single shared `HttpClient` singleton rather than the full
+  `IHttpClientFactory` package — this is the app's first and only outbound
+  network call, on-demand from one Settings button, not a hot path the
+  factory's pooling/DNS-refresh behavior exists to protect.
+- Settings gained an "About" section: the running version (via
+  `Assembly.GetEntryAssembly()`, no network call) and a "Check for
+  Updates" button. On success, shows either "You're on the latest
+  version" or "Version X.Y.Z is available" with a "View Release" button
+  that opens the GitHub release page in the OS default browser via
+  Avalonia's `TopLevel.Launcher` (the same cross-platform mechanism
+  `TaskEditWindow` already uses to open file attachments). Any network
+  failure shows a plain "Couldn't check for updates" message — never
+  throws, never blocks the rest of Settings.
+- **Live-verified against the real API, not mocked:** launched the app,
+  opened Settings, clicked "Check for Updates," and watched it correctly
+  report "You're on the latest version" — a genuine round trip to the
+  live, empty-of-releases repo, matching the pre-implementation `curl`
+  check exactly.
+
+**Deferred (documented, not silently dropped):**
+- **Actual update installation** — downloading and replacing the running
+  application's binaries is a fundamentally different, riskier kind of
+  operation than a read-only version check, and its correct implementation
+  depends entirely on a distribution-channel decision (direct download vs.
+  Mac App Store vs. Microsoft Store vs. MSIX via Phase 16) that hasn't
+  been made. Building a self-update mechanism before that decision exists
+  would mean guessing at requirements likely to be thrown away.
+- **Automatic/background checking** — this app makes no other outbound
+  network calls; checking is on-demand only (a Settings button), so
+  nothing phones home the first time this ships without the user asking
+  for it. A periodic background check could be layered on later without
+  changing `IUpdateCheckService`'s shape at all.
+
+- `src/DeskTodo.Application/Updates/{IUpdateCheckService,UpdateCheckResult}.cs`
+- `src/DeskTodo.Infrastructure/Updates/GitHubUpdateCheckService.cs`
+- `src/DeskTodo.App/ViewModels/SettingsViewModel.cs` (`AppVersion`/`CheckForUpdatesCommand`/`OpenReleasePageCommand`),
+  `Views/{SettingsWindow.axaml,SettingsWindow.axaml.cs}` (`OnOpenUrlRequested`)
+- Tests: `GitHubUpdateCheckServiceTests`, plus additions to `SettingsViewModelTests`
 
 ## 31. Cloud sync & multi-device ⬜
 

@@ -1,10 +1,12 @@
 using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Options;
 using DeskTodo.Application.Services;
+using DeskTodo.Application.Updates;
 using DeskTodo.Infrastructure.Data;
 using DeskTodo.Infrastructure.ImportExport;
 using DeskTodo.Infrastructure.Repositories;
 using DeskTodo.Infrastructure.Storage;
+using DeskTodo.Infrastructure.Updates;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,6 +72,15 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<ITaskExportService, TaskExportService>();
         services.AddSingleton<ITaskImportService, TaskImportService>();
+
+        // A single shared instance rather than the full IHttpClientFactory machinery
+        // (which would need a new Microsoft.Extensions.Http package reference) — this app
+        // makes exactly one kind of outbound call, on-demand from a Settings button, not a
+        // high-frequency hot path the factory's connection-pooling/DNS-refresh behavior is
+        // meant to protect. Still a singleton, not one-per-check, to avoid socket exhaustion
+        // from repeated ad-hoc HttpClient construction.
+        services.AddSingleton<HttpClient>();
+        services.AddSingleton<IUpdateCheckService, GitHubUpdateCheckService>();
 
         return services;
     }

@@ -3,16 +3,16 @@
 > A cross-platform desktop productivity application for Windows & macOS built with .NET.
 
 > **Status key:** `[x]` shipped (see IMPLEMENTATION.md for which phase). `[ ]`
-> not built. Checked/unchecked below reflects the state as of Phase 29
+> not built. Checked/unchecked below reflects the state as of Phase 30
 > completing (2026-08-12) — Phase 27 was explicitly skipped for this pass
-> (see IMPLEMENTATION.md's own Phase 27 section), Phases 28–29 both
+> (see IMPLEMENTATION.md's own Phase 27 section), Phases 28–30 all
 > shipped scoped down — cross-referenced item by item against
 > IMPLEMENTATION.md, not assumed; several `[x]` items note a partial
-> scope inline (see IMPLEMENTATION.md's Phase 17–29 sections for the full
+> scope inline (see IMPLEMENTATION.md's Phase 17–30 sections for the full
 > detail on what shipped vs. what's still deliberately out of scope).
 > Everything still `[ ]` here has been carried into IMPLEMENTATION.md's
 > "Extended Roadmap" as a planned, not-yet-started item (Phase 27 and
-> Phases 30–37).
+> Phases 31–37).
 
 ---
 
@@ -448,7 +448,7 @@ prose:
 - [x] ⏰ Reminders
 - [ ] 🖥️ Native Windows & macOS experience _(macOS notifications/auto-start are verified live; the Windows equivalents are authored but not runtime-verified — no Windows machine in this dev environment)_
 - [x] Alert when a task is overdue and move it to the next/a different day automatically _(the existing overdue notification, plus a new opt-in "Auto-reschedule overdue tasks" Settings toggle)_
-- [ ] App version display + update-available prompt; updating must never delete existing data
+- [x] App version display + update-available prompt _(read-only half only — a "Check for Updates" Settings button against the real GitHub Releases API, with a link to the release page; actually downloading/installing an update is deferred, since it depends on a distribution-channel decision — direct download vs. app store vs. MSIX — that hasn't been made. Updating never touching existing data is moot for now: nothing installs anything yet)_
 - [ ] Nicer UI polish (a "Bootstrap-like" free component/styling pass)
 - [ ] Send a task to another user, who can accept or reject it
 - [ ] Group tasks (shared, multi-user task groups)

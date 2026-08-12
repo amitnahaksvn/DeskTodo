@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Security;
 using DeskTodo.Application.Settings;
+using DeskTodo.Application.Updates;
 using Microsoft.Extensions.Logging;
 
 namespace DeskTodo.App.ViewModels;
@@ -20,13 +21,15 @@ public sealed partial class SettingsViewModel : ViewModelBase
 {
     private readonly ISettingsService _settingsService;
     private readonly IAutoStartService _autoStartService;
+    private readonly IUpdateCheckService _updateCheckService;
     private readonly ILogger<SettingsViewModel> _logger;
     private AppSettings _loaded = new();
 
-    public SettingsViewModel(ISettingsService settingsService, IAutoStartService autoStartService, ILogger<SettingsViewModel> logger)
+    public SettingsViewModel(ISettingsService settingsService, IAutoStartService autoStartService, IUpdateCheckService updateCheckService, ILogger<SettingsViewModel> logger)
     {
         _settingsService = settingsService;
         _autoStartService = autoStartService;
+        _updateCheckService = updateCheckService;
         _logger = logger;
     }
 
@@ -80,6 +83,23 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial string PinErrorMessage { get; set; } = string.Empty;
+
+    /// <summary>Phase 30's Auto-update system, scoped to an on-demand check — see <see cref="IUpdateCheckService"/>'s doc comment. The running assembly's version, read once at load, not a network call.</summary>
+    [ObservableProperty]
+    public partial string AppVersion { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsCheckingForUpdate { get; set; }
+
+    [ObservableProperty]
+    public partial string UpdateStatusMessage { get; set; } = string.Empty;
+
+    /// <summary>Set only when <see cref="UpdateCheckResult.IsUpdateAvailable"/> was true — drives whether the "View Release" button shows at all.</summary>
+    [ObservableProperty]
+    public partial string? AvailableUpdateUrl { get; set; }
+
+    /// <summary>Raised by <see cref="OpenReleasePageCommand"/> — a ViewModel shouldn't launch a browser itself, same "ViewModel shouldn't construct Views" reasoning as every other window hand-off in this app; <c>SettingsWindow</c> handles it via <c>TopLevel.Launcher</c>.</summary>
+    public event EventHandler<string>? OpenUrlRequested;
 
     /// <summary>See <see cref="AppSettings.PomodoroWorkMinutes"/>/<see cref="AppSettings.PomodoroBreakMinutes"/>. decimal?, not int, to bind directly to NumericUpDown.Value — same reasoning as <see cref="TaskEditViewModel.EstimatedMinutes"/>.</summary>
     [ObservableProperty]
@@ -152,6 +172,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
         NewPin = string.Empty;
         ConfirmPin = string.Empty;
         PinErrorMessage = string.Empty;
+        AppVersion = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "1.0.0.0";
+        UpdateStatusMessage = string.Empty;
+        AvailableUpdateUrl = null;
         IsLoaded = true;
     }
 
@@ -263,6 +286,50 @@ public sealed partial class SettingsViewModel : ViewModelBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to save settings");
+        }
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdatesAsync()
+    {
+        IsCheckingForUpdate = true;
+        UpdateStatusMessage = string.Empty;
+        AvailableUpdateUrl = null;
+
+        try
+        {
+            var result = await _updateCheckService.CheckForUpdateAsync();
+            if (result.ErrorMessage is { } error)
+            {
+                UpdateStatusMessage = error;
+            }
+            else if (result.IsUpdateAvailable)
+            {
+                UpdateStatusMessage = $"Version {result.LatestVersion} is available.";
+                AvailableUpdateUrl = result.ReleaseUrl;
+            }
+            else
+            {
+                UpdateStatusMessage = "You're on the latest version.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to check for updates");
+            UpdateStatusMessage = "Couldn't check for updates.";
+        }
+        finally
+        {
+            IsCheckingForUpdate = false;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenReleasePage()
+    {
+        if (AvailableUpdateUrl is { } url)
+        {
+            OpenUrlRequested?.Invoke(this, url);
         }
     }
 

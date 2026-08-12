@@ -1,6 +1,7 @@
 using DeskTodo.App.ViewModels;
 using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Settings;
+using DeskTodo.Application.Updates;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -15,13 +16,20 @@ public class SettingsViewModelTests
         return mock.Object;
     }
 
+    private static IUpdateCheckService CreateStubUpdateCheckService()
+    {
+        var mock = new Mock<IUpdateCheckService>();
+        mock.Setup(s => s.CheckForUpdateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new UpdateCheckResult(false, null, null, null));
+        return mock.Object;
+    }
+
     [Fact]
     public async Task LoadAsync_PopulatesAccentColorAndOpacityPercentFromSettings()
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AppSettings { AccentColorHex = "#10B981", WidgetOpacity = 0.8 });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
 
         await sut.LoadAsync();
 
@@ -34,7 +42,7 @@ public class SettingsViewModelTests
     public void SelectAccentColorCommand_UpdatesAccentColorHex()
     {
         var settingsService = new Mock<ISettingsService>();
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
 
         sut.SelectAccentColorCommand.Execute("#8B5CF6");
 
@@ -46,7 +54,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.SelectAccentColorCommand.Execute("#F97316");
         sut.OpacityPercent = 60;
@@ -70,7 +78,7 @@ public class SettingsViewModelTests
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AppSettings { WindowLeft = 50, WindowTop = 60, WindowWidth = 340, WindowHeight = 560 });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
 
         await sut.SaveCommand.ExecuteAsync(null);
@@ -87,7 +95,7 @@ public class SettingsViewModelTests
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AppSettings { WindowLeft = 50, WindowTop = 60, WindowWidth = 340, WindowHeight = 560 });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
 
         await sut.ResetWindowPositionCommand.ExecuteAsync(null);
@@ -102,7 +110,7 @@ public class SettingsViewModelTests
     public void CancelCommand_RaisesCancelRequested()
     {
         var settingsService = new Mock<ISettingsService>();
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
 
         var raised = false;
         sut.CancelRequested += (_, _) => raised = true;
@@ -116,7 +124,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { NotificationsEnabled = false });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(isEnabled: true), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(isEnabled: true), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
 
         await sut.LoadAsync();
 
@@ -129,7 +137,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { NotificationsEnabled = true });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.NotificationsEnabled = false;
 
@@ -143,7 +151,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { NotificationSoundEnabled = false });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
 
         await sut.LoadAsync();
 
@@ -155,7 +163,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { NotificationSoundEnabled = true });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.NotificationSoundEnabled = false;
 
@@ -169,7 +177,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PinLockEnabled = true, PinHash = "somehash", PinSalt = "somesalt" });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
 
         await sut.LoadAsync();
 
@@ -183,7 +191,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
 
         var saved = false;
@@ -199,7 +207,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.PinLockEnabled = true;
         sut.NewPin = "4242";
@@ -220,7 +228,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.PinLockEnabled = true;
         sut.NewPin = "4242";
@@ -240,7 +248,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.PinLockEnabled = true;
         sut.NewPin = "12";
@@ -257,7 +265,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.PinLockEnabled = true;
 
@@ -272,7 +280,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PinLockEnabled = true, PinHash = "existinghash", PinSalt = "existingsalt" });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         // NewPin/ConfirmPin left blank — user didn't intend to change the PIN.
 
@@ -289,7 +297,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PinLockEnabled = true, PinHash = "existinghash", PinSalt = "existingsalt" });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.PinLockEnabled = false;
 
@@ -304,7 +312,7 @@ public class SettingsViewModelTests
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
         var autoStartService = new Mock<IAutoStartService>();
-        var sut = new SettingsViewModel(settingsService.Object, autoStartService.Object, NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, autoStartService.Object, CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.AutoStartEnabled = true;
 
@@ -321,7 +329,7 @@ public class SettingsViewModelTests
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
         var autoStartService = new Mock<IAutoStartService>();
         autoStartService.SetupGet(a => a.IsEnabled).Returns(true);
-        var sut = new SettingsViewModel(settingsService.Object, autoStartService.Object, NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, autoStartService.Object, CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.AutoStartEnabled = false;
 
@@ -336,7 +344,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { ShowInTaskbar = false });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
 
         await sut.LoadAsync();
 
@@ -348,7 +356,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { ShowInTaskbar = true });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.ShowInTaskbar = false;
 
@@ -362,7 +370,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { AutoRescheduleOverdueTasks = true });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
 
         await sut.LoadAsync();
 
@@ -374,7 +382,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { AutoRescheduleOverdueTasks = false });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.AutoRescheduleOverdueTasks = true;
 
@@ -388,7 +396,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
 
         await sut.LoadAsync();
 
@@ -401,7 +409,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PreferredMonitorId = "monitor-2" });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         sut.SetAvailableMonitors([new MonitorOption("monitor-1", "Built-in"), new MonitorOption("monitor-2", "External")]);
 
         await sut.LoadAsync();
@@ -415,7 +423,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PreferredMonitorId = "unplugged-monitor" });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         sut.SetAvailableMonitors([new MonitorOption("monitor-1", "Built-in")]);
 
         await sut.LoadAsync();
@@ -428,7 +436,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         sut.SetAvailableMonitors([new MonitorOption("monitor-1", "Built-in")]);
         await sut.LoadAsync();
         sut.SelectedMonitor = sut.Monitors.Single(m => m.Id == "monitor-1");
@@ -443,7 +451,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { PreferredMonitorId = "monitor-1" });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         sut.SetAvailableMonitors([new MonitorOption("monitor-1", "Built-in")]);
         await sut.LoadAsync();
         sut.SelectedMonitor = MonitorOption.Unspecified;
@@ -468,7 +476,7 @@ public class SettingsViewModelTests
             StretchReminderEnabled = true,
             StretchReminderIntervalMinutes = 40,
         });
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
 
         await sut.LoadAsync();
 
@@ -487,7 +495,7 @@ public class SettingsViewModelTests
     {
         var settingsService = new Mock<ISettingsService>();
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
-        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), NullLogger<SettingsViewModel>.Instance);
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
         await sut.LoadAsync();
         sut.PomodoroWorkMinutes = 45m;
         sut.PomodoroBreakMinutes = 15m;
@@ -502,5 +510,101 @@ public class SettingsViewModelTests
             a.BreakReminderEnabled &&
             a.BreakReminderIntervalMinutes == 25),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task LoadAsync_PopulatesAppVersion_FromTheRunningAssembly()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+
+        await sut.LoadAsync();
+
+        Assert.False(string.IsNullOrEmpty(sut.AppVersion));
+    }
+
+    [Fact]
+    public async Task CheckForUpdatesCommand_WhenAnUpdateIsAvailable_SetsStatusAndUrl()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var updateCheckService = new Mock<IUpdateCheckService>();
+        updateCheckService.Setup(s => s.CheckForUpdateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UpdateCheckResult(true, "9.9.9", "https://example.com/release", null));
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), updateCheckService.Object, NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+
+        await sut.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        Assert.Contains("9.9.9", sut.UpdateStatusMessage);
+        Assert.Equal("https://example.com/release", sut.AvailableUpdateUrl);
+        Assert.False(sut.IsCheckingForUpdate);
+    }
+
+    [Fact]
+    public async Task CheckForUpdatesCommand_WhenAlreadyCurrent_ClearsAnyPreviousUrl()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var updateCheckService = new Mock<IUpdateCheckService>();
+        updateCheckService.Setup(s => s.CheckForUpdateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UpdateCheckResult(false, null, null, null));
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), updateCheckService.Object, NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+
+        await sut.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        Assert.Equal("You're on the latest version.", sut.UpdateStatusMessage);
+        Assert.Null(sut.AvailableUpdateUrl);
+    }
+
+    [Fact]
+    public async Task CheckForUpdatesCommand_OnError_ShowsTheErrorMessage_NotACrash()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var updateCheckService = new Mock<IUpdateCheckService>();
+        updateCheckService.Setup(s => s.CheckForUpdateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UpdateCheckResult(false, null, null, "Couldn't check for updates — check your internet connection."));
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), updateCheckService.Object, NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+
+        await sut.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        Assert.Equal("Couldn't check for updates — check your internet connection.", sut.UpdateStatusMessage);
+        Assert.Null(sut.AvailableUpdateUrl);
+    }
+
+    [Fact]
+    public async Task OpenReleasePageCommand_WithAnAvailableUpdateUrl_RaisesOpenUrlRequested()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var updateCheckService = new Mock<IUpdateCheckService>();
+        updateCheckService.Setup(s => s.CheckForUpdateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UpdateCheckResult(true, "9.9.9", "https://example.com/release", null));
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), updateCheckService.Object, NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        await sut.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        string? openedUrl = null;
+        sut.OpenUrlRequested += (_, url) => openedUrl = url;
+        sut.OpenReleasePageCommand.Execute(null);
+
+        Assert.Equal("https://example.com/release", openedUrl);
+    }
+
+    [Fact]
+    public void OpenReleasePageCommand_WithNoAvailableUpdate_DoesNotRaiseOpenUrlRequested()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+
+        var raised = false;
+        sut.OpenUrlRequested += (_, _) => raised = true;
+        sut.OpenReleasePageCommand.Execute(null);
+
+        Assert.False(raised);
     }
 }

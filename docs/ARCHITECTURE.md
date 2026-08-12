@@ -2037,6 +2037,58 @@ way those were: `LockScreenViewModelTests` covers the exact unlock
 transition (`UnlockAsync_WithTheCorrectPin_RaisesUnlocked_AndClearsAnyError`)
 that wasn't clicked through live.
 
+## Phase 30 — Auto-update system (scoped down)
+
+The read-only half shipped (version display, check GitHub Releases, link
+to the release page); actually installing an update didn't, and the
+reasoning for the split is worth being explicit about, since it's not
+just "ran out of time" — it's the same distinction the phase's own
+original planning notes already drew.
+
+**Why the split isn't arbitrary.** The original Phase 30 approach note in
+IMPLEMENTATION.md already flagged that the *installation* half is "partly
+a distribution-strategy decision, not purely an engineering one" —
+whether DeskTodo ships as a direct-download `.dmg`/`.exe`, goes through
+the Mac App Store, or uses MSIX (Phase 16) determines what "install an
+update" even means (an MSIX package gets free OS-level auto-update; a
+bare `.dmg` needs a Sparkle-style updater or just points users at a
+redownload). That decision hasn't been made. Building a self-update
+mechanism now would mean picking one of those paths speculatively and
+likely rebuilding it once a real distribution choice is made — the
+*check* half has no such dependency (a version comparison is a version
+comparison regardless of how the app is eventually distributed), which is
+exactly why it's the part that shipped.
+
+**This is the app's first outbound network call, and it's designed like
+one.** Every other piece of I/O in this codebase is local: SQLite, a JSON
+settings file, OS-level notification/hotkey/clipboard-adjacent APIs.
+`GitHubUpdateCheckService` is deliberately on-demand only (a Settings
+button, not a startup or periodic background check) — this app doesn't
+silently start phoning home the first time this ships, and a user who
+never opens Settings never triggers a network call at all. The single
+shared `HttpClient` is registered directly as a singleton rather than
+pulling in the `Microsoft.Extensions.Http` package for the full
+`IHttpClientFactory` pattern — that machinery exists to manage connection
+pooling and DNS-refresh behavior for *frequent* outbound calls, which
+doesn't describe "a user occasionally clicks one button," so the simpler
+option was the right one, not just the lazy one.
+
+**Confirmed against the real repo before writing any code, then again
+live afterward.** An unauthenticated `curl` against
+`api.github.com/repos/amitnahaksvn/DeskTodo` (200 — public, exists) and
+`.../releases/latest` (404 — no releases published yet) confirmed the
+approach was viable and told `GitHubUpdateCheckService` exactly what
+"success" and "no update" actually look like against this specific repo
+before any code was written to handle them. Live-verified afterward too:
+launched the real app, opened Settings, clicked "Check for Updates," and
+watched it correctly report "You're on the latest version" — a genuine
+round trip to the live API, not a mock standing in for one. The offline
+unit tests (`GitHubUpdateCheckServiceTests`) cover the cases that specific
+live repo doesn't currently exercise — a newer release existing, a
+malformed tag, a network failure — via a fake `HttpMessageHandler` rather
+than depending on GitHub's actual release history staying a particular
+shape.
+
 ## What's genuinely verified vs. authored-only (Phases 13–16, 22)
 
 This dev environment is macOS-only with no Windows machine and no
@@ -2090,3 +2142,4 @@ carry equivalent, currently-undiscovered risk until it's actually run.
 | Theming & appearance | Explicitly skipped for this pass on the user's own call — the roadmap's single most invasive item by files touched, and a partial retrofit would leave the app more inconsistent than not starting; fully planned, not abandoned | ⬜ Skipped |
 | Power user tools | Command Palette (Cmd/Ctrl+K, wraps existing `WidgetViewModel` commands rather than a new command layer, live-verified end-to-end via the accessibility tree — filtered to "Open Settings," pressed Enter, confirmed the real window opened); Keyboard Shortcuts (Cmd/Ctrl+K/F/,, registered in code via `OperatingSystem.IsMacOS()` since Avalonia's XAML `KeyGesture` has no Cmd/Ctrl OS translation); Task Templates satisfied by Phase 17; Undo/Redo, Clipboard History, and Activity Log explicitly deferred (each for a distinct, documented reason) | ✅ Done (scoped down) |
 | Security & data protection | PIN Lock (PBKDF2-hashed via the BCL's `Rfc2898DeriveBytes`, no new dependency; a `LockScreenWindow` gates startup, widget still fully constructed so tray Quit always works while locked; live-verified lock-on-startup, wrong-PIN rejection, and close-button bypass refusal against a test PIN injected into the live settings file, then reverted — the successful-unlock click-through wasn't confirmed live due to keystroke-automation flakiness and was cut short at the user's request, covered instead by `LockScreenViewModelTests`); Auto Lock, Windows Hello/Touch ID, Database Encryption, Secure Backup/Restore, and PDF/HTML export all explicitly deferred (each a distinct, documented reason) | ✅ Done (scoped down) |
+| Auto-update system | Read-only version check against the real, public `amitnahaksvn/DeskTodo` GitHub repo (confirmed live via `curl` before writing code, and live-verified again afterward by actually clicking "Check for Updates" in Settings — "You're on the latest version," a genuine round trip, not a mock), with a "View Release" link opening the browser via `TopLevel.Launcher`; this app's first-ever outbound network call, deliberately on-demand only, no background polling; actual update installation explicitly deferred — it depends on a distribution-channel decision (direct download vs. app store vs. MSIX) that hasn't been made, exactly as the phase's own original planning notes anticipated | ✅ Done (scoped down) |
