@@ -64,19 +64,19 @@ originally named — see each phase's own section below for the full detail.
 | 24 | [Analytics & reporting](#24-analytics--reporting) | Analytics | ✅ |
 | 25 | [Organization: projects, workspaces & lists](#25-organization-projects-workspaces--lists) | Organization | ✅ |
 | 26 | [Reminder enhancements](#26-reminder-enhancements) | Reminders | ✅ |
+| 28 | [Power user tools](#28-power-user-tools) | Power User Features | ✅ (scoped down) |
+| 29 | [Security & data protection](#29-security--data-protection) | Security, Import/Export | ✅ (scoped down) |
+| 30 | [Auto-update system](#30-auto-update-system) | "Later" notes | ✅ (scoped down) |
 
 ## Extended Roadmap — Phase 27+
 
 | # | Phase | Source category (Later.Implementation.md) | Status |
 |---|-------|---------------------------------------------|--------|
 | 27 | [Theming & appearance](#27-theming--appearance) | Appearance, "Later" notes | ⬜ |
-| 28 | [Power user tools](#28-power-user-tools) | Power User Features | ✅ (scoped down) |
-| 29 | [Security & data protection](#29-security--data-protection) | Security, Import/Export | ✅ (scoped down) |
-| 30 | [Auto-update system](#30-auto-update-system) | "Later" notes | ✅ (scoped down) |
 | 31 | [Cloud sync & multi-device](#31-cloud-sync--multi-device) | Cloud Features | ⬜ |
 | 32 | [Team collaboration & sharing](#32-team-collaboration--sharing) | Team Features, "Later" notes | ⬜ |
 | 33 | [Third-party integrations](#33-third-party-integrations) | Integrations | ⬜ |
-| 34 | [AI features](#34-ai-features) | AI Features | ⬜ |
+| 34 | [AI features](#34-ai-features) | AI Features | ⬜ | do at very last
 | 35 | [Unique capture features](#35-unique-capture-features) | Unique Features | ⬜ |
 | 36 | [Developer Mode dashboards](#36-developer-mode-dashboards) | Developer Mode | ⬜ |
 | 37 | [Companion apps & extensions](#37-companion-apps--extensions) | Future Ideas | ⬜ |
