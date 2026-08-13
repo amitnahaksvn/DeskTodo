@@ -13,7 +13,7 @@
         MinWidth="380" MinHeight="420"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
-        Background="#F8FAFC">
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <!--
       Phase 21's month-grid calendar — a read-only view over the same task data the grid
@@ -28,7 +28,7 @@
             <Button Grid.Column="0" Content="&#x2039;" Command="{Binding PreviousMonthCommand}"
                     Padding="10,4" FontSize="16" ToolTip.Tip="Previous month" />
             <TextBlock Grid.Column="1" Text="{Binding MonthTitle}" FontSize="16" FontWeight="SemiBold"
-                       Foreground="#1E293B" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                       Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
             <Button Grid.Column="2" Content="&#x203A;" Command="{Binding NextMonthCommand}"
                     Padding="10,4" FontSize="16" Margin="0,0,8,0" ToolTip.Tip="Next month" />
             <Button Grid.Column="3" Content="Today" Command="{Binding GoToCurrentMonthCommand}"
@@ -38,13 +38,13 @@
         </Grid>
 
         <prim:UniformGrid Grid.Row="1" Columns="7" Margin="0,0,0,4">
-            <TextBlock Text="Sun" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-            <TextBlock Text="Mon" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-            <TextBlock Text="Tue" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-            <TextBlock Text="Wed" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-            <TextBlock Text="Thu" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-            <TextBlock Text="Fri" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-            <TextBlock Text="Sat" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
+            <TextBlock Text="Sun" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+            <TextBlock Text="Mon" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+            <TextBlock Text="Tue" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+            <TextBlock Text="Wed" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+            <TextBlock Text="Thu" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+            <TextBlock Text="Fri" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+            <TextBlock Text="Sat" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
         </prim:UniformGrid>
 
         <ItemsControl Grid.Row="2" ItemsSource="{Binding Days}" VerticalAlignment="Top">
@@ -58,10 +58,10 @@
                     <Button Command="{Binding SelectCommand}" Padding="0" MinHeight="52"
                             HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                             Background="{Binding IsToday, Converter={x:Static conv:BoolToTodayBackgroundConverter.Instance}}"
-                            BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4">
+                            BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4">
                         <StackPanel Margin="4" Opacity="{Binding IsCurrentMonth, Converter={x:Static conv:BoolToCurrentMonthOpacityConverter.Instance}}">
-                            <TextBlock Text="{Binding DayNumber}" FontSize="12" FontWeight="SemiBold" Foreground="#1E293B" />
-                            <TextBlock Text="{Binding CountDisplay}" FontSize="10" Foreground="#64748B"
+                            <TextBlock Text="{Binding DayNumber}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding CountDisplay}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"
                                        IsVisible="{Binding HasTasks}" />
                         </StackPanel>
                     </Button>

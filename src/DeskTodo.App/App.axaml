@@ -13,4 +13,64 @@
         <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
     </Application.Styles>
+
+    <!--
+    Phase 27's theme tokens. Every window's XAML was hand-authored against a fixed light
+    palette (Phases 1-26); this dictionary gives the same colors names, so they can be
+    looked up via DynamicResource and swapped per-ThemeVariant instead of baked into each
+    file. FluentTheme's own dark-mode resources (SystemAccentColor etc.) are untouched —
+    this only covers colors this app's own Views chose, not Fluent's built-in control chrome.
+    Deliberately NOT themed here: the app's own accent color and the six AccentColorPresets/
+    per-task-color swatches (Phase 4/17's fixed brand palette — a spot color, meant to look
+    the same regardless of theme, the same way a colored label keeps its color in dark-mode
+    email clients).
+    -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F8FAFC" />
+                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1E293B" />
+                    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#64748B" />
+                    <SolidColorBrush x:Key="TextMutedBrush" Color="#94A3B8" />
+                    <SolidColorBrush x:Key="DialogBodyTextBrush" Color="#475569" />
+                    <SolidColorBrush x:Key="AppBorderBrush" Color="#E2E8F0" />
+                    <SolidColorBrush x:Key="SubtleBorderBrush" Color="#CBD5E1" />
+                    <SolidColorBrush x:Key="DangerTextBrush" Color="#DC2626" />
+                    <SolidColorBrush x:Key="DangerTextStrongBrush" Color="#991B1B" />
+                    <SolidColorBrush x:Key="DangerBackgroundBrush" Color="#FEE2E2" />
+                    <SolidColorBrush x:Key="IndigoBadgeBackgroundBrush" Color="#EEF2FF" />
+                    <SolidColorBrush x:Key="IndigoBadgeForegroundBrush" Color="#4338CA" />
+                    <SolidColorBrush x:Key="QuadrantRedBackgroundBrush" Color="#FEF2F2" />
+                    <SolidColorBrush x:Key="QuadrantRedBorderBrush" Color="#FCA5A5" />
+                    <SolidColorBrush x:Key="QuadrantBlueBackgroundBrush" Color="#EFF6FF" />
+                    <SolidColorBrush x:Key="QuadrantBlueBorderBrush" Color="#93C5FD" />
+                    <SolidColorBrush x:Key="QuadrantAmberBackgroundBrush" Color="#FFFBEB" />
+                    <SolidColorBrush x:Key="QuadrantAmberBorderBrush" Color="#FCD34D" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#0F172A" />
+                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#1E293B" />
+                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F1F5F9" />
+                    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#94A3B8" />
+                    <SolidColorBrush x:Key="TextMutedBrush" Color="#64748B" />
+                    <SolidColorBrush x:Key="DialogBodyTextBrush" Color="#CBD5E1" />
+                    <SolidColorBrush x:Key="AppBorderBrush" Color="#334155" />
+                    <SolidColorBrush x:Key="SubtleBorderBrush" Color="#475569" />
+                    <SolidColorBrush x:Key="DangerTextBrush" Color="#F87171" />
+                    <SolidColorBrush x:Key="DangerTextStrongBrush" Color="#FCA5A5" />
+                    <SolidColorBrush x:Key="DangerBackgroundBrush" Color="#4C0A0A" />
+                    <SolidColorBrush x:Key="IndigoBadgeBackgroundBrush" Color="#312E81" />
+                    <SolidColorBrush x:Key="IndigoBadgeForegroundBrush" Color="#C7D2FE" />
+                    <SolidColorBrush x:Key="QuadrantRedBackgroundBrush" Color="#3F1212" />
+                    <SolidColorBrush x:Key="QuadrantRedBorderBrush" Color="#7F1D1D" />
+                    <SolidColorBrush x:Key="QuadrantBlueBackgroundBrush" Color="#132338" />
+                    <SolidColorBrush x:Key="QuadrantBlueBorderBrush" Color="#1D4ED8" />
+                    <SolidColorBrush x:Key="QuadrantAmberBackgroundBrush" Color="#3F2F0A" />
+                    <SolidColorBrush x:Key="QuadrantAmberBorderBrush" Color="#92700E" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 </Application>

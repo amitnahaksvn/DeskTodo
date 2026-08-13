@@ -3,16 +3,19 @@
 > A cross-platform desktop productivity application for Windows & macOS built with .NET.
 
 > **Status key:** `[x]` shipped (see IMPLEMENTATION.md for which phase). `[ ]`
-> not built. Checked/unchecked below reflects the state as of Phase 30
-> completing (2026-08-12) — Phase 27 was explicitly skipped for this pass
-> (see IMPLEMENTATION.md's own Phase 27 section), Phases 28–30 all
-> shipped scoped down — cross-referenced item by item against
-> IMPLEMENTATION.md, not assumed; several `[x]` items note a partial
-> scope inline (see IMPLEMENTATION.md's Phase 17–30 sections for the full
-> detail on what shipped vs. what's still deliberately out of scope).
-> Everything still `[ ]` here has been carried into IMPLEMENTATION.md's
-> "Extended Roadmap" as a planned, not-yet-started item (Phase 27 and
-> Phases 31–37).
+> not built. Checked/unchecked below reflects the state as of Phase 27
+> completing (2026-08-13, picked back up after being set aside on
+> 2026-08-12) — Phase 31 was explicitly deferred to last on the user's own
+> call, and Phases 33 and 36 were explicitly deferred (33 needs
+> user-supplied OAuth credentials; 36 is blocked on 33) (see
+> IMPLEMENTATION.md's own Phase 31/33/36 sections). Phases 27–30, 32, and
+> 35 all shipped scoped down — cross-referenced item by item against
+> IMPLEMENTATION.md, not assumed; several `[x]` items note a partial scope
+> inline (see IMPLEMENTATION.md's Phase 17–35 sections for the full detail
+> on what shipped vs. what's still deliberately out of scope). Everything
+> still `[ ]` here has been carried into IMPLEMENTATION.md's "Extended
+> Roadmap" as a planned, not-yet-started item (Phase 31 deferred to last,
+> Phase 33 deferred, Phase 34, Phase 36 deferred, and Phase 37).
 
 ---
 
@@ -185,15 +188,15 @@
 
 # 🎨 Appearance
 
-- [ ] Light Theme _(the app is light by default, but it's hardcoded, not a switchable theme)_
-- [ ] Dark Theme
-- [ ] System Theme
+- [x] Light Theme _(now a real switchable theme, not just the hardcoded default — see Phase 27)_
+- [x] Dark Theme _(every window's structural colors themed via `DynamicResource`; live-verified switching on in the real Settings window)_
+- [x] System Theme _(the default — follows the OS's own light/dark setting via Avalonia's `RequestedThemeVariant="Default"`)_
 - [x] Custom Accent Color
-- [ ] Custom Font Size
-- [ ] Compact Mode
-- [ ] Zoom
-- [ ] Animations
-- [ ] Responsive Layout _(the window is resizable; true responsive reflow at all sizes isn't a deliberate design goal yet)_
+- [ ] Custom Font Size _(deferred — see Phase 27's "Deferred" list)_
+- [ ] Compact Mode _(deferred, same reason)_
+- [ ] Zoom _(deferred, same reason)_
+- [ ] Animations _(deferred, same reason)_
+- [ ] Responsive Layout _(the window is resizable; true responsive reflow at all sizes isn't a deliberate design goal yet — deferred, see Phase 27)_
 
 ---
 
@@ -230,6 +233,10 @@
 
 # ☁ Cloud Features (Pro)
 
+> Phase 31 as a whole was explicitly deferred to last (2026-08-12) on the
+> user's own call — see IMPLEMENTATION.md's Phase 31 section. Every item
+> below stays `[ ]` until that phase is picked back up.
+
 - [ ] Cloud Sync
 - [ ] Multi Device Sync
 - [ ] Auto Backup
@@ -241,6 +248,11 @@
 ---
 
 # 👥 Team Features
+
+> Phase 32's one independently-shippable piece (User Profile — a local
+> name/avatar) is checked off further below, under "Later" notes.
+> Everything in this section needs Phase 31's deferred backend/sync
+> first — see IMPLEMENTATION.md's Phase 32 section.
 
 - [ ] Shared Projects
 - [ ] Shared Tasks
@@ -255,6 +267,8 @@
 ---
 
 # 🔗 Integrations
+
+> Phase 33 as a whole was explicitly deferred (2026-08-12) on the user's own call — every integration below needs an OAuth app registered with the relevant third-party service, credentials only the user can obtain. See IMPLEMENTATION.md's Phase 33 section. Everything below stays `[ ]` until that phase is picked back up.
 
 ## Calendar
 
@@ -325,8 +339,8 @@
 - [ ] OCR Image to Task
 - [ ] Voice to Task
 - [ ] Email to Task
-- [ ] Drag File to Create Task
-- [ ] Drag Browser Tab to Create Task
+- [x] Drag File to Create Task _(dragging a file from Finder/Explorer onto the widget's task list creates a task titled with the file's name and genuinely attaches the file via the existing `IAttachmentService`)_
+- [x] Drag Browser Tab to Create Task _(dragging a URL/text selection onto the widget creates a task titled with that text, with the same text also recorded as the description)_
 - [ ] Smart Daily Briefing
 - [ ] End of Day Summary
 - [ ] Morning Planning Assistant
@@ -336,6 +350,8 @@
 ---
 
 # 👨‍💻 Developer Mode
+
+> Phase 36 was explicitly deferred (2026-08-12) — entirely blocked on Phase 33's (also deferred) integrations, since there's no external data to dashboard until one of those exists. See IMPLEMENTATION.md's Phase 36 section.
 
 - [ ] GitHub Dashboard
 - [ ] Azure DevOps Dashboard
@@ -398,7 +414,7 @@
 - [x] SQLite Storage
 - [x] Search & Filters
 - [x] Desktop Notifications
-- [ ] Dark Theme
+- [x] Dark Theme
 - [x] Auto Start
 - [x] Global Shortcut
 - [x] CSV Import/Export
@@ -452,4 +468,4 @@ prose:
 - [ ] Nicer UI polish (a "Bootstrap-like" free component/styling pass)
 - [ ] Send a task to another user, who can accept or reject it
 - [ ] Group tasks (shared, multi-user task groups)
-- [ ] User profile concept (accounts/identity)
+- [x] User profile concept _(the local half only — a name/avatar in Settings, purely personalization, not an account/identity system; "which account does this belong to" still needs Phase 31's deferred backend/sync to mean anything)_

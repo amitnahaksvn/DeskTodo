@@ -664,6 +664,7 @@ public class WidgetViewModelTests
         settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings
         {
             AccentColorHex = "#EC4899",
+            Theme = "Dark",
             WidgetOpacity = 0.8,
             WindowLeft = 100,
             WindowTop = 200,
@@ -678,6 +679,7 @@ public class WidgetViewModelTests
         await sut.LoadSettingsAsync();
 
         Assert.Equal("#EC4899", sut.AccentColorHex);
+        Assert.Equal("Dark", sut.Theme);
         Assert.Equal(0.8, sut.WidgetOpacity);
         Assert.Equal(100, sut.WindowLeft);
         Assert.Equal(200, sut.WindowTop);
@@ -728,6 +730,19 @@ public class WidgetViewModelTests
 
         sut.WidgetOpacity = 0.5;
         Assert.Equal("#80FFFFFF", sut.WidgetBackgroundHex);
+    }
+
+    [Fact]
+    public void WidgetBackgroundHex_UsesADarkSlateBase_WhenIsDarkThemeIsSet()
+    {
+        var taskRepository = new Mock<ITaskRepository>();
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyProjectService(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        sut.WidgetOpacity = 1.0;
+        Assert.Equal("#FFFFFFFF", sut.WidgetBackgroundHex);
+
+        sut.IsDarkTheme = true;
+
+        Assert.Equal("#FF1E293B", sut.WidgetBackgroundHex);
     }
 
     [Fact]
@@ -1065,6 +1080,43 @@ public class WidgetViewModelTests
         sut.OpenPlannerViewCommand.Execute(null);
 
         Assert.True(raised);
+    }
+
+    [Fact]
+    public async Task CreateTaskFromDropAsync_CreatesATaskOnThePlanDate_AndReloadsTheList()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var tasks = new List<TaskItem>();
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).Returns(() => Task.FromResult<IReadOnlyList<TaskItem>>(tasks));
+        taskRepository.Setup(r => r.GetMaxDayOrderAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync(-1);
+        taskRepository.Setup(r => r.AddAsync(It.IsAny<TaskItem>(), It.IsAny<CancellationToken>()))
+            .Callback<TaskItem, CancellationToken>((t, _) => tasks.Add(t))
+            .Returns(Task.CompletedTask);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyProjectService(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadTasksAsync();
+
+        var created = await sut.CreateTaskFromDropAsync("report.pdf");
+
+        Assert.Equal("report.pdf", created.Title);
+        Assert.Equal(today, created.PlanDate);
+        taskRepository.Verify(r => r.AddAsync(It.Is<TaskItem>(t => t == created), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Contains(sut.Tasks, t => t.Id == created.Id);
+    }
+
+    [Fact]
+    public async Task CreateTaskFromDropAsync_WithADescription_PersistsIt()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var taskRepository = new Mock<ITaskRepository>();
+        taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        taskRepository.Setup(r => r.GetMaxDayOrderAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync(-1);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object), CreateEmptyCategoryRepository(), CreateEmptyProjectService(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance);
+        await sut.LoadTasksAsync();
+
+        var created = await sut.CreateTaskFromDropAsync("https://example.com/article", "https://example.com/article");
+
+        Assert.Equal("https://example.com/article", created.Description);
     }
 
     // Pins LocalTimeZone to UTC so GetLocalNow() == GetUtcNow() exactly — otherwise these

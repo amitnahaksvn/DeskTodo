@@ -10,7 +10,7 @@
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         SizeToContent="Height"
-        Background="#F8FAFC">
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <!--
       A small, reusable Yes/No confirmation dialog — Avalonia has no built-in MessageBox
@@ -21,14 +21,14 @@
     -->
     <Grid RowDefinitions="Auto,Auto,Auto" Margin="20">
         <TextBlock Grid.Row="0" x:Name="TitleTextBlock" x:FieldModifier="public" FontSize="16" FontWeight="SemiBold"
-                   Foreground="#1E293B" TextWrapping="Wrap" />
-        <TextBlock Grid.Row="1" x:Name="MessageTextBlock" x:FieldModifier="public" FontSize="13" Foreground="#475569"
+                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+        <TextBlock Grid.Row="1" x:Name="MessageTextBlock" x:FieldModifier="public" FontSize="13" Foreground="{DynamicResource DialogBodyTextBrush}"
                    TextWrapping="Wrap" Margin="0,10,0,0" />
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
                     Spacing="8" Margin="0,20,0,0">
             <Button Content="Cancel" Click="OnCancelClick" Padding="16,8" />
             <Button x:Name="ConfirmButton" x:FieldModifier="public" Content="Delete" Click="OnConfirmClick" Padding="16,8"
-                    Background="#FEE2E2" Foreground="#DC2626" />
+                    Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" />
         </StackPanel>
     </Grid>
 

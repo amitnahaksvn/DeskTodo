@@ -12,39 +12,39 @@
         MinWidth="340" MinHeight="480"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
-        Background="#F8FAFC">
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="20">
         <TextBlock Grid.Row="0" Text="Edit Task" FontSize="18" FontWeight="SemiBold"
-                   Margin="0,0,0,16" Foreground="#1E293B" />
+                   Margin="0,0,0,16" Foreground="{DynamicResource TextPrimaryBrush}" />
 
         <ScrollViewer Grid.Row="1">
             <StackPanel Spacing="14">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Title" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Title" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <TextBox Text="{Binding Title}" />
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Description" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Description" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <TextBox Text="{Binding Description}" AcceptsReturn="True" TextWrapping="Wrap" Height="60" />
                 </StackPanel>
 
                 <Grid ColumnDefinitions="*,*" >
                     <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,6,0">
-                        <TextBlock Text="Type" FontSize="12" Foreground="#64748B" />
+                        <TextBlock Text="Type" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                         <ComboBox ItemsSource="{Binding TaskTypes}" SelectedItem="{Binding Type}"
                                   HorizontalAlignment="Stretch" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="4" Margin="6,0,0,0">
-                        <TextBlock Text="Priority" FontSize="12" Foreground="#64748B" />
+                        <TextBlock Text="Priority" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                         <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding Priority}"
                                   HorizontalAlignment="Stretch" />
                     </StackPanel>
                 </Grid>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Category" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Category" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
                               HorizontalAlignment="Stretch">
                         <ComboBox.ItemTemplate>
@@ -61,12 +61,12 @@
                   visually colliding — each gets its own full-width row instead.
                 -->
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Due date" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Due date" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <DatePicker SelectedDate="{Binding DueDate}" HorizontalAlignment="Stretch" />
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Estimated minutes" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Estimated minutes" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <NumericUpDown Value="{Binding EstimatedMinutes}" Minimum="0" Increment="5"
                                    HorizontalAlignment="Stretch" />
                 </StackPanel>
@@ -80,40 +80,40 @@
                 -->
                 <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Bottom">
                     <StackPanel Grid.Column="0" Spacing="4">
-                        <TextBlock Text="Actual minutes" FontSize="12" Foreground="#64748B" />
-                        <TextBlock Text="{Binding ActualMinutes, TargetNullValue='0', FallbackValue='0'}" FontSize="14" Foreground="#1E293B" VerticalAlignment="Center" Height="32" />
+                        <TextBlock Text="Actual minutes" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding ActualMinutes, TargetNullValue='0', FallbackValue='0'}" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" Height="32" />
                     </StackPanel>
                     <Button Grid.Column="1" Content="&#x23F1; Start Timer" Command="{Binding StartTimerCommand}"
                             VerticalAlignment="Bottom" Padding="10,6" FontSize="12" />
                 </Grid>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Parent task" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Parent task" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <ComboBox ItemsSource="{Binding SameDayTasks}" SelectedItem="{Binding SelectedParentTask}"
                               HorizontalAlignment="Stretch" ToolTip.Tip="Nest this task under another task from the same day" />
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Milestone" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Milestone" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <ComboBox ItemsSource="{Binding MilestoneOptions}" SelectedItem="{Binding SelectedMilestone}"
                               HorizontalAlignment="Stretch" ToolTip.Tip="Link this task to a milestone" />
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Project" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Project" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <ComboBox ItemsSource="{Binding ProjectOptions}" SelectedItem="{Binding SelectedProject}"
                               HorizontalAlignment="Stretch" ToolTip.Tip="Link this task to a project" />
                 </StackPanel>
 
                 <StackPanel Spacing="4">
                     <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Grid.Column="0" Text="Notes" FontSize="12" Foreground="#64748B" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="0" Text="Notes" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
                         <Button Grid.Column="1" Content="{Binding IsNotesPreview, Converter={x:Static conv:BoolToNotesToggleLabelConverter.Instance}}"
                                 Command="{Binding ToggleNotesPreviewCommand}" FontSize="10" Padding="6,2" />
                     </Grid>
                     <TextBox Text="{Binding Notes}" AcceptsReturn="True" TextWrapping="Wrap" Height="60"
                              IsVisible="{Binding !IsNotesPreview}" />
-                    <Border IsVisible="{Binding IsNotesPreview}" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                    <Border IsVisible="{Binding IsNotesPreview}" Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1"
                             CornerRadius="4" Padding="8" MinHeight="60">
                         <TextBlock x:Name="NotesPreviewBlock" TextWrapping="Wrap" />
                     </Border>
@@ -128,7 +128,7 @@
                   lookup to reach SelectColorCommand — this is simpler and more robust.
                 -->
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Color" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Color" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <Button Width="22" Height="22" CornerRadius="11" Padding="0" Background="#EF4444" Cursor="Hand"
                                 Command="{Binding SelectColorCommand}" CommandParameter="#EF4444" ToolTip.Tip="#EF4444" />
@@ -147,13 +147,13 @@
                         <Button Width="22" Height="22" CornerRadius="11" Padding="0" Background="#64748B" Cursor="Hand"
                                 Command="{Binding SelectColorCommand}" CommandParameter="#64748B" ToolTip.Tip="#64748B" />
                         <Button Content="&#x2715;" Width="22" Height="22" Padding="0" FontSize="10"
-                                Background="Transparent" BorderThickness="1" BorderBrush="#CBD5E1" Cursor="Hand"
+                                Background="Transparent" BorderThickness="1" BorderBrush="{DynamicResource SubtleBorderBrush}" Cursor="Hand"
                                 Command="{Binding SelectColorCommand}" ToolTip.Tip="None (use category color)" />
                     </StackPanel>
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Checklist" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Checklist" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <ItemsControl ItemsSource="{Binding ChecklistItems}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ChecklistItemRowViewModel">
@@ -165,7 +165,7 @@
                                                TextDecorations="{Binding IsChecked, Converter={x:Static conv:BoolToTextDecorationsConverter.Instance}}" />
                                     <Button Grid.Column="2" Content="&#x2715;" Command="{Binding RemoveCommand}"
                                             Background="Transparent" BorderThickness="0" Padding="4" FontSize="10"
-                                            Foreground="#94A3B8" Cursor="Hand" />
+                                            Foreground="{DynamicResource TextMutedBrush}" Cursor="Hand" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -178,7 +178,7 @@
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Subtasks" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Subtasks" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <ItemsControl ItemsSource="{Binding Subtasks}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:SubtaskRowViewModel">
@@ -190,7 +190,7 @@
                                                TextDecorations="{Binding IsCompleted, Converter={x:Static conv:BoolToTextDecorationsConverter.Instance}}" />
                                     <Button Grid.Column="2" Content="&#x2715;" Command="{Binding RemoveCommand}"
                                             Background="Transparent" BorderThickness="0" Padding="4" FontSize="10"
-                                            Foreground="#94A3B8" Cursor="Hand" />
+                                            Foreground="{DynamicResource TextMutedBrush}" Cursor="Hand" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -203,7 +203,7 @@
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Tags" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Tags" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <ItemsControl ItemsSource="{Binding Tags}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -212,11 +212,11 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:TagChip">
-                                <Border Background="#E0E7FF" CornerRadius="10" Padding="8,3" Margin="0,0,6,6">
+                                <Border Background="{DynamicResource IndigoBadgeBackgroundBrush}" CornerRadius="10" Padding="8,3" Margin="0,0,6,6">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Text="{Binding Name}" FontSize="11" Foreground="#3730A3" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Name}" FontSize="11" Foreground="{DynamicResource IndigoBadgeForegroundBrush}" VerticalAlignment="Center" />
                                         <Button Content="&#x2715;" FontSize="9" Padding="2" Background="Transparent" BorderThickness="0"
-                                                Foreground="#3730A3" Cursor="Hand" Command="{Binding RemoveCommand}" />
+                                                Foreground="{DynamicResource IndigoBadgeForegroundBrush}" Cursor="Hand" Command="{Binding RemoveCommand}" />
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
@@ -231,8 +231,8 @@
 
                 <StackPanel Spacing="4">
                     <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Grid.Column="0" Text="Blocked by" FontSize="12" Foreground="#64748B" VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="1" Text="Blocked" FontSize="10" FontWeight="SemiBold" Foreground="#DC2626"
+                        <TextBlock Grid.Column="0" Text="Blocked by" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="Blocked" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource DangerTextBrush}"
                                    IsVisible="{Binding IsBlocked}" />
                     </Grid>
                     <ItemsControl ItemsSource="{Binding Blockers}">
@@ -243,12 +243,12 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:BlockerChip">
-                                <Border Background="#FEE2E2" CornerRadius="10" Padding="8,3" Margin="0,0,6,6">
+                                <Border Background="{DynamicResource DangerBackgroundBrush}" CornerRadius="10" Padding="8,3" Margin="0,0,6,6">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Text="{Binding Title}" FontSize="11" Foreground="#991B1B" VerticalAlignment="Center"
+                                        <TextBlock Text="{Binding Title}" FontSize="11" Foreground="{DynamicResource DangerTextStrongBrush}" VerticalAlignment="Center"
                                                    TextDecorations="{Binding IsComplete, Converter={x:Static conv:BoolToTextDecorationsConverter.Instance}}" />
                                         <Button Content="&#x2715;" FontSize="9" Padding="2" Background="Transparent" BorderThickness="0"
-                                                Foreground="#991B1B" Cursor="Hand" Command="{Binding RemoveCommand}" />
+                                                Foreground="{DynamicResource DangerTextStrongBrush}" Cursor="Hand" Command="{Binding RemoveCommand}" />
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
@@ -262,25 +262,25 @@
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Repeat" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Repeat" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <ComboBox ItemsSource="{Binding RecurrenceFrequencies}" SelectedItem="{Binding SelectedRecurrenceFrequency}"
                               HorizontalAlignment="Stretch" />
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Margin="0,4,0,0"
                           IsEnabled="{Binding SelectedRecurrenceFrequency, Converter={x:Static conv:RecurrenceFrequencyToBoolConverter.Instance}}">
                         <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="Every" FontSize="11" Foreground="#94A3B8" />
+                            <TextBlock Text="Every" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
                             <NumericUpDown Value="{Binding RecurrenceInterval}" Minimum="1" Increment="1"
                                            HorizontalAlignment="Stretch" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="4">
-                            <TextBlock Text="Ends (optional)" FontSize="11" Foreground="#94A3B8" />
+                            <TextBlock Text="Ends (optional)" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
                             <DatePicker SelectedDate="{Binding RecurrenceEndDate}" HorizontalAlignment="Stretch" />
                         </StackPanel>
                     </Grid>
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Attachments" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Attachments" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <ItemsControl ItemsSource="{Binding Attachments}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:AttachmentRowViewModel">
@@ -292,7 +292,7 @@
                                             FontSize="10" Padding="6,2" Margin="4,0" />
                                     <Button Grid.Column="2" Content="&#x2715;" Command="{Binding RemoveCommand}"
                                             Background="Transparent" BorderThickness="0" Padding="4" FontSize="10"
-                                            Foreground="#94A3B8" Cursor="Hand" />
+                                            Foreground="{DynamicResource TextMutedBrush}" Cursor="Hand" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -301,7 +301,7 @@
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Save as template" FontSize="12" Foreground="#64748B" />
+                    <TextBlock Text="Save as template" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                         <TextBox Grid.Column="0" Text="{Binding TemplateNameToSave}" PlaceholderText="Template name…" />
                         <Button Grid.Column="1" Content="Save" Command="{Binding SaveAsTemplateCommand}" Padding="10,4" />

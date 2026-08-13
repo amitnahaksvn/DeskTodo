@@ -11,16 +11,36 @@
         Width="320" Height="640"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        Background="#F8FAFC">
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="20">
         <TextBlock Grid.Row="0" Text="Settings" FontSize="18" FontWeight="SemiBold"
-                   Margin="0,0,0,16" Foreground="#1E293B" />
+                   Margin="0,0,0,16" Foreground="{DynamicResource TextPrimaryBrush}" />
 
         <ScrollViewer Grid.Row="1">
         <StackPanel Spacing="18" Margin="0,0,12,0">
             <StackPanel Spacing="6">
-                <TextBlock Text="Accent color" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Profile" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Border Grid.Column="0" Width="40" Height="40" CornerRadius="20"
+                            Background="{Binding UserAvatarColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}">
+                        <TextBlock Text="{Binding AvatarInitial}" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBox Grid.Column="1" Text="{Binding UserDisplayName}" PlaceholderText="Your name" VerticalAlignment="Center" />
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Background="#3B82F6" Command="{Binding SelectAvatarColorCommand}" CommandParameter="#3B82F6" Width="22" Height="22" CornerRadius="11" Padding="0" />
+                    <Button Background="#8B5CF6" Command="{Binding SelectAvatarColorCommand}" CommandParameter="#8B5CF6" Width="22" Height="22" CornerRadius="11" Padding="0" />
+                    <Button Background="#10B981" Command="{Binding SelectAvatarColorCommand}" CommandParameter="#10B981" Width="22" Height="22" CornerRadius="11" Padding="0" />
+                    <Button Background="#EC4899" Command="{Binding SelectAvatarColorCommand}" CommandParameter="#EC4899" Width="22" Height="22" CornerRadius="11" Padding="0" />
+                    <Button Background="#F97316" Command="{Binding SelectAvatarColorCommand}" CommandParameter="#F97316" Width="22" Height="22" CornerRadius="11" Padding="0" />
+                    <Button Background="#14B8A6" Command="{Binding SelectAvatarColorCommand}" CommandParameter="#14B8A6" Width="22" Height="22" CornerRadius="11" Padding="0" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Text="Accent color" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button Background="#3B82F6" Command="{Binding SelectAccentColorCommand}" CommandParameter="#3B82F6" Width="28" Height="28" CornerRadius="14" Padding="0" />
                     <Button Background="#8B5CF6" Command="{Binding SelectAccentColorCommand}" CommandParameter="#8B5CF6" Width="28" Height="28" CornerRadius="14" Padding="0" />
@@ -30,14 +50,20 @@
                     <Button Background="#14B8A6" Command="{Binding SelectAccentColorCommand}" CommandParameter="#14B8A6" Width="28" Height="28" CornerRadius="14" Padding="0" />
                     <Border Width="28" Height="28" CornerRadius="14" Margin="8,0,0,0"
                             Background="{Binding AccentColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}"
-                            BorderBrush="#CBD5E1" BorderThickness="1" ToolTip.Tip="Currently selected" />
+                            BorderBrush="{DynamicResource SubtleBorderBrush}" BorderThickness="1" ToolTip.Tip="Currently selected" />
                 </StackPanel>
             </StackPanel>
 
             <StackPanel Spacing="6">
+                <TextBlock Text="Theme" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                <ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding Theme}"
+                          HorizontalAlignment="Stretch" ToolTip.Tip="System follows your OS's own light/dark setting" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
                 <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" Text="Widget opacity" FontSize="12" Foreground="#64748B" />
-                    <TextBlock Grid.Column="1" FontSize="12" Foreground="#64748B">
+                    <TextBlock Grid.Column="0" Text="Widget opacity" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Grid.Column="1" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">
                         <Run Text="{Binding OpacityPercent}" /><Run Text="%" />
                     </TextBlock>
                 </Grid>
@@ -45,13 +71,13 @@
             </StackPanel>
 
             <StackPanel Spacing="6">
-                <TextBlock Text="Window position" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Window position" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <Button Content="Reset to default position &amp; size" Command="{Binding ResetWindowPositionCommand}"
                         ToolTip.Tip="Takes effect the next time DeskTodo opens" HorizontalAlignment="Left" />
             </StackPanel>
 
             <StackPanel Spacing="6">
-                <TextBlock Text="Monitor" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Monitor" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <ComboBox ItemsSource="{Binding Monitors}" SelectedItem="{Binding SelectedMonitor}"
                           HorizontalAlignment="Stretch" ToolTip.Tip="Which monitor the widget opens on">
                     <ComboBox.ItemTemplate>
@@ -64,120 +90,120 @@
 
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Spacing="2">
-                    <TextBlock Text="Notifications" FontSize="13" Foreground="#1E293B" />
-                    <TextBlock Text="Overdue-task alerts and a daily summary" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                    <TextBlock Text="Notifications" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock Text="Overdue-task alerts and a daily summary" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotificationsEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
             </Grid>
 
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Spacing="2">
-                    <TextBlock Text="Notification sound" FontSize="13" Foreground="#1E293B" />
-                    <TextBlock Text="Play a sound with overdue/summary/wellness notifications" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                    <TextBlock Text="Notification sound" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock Text="Play a sound with overdue/summary/wellness notifications" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotificationSoundEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
             </Grid>
 
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Spacing="2">
-                    <TextBlock Text="Start at login" FontSize="13" Foreground="#1E293B" />
-                    <TextBlock Text="Open DeskTodo automatically when you log in" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                    <TextBlock Text="Start at login" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock Text="Open DeskTodo automatically when you log in" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoStartEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
             </Grid>
 
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Spacing="2">
-                    <TextBlock Text="Show in Dock / Taskbar" FontSize="13" Foreground="#1E293B" />
-                    <TextBlock Text="Turn off to hide DeskTodo from the Dock/taskbar and app-switcher" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                    <TextBlock Text="Show in Dock / Taskbar" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock Text="Turn off to hide DeskTodo from the Dock/taskbar and app-switcher" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowInTaskbar}" OnContent="" OffContent="" VerticalAlignment="Center" />
             </Grid>
 
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Spacing="2">
-                    <TextBlock Text="Auto-reschedule overdue tasks" FontSize="13" Foreground="#1E293B" />
-                    <TextBlock Text="Move incomplete tasks left on past days onto today" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                    <TextBlock Text="Auto-reschedule overdue tasks" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock Text="Move incomplete tasks left on past days onto today" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoRescheduleOverdueTasks}" OnContent="" OffContent="" VerticalAlignment="Center" />
             </Grid>
 
             <StackPanel Spacing="6">
-                <TextBlock Text="Focus Timer — Pomodoro lengths (minutes)" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Focus Timer — Pomodoro lengths (minutes)" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                     <StackPanel Grid.Column="0" Spacing="2">
-                        <TextBlock Text="Work" FontSize="11" Foreground="#94A3B8" />
+                        <TextBlock Text="Work" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
                         <NumericUpDown Value="{Binding PomodoroWorkMinutes}" Minimum="1" Increment="5" HorizontalAlignment="Stretch" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="2">
-                        <TextBlock Text="Break" FontSize="11" Foreground="#94A3B8" />
+                        <TextBlock Text="Break" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
                         <NumericUpDown Value="{Binding PomodoroBreakMinutes}" Minimum="1" Increment="1" HorizontalAlignment="Stretch" />
                     </StackPanel>
                 </Grid>
             </StackPanel>
 
             <StackPanel Spacing="6">
-                <TextBlock Text="Wellness reminders" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Wellness reminders" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
 
                 <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" Text="Break Reminder" FontSize="13" Foreground="#1E293B" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="Break Reminder" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding BreakReminderEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
                 </Grid>
                 <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding BreakReminderEnabled}">
-                    <TextBlock Grid.Column="0" Text="Every (minutes)" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="Every (minutes)" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
                     <NumericUpDown Grid.Column="1" Value="{Binding BreakReminderIntervalMinutes}" Minimum="5" Increment="5" Width="120" />
                 </Grid>
 
                 <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
-                    <TextBlock Grid.Column="0" Text="Water Reminder" FontSize="13" Foreground="#1E293B" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="Water Reminder" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding WaterReminderEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
                 </Grid>
                 <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding WaterReminderEnabled}">
-                    <TextBlock Grid.Column="0" Text="Every (minutes)" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="Every (minutes)" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
                     <NumericUpDown Grid.Column="1" Value="{Binding WaterReminderIntervalMinutes}" Minimum="5" Increment="5" Width="120" />
                 </Grid>
 
                 <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
-                    <TextBlock Grid.Column="0" Text="Stretch Reminder" FontSize="13" Foreground="#1E293B" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="Stretch Reminder" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding StretchReminderEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
                 </Grid>
                 <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding StretchReminderEnabled}">
-                    <TextBlock Grid.Column="0" Text="Every (minutes)" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="Every (minutes)" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
                     <NumericUpDown Grid.Column="1" Value="{Binding StretchReminderIntervalMinutes}" Minimum="5" Increment="5" Width="120" />
                 </Grid>
             </StackPanel>
 
             <StackPanel Spacing="6">
-                <TextBlock Text="App Lock" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="App Lock" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="2">
-                        <TextBlock Text="Require a PIN to open DeskTodo" FontSize="13" Foreground="#1E293B" />
+                        <TextBlock Text="Require a PIN to open DeskTodo" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" />
                         <TextBlock Text="{Binding HasPinSet, Converter={x:Static conv:PinStatusTextConverter.Instance}}"
-                                   FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                     </StackPanel>
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding PinLockEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
                 </Grid>
                 <StackPanel Spacing="6" IsVisible="{Binding PinLockEnabled}" Margin="0,4,0,0">
                     <TextBox Text="{Binding NewPin}" PasswordChar="•" PlaceholderText="{Binding HasPinSet, Converter={x:Static conv:PinFieldWatermarkConverter.Instance}}" />
                     <TextBox Text="{Binding ConfirmPin}" PasswordChar="•" PlaceholderText="Confirm PIN" />
-                    <TextBlock Text="{Binding PinErrorMessage}" FontSize="11" Foreground="#DC2626"
+                    <TextBlock Text="{Binding PinErrorMessage}" FontSize="11" Foreground="{DynamicResource DangerTextBrush}"
                                IsVisible="{Binding PinErrorMessage, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
                 </StackPanel>
             </StackPanel>
 
             <StackPanel Spacing="6">
-                <TextBlock Text="Data" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Data" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <Button Content="Import / Export tasks…" Click="OnImportExportClick" HorizontalAlignment="Left" />
             </StackPanel>
 
             <StackPanel Spacing="6">
-                <TextBlock Text="About" FontSize="12" Foreground="#64748B" />
-                <TextBlock FontSize="12" Foreground="#64748B">
+                <TextBlock Text="About" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">
                     <Run Text="Version " /><Run Text="{Binding AppVersion}" />
                 </TextBlock>
                 <Button Content="Check for Updates" Command="{Binding CheckForUpdatesCommand}"
                         IsEnabled="{Binding !IsCheckingForUpdate}" HorizontalAlignment="Left" />
-                <TextBlock Text="{Binding UpdateStatusMessage}" FontSize="11" Foreground="#64748B"
+                <TextBlock Text="{Binding UpdateStatusMessage}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                            IsVisible="{Binding UpdateStatusMessage, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
                 <Button Content="View Release" Command="{Binding OpenReleasePageCommand}" HorizontalAlignment="Left"
                         IsVisible="{Binding AvailableUpdateUrl, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />

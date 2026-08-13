@@ -12,7 +12,7 @@
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         Topmost="True"
-        Background="#F8FAFC"
+        Background="{DynamicResource WindowBackgroundBrush}"
         Activated="OnActivated">
 
     <!--
@@ -24,19 +24,19 @@
     -->
     <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="20">
         <TextBlock Grid.Row="0" Text="Quick Add" FontSize="16" FontWeight="SemiBold"
-                   Foreground="#1E293B" Margin="0,0,0,12" />
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
 
         <TextBox Grid.Row="1" x:Name="TitleTextBox" Text="{Binding Title}"
                   PlaceholderText="What needs doing?" FontSize="14" KeyDown="OnTitleKeyDown" />
 
         <Grid Grid.Row="2" ColumnDefinitions="*,*" Margin="0,10,0,0">
             <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,6,0">
-                <TextBlock Text="Priority" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Priority" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding Priority}"
                           HorizontalAlignment="Stretch" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="4" Margin="6,0,0,0">
-                <TextBlock Text="Category" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Category" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
                           HorizontalAlignment="Stretch">
                     <ComboBox.ItemTemplate>

@@ -12,7 +12,7 @@
         Width="680" Height="720"
         MinWidth="560" MinHeight="500"
         WindowStartupLocation="CenterOwner"
-        Background="#F8FAFC">
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <!--
       Phase 24's Dashboard — read-only: summary tiles, a 12-week Heat Map, a per-category
@@ -22,7 +22,7 @@
     -->
     <Grid RowDefinitions="Auto,*" Margin="20">
         <TextBlock Grid.Row="0" Text="Analytics &amp; Reports" FontSize="18" FontWeight="SemiBold"
-                   Margin="0,0,0,16" Foreground="#1E293B" />
+                   Margin="0,0,0,16" Foreground="{DynamicResource TextPrimaryBrush}" />
 
         <ScrollViewer Grid.Row="1">
         <StackPanel Spacing="20" Margin="0,0,12,0">
@@ -36,11 +36,11 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:AnalyticsTile">
-                        <Border Background="White" CornerRadius="8" Padding="14,10" Margin="0,0,10,10"
-                                BorderBrush="#E2E8F0" BorderThickness="1" Width="150">
+                        <Border Background="{DynamicResource SurfaceBackgroundBrush}" CornerRadius="8" Padding="14,10" Margin="0,0,10,10"
+                                BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" Width="150">
                             <StackPanel Spacing="4">
-                                <TextBlock Text="{Binding Label}" FontSize="11" Foreground="#64748B" />
-                                <TextBlock Text="{Binding Value}" FontSize="22" FontWeight="Bold" Foreground="#1E293B" />
+                                <TextBlock Text="{Binding Label}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <TextBlock Text="{Binding Value}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
                             </StackPanel>
                         </Border>
                     </DataTemplate>
@@ -49,7 +49,7 @@
 
             <!-- Heat map -->
             <StackPanel Spacing="6">
-                <TextBlock Text="Last 12 weeks" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Last 12 weeks" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <ItemsControl ItemsSource="{Binding HeatMapDays}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -68,32 +68,32 @@
 
             <!-- Category breakdown -->
             <StackPanel Spacing="6">
-                <TextBlock Text="By category" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="By category" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <ItemsControl ItemsSource="{Binding CategoryBreakdown}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="dto:CategoryAnalytics">
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,6">
                                 <Ellipse Grid.Column="0" Width="10" Height="10" VerticalAlignment="Center" Margin="0,0,8,0"
                                          Fill="{Binding ColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
-                                <TextBlock Grid.Column="1" Text="{Binding CategoryName}" VerticalAlignment="Center" Foreground="#1E293B" />
-                                <TextBlock Grid.Column="2" FontSize="12" Foreground="#64748B" Margin="0,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Grid.Column="1" Text="{Binding CategoryName}" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Grid.Column="2" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center">
                                     <Run Text="{Binding CompletedCount}" /><Run Text="/" /><Run Text="{Binding TotalCount}" />
                                     <Run Text=" • " /><Run Text="{Binding FocusMinutes}" /><Run Text="m" />
                                 </TextBlock>
-                                <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center">
+                                <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center">
                                     <Run Text="{Binding CompletionRate, StringFormat={}{0:F0}}" /><Run Text="%" />
                                 </TextBlock>
                             </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <TextBlock Text="No completed or in-progress tasks yet." FontSize="12" Foreground="#94A3B8"
+                <TextBlock Text="No completed or in-progress tasks yet." FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
                            IsVisible="{Binding CategoryBreakdown.Count, Converter={x:Static conv:IntEqualsZeroConverter.Instance}}" />
             </StackPanel>
 
             <!-- Report -->
             <StackPanel Spacing="6">
-                <TextBlock Text="Report" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Report" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button Content="This Week" Command="{Binding GenerateWeeklyReportCommand}" Padding="12,6" />
                     <Button Content="This Month" Command="{Binding GenerateMonthlyReportCommand}" Padding="12,6" />
@@ -102,7 +102,7 @@
                     <Button Content="Save as .md…" Click="OnSaveReportClick" Padding="12,6"
                             IsEnabled="{Binding ReportText, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
                 </StackPanel>
-                <TextBlock Text="{Binding ReportPeriodLabel}" FontSize="11" Foreground="#94A3B8"
+                <TextBlock Text="{Binding ReportPeriodLabel}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            IsVisible="{Binding ReportPeriodLabel, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
                 <TextBox Text="{Binding ReportText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
                          FontFamily="monospace" FontSize="11" Height="220"

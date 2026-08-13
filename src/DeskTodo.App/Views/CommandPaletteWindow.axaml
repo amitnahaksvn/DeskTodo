@@ -12,7 +12,7 @@
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         SizeToContent="Height"
-        Background="#F8FAFC">
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <!--
       Phase 28's Command Palette — every WidgetWindow header-icon action in one searchable

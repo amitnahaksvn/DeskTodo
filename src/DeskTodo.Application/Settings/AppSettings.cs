@@ -141,4 +141,23 @@ public sealed class AppSettings
 
     /// <summary>Random per-installation salt for <see cref="PinHash"/>, base64-encoded.</summary>
     public string? PinSalt { get; set; }
+
+    /// <summary>
+    /// Phase 32's User Profile — the one piece of "Team collaboration &amp; sharing" that
+    /// ships independently of Phase 31's (deferred) sync/backend infrastructure: purely
+    /// local personalization, not an account. Null/empty means "no name set," which the UI
+    /// falls back to an unnamed placeholder for rather than treating as an error.
+    /// </summary>
+    public string? UserDisplayName { get; set; }
+
+    /// <summary>The avatar initial's background color — "#RRGGBB", same format as <see cref="AccentColorHex"/>. Defaults to the app's own default accent color so a fresh install's avatar isn't an arbitrary, unrelated color.</summary>
+    public string UserAvatarColorHex { get; set; } = "#3B82F6";
+
+    /// <summary>
+    /// Phase 27's Light/Dark/System theme — one of "System", "Light", "Dark". Defaults to
+    /// "System" (follow the OS), matching the app's pre-Phase-27 behavior: <c>App.axaml</c>
+    /// already had <c>RequestedThemeVariant="Default"</c> from the start, it just had no
+    /// themed resources for that to actually affect until this phase.
+    /// </summary>
+    public string Theme { get; set; } = "System";
 }

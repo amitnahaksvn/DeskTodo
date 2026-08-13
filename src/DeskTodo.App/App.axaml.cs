@@ -107,6 +107,8 @@ public partial class App : global::Avalonia.Application
             }
 
             ApplyAccentColor(widgetViewModel.AccentColorHex);
+            ApplyTheme(widgetViewModel.Theme);
+            widgetViewModel.IsDarkTheme = widgetWindow.ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark;
 
             // Windows never auto-exits the app just because a window closed — the tray
             // icon's "Quit" item (SetupTrayIcon below) is the only path to a real shutdown,
@@ -280,5 +282,27 @@ public partial class App : global::Avalonia.Application
         {
             Current!.Resources["SystemAccentColor"] = color;
         }
+    }
+
+    /// <summary>
+    /// Phase 27's Light/Dark/System theme — sets <c>RequestedThemeVariant</c> on the
+    /// <c>Application</c> itself (not per-window), which every open window's
+    /// <c>DynamicResource</c>-bound colors re-resolve against automatically; no per-window
+    /// wiring needed. Called at startup here and again from <c>WidgetWindow</c> after the
+    /// Settings window saves a theme choice, mirroring <see cref="ApplyAccentColor"/>'s
+    /// "apply once at launch, re-apply live after Settings closes" pattern. Unrecognized or
+    /// "System" values fall through to <c>ThemeVariant.Default</c> (follow the OS) —
+    /// the same fallback this app already had before Phase 27, when
+    /// <c>RequestedThemeVariant="Default"</c> in <c>App.axaml</c> had no themed resources to
+    /// actually affect yet.
+    /// </summary>
+    public static void ApplyTheme(string theme)
+    {
+        Current!.RequestedThemeVariant = theme switch
+        {
+            "Light" => Avalonia.Styling.ThemeVariant.Light,
+            "Dark" => Avalonia.Styling.ThemeVariant.Dark,
+            _ => Avalonia.Styling.ThemeVariant.Default,
+        };
     }
 }

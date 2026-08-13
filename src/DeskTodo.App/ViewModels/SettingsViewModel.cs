@@ -11,11 +11,11 @@ namespace DeskTodo.App.ViewModels;
 
 /// <summary>
 /// Backs the Settings window: accent color, background opacity, remembered
-/// window position/size (Phase 12), notifications (Phase 13), and
-/// auto-start (Phase 15). Theme, backups, shortcuts, language and
-/// date/time format still need systems that don't exist yet (a
-/// themed-resource pass, import/export, a shortcut system, i18n), so
-/// they're still not here — see docs/ARCHITECTURE.md's "Phase 12" section.
+/// window position/size (Phase 12), notifications (Phase 13), auto-start
+/// (Phase 15), and Light/Dark/System theme (Phase 27). Backups, shortcuts,
+/// language and date/time format still need systems that don't exist yet
+/// (import/export, a shortcut system, i18n), so they're still not here —
+/// see docs/ARCHITECTURE.md's "Phase 12" section.
 /// </summary>
 public sealed partial class SettingsViewModel : ViewModelBase
 {
@@ -36,8 +36,26 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public IReadOnlyList<string> AccentColorPresets { get; } =
         ["#3B82F6", "#8B5CF6", "#10B981", "#EC4899", "#F97316", "#14B8A6"];
 
+    /// <summary>See <see cref="AppSettings.Theme"/>. "System" first, matching the app's own pre-Phase-27 default.</summary>
+    public IReadOnlyList<string> ThemeOptions { get; } = ["System", "Light", "Dark"];
+
+    [ObservableProperty]
+    public partial string Theme { get; set; } = "System";
+
     [ObservableProperty]
     public partial string AccentColorHex { get; set; } = "#3B82F6";
+
+    /// <summary>See <see cref="AppSettings.UserDisplayName"/>.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AvatarInitial))]
+    public partial string UserDisplayName { get; set; } = string.Empty;
+
+    /// <summary>See <see cref="AppSettings.UserAvatarColorHex"/>. Reuses <see cref="AccentColorPresets"/> for the picker — one set of preset colors for the whole app, not two independent palettes to keep in sync.</summary>
+    [ObservableProperty]
+    public partial string UserAvatarColorHex { get; set; } = "#3B82F6";
+
+    /// <summary>The single letter shown in the avatar circle — the trimmed name's first character, uppercased, or "?" for an unnamed profile. Computed, not persisted.</summary>
+    public string AvatarInitial => string.IsNullOrWhiteSpace(UserDisplayName) ? "?" : UserDisplayName.Trim()[..1].ToUpperInvariant();
 
     /// <summary>0–100 for the slider's display; converted to/from <see cref="AppSettings.WidgetOpacity"/>'s 0.4–1.0 range on load/save.</summary>
     [ObservableProperty]
@@ -152,6 +170,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
     {
         _loaded = await _settingsService.LoadAsync(cancellationToken);
         AccentColorHex = _loaded.AccentColorHex;
+        Theme = _loaded.Theme;
+        UserDisplayName = _loaded.UserDisplayName ?? string.Empty;
+        UserAvatarColorHex = _loaded.UserAvatarColorHex;
         OpacityPercent = Math.Round(_loaded.WidgetOpacity * 100);
         NotificationsEnabled = _loaded.NotificationsEnabled;
         AutoStartEnabled = _autoStartService.IsEnabled;
@@ -191,6 +212,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     [RelayCommand]
     private void SelectAccentColor(string hex) => AccentColorHex = hex;
+
+    [RelayCommand]
+    private void SelectAvatarColor(string hex) => UserAvatarColorHex = hex;
 
     /// <summary>
     /// Validates and stages the PIN Lock fields into <see cref="_loaded"/> — returns false
@@ -252,6 +276,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
             }
 
             _loaded.AccentColorHex = AccentColorHex;
+            _loaded.Theme = Theme;
+            _loaded.UserDisplayName = string.IsNullOrWhiteSpace(UserDisplayName) ? null : UserDisplayName.Trim();
+            _loaded.UserAvatarColorHex = UserAvatarColorHex;
             _loaded.WidgetOpacity = Math.Clamp(OpacityPercent / 100.0, 0.4, 1.0);
             _loaded.NotificationsEnabled = NotificationsEnabled;
             _loaded.ShowInTaskbar = ShowInTaskbar;

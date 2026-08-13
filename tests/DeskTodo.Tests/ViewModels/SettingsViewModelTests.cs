@@ -607,4 +607,108 @@ public class SettingsViewModelTests
 
         Assert.False(raised);
     }
+
+    [Fact]
+    public async Task LoadAsync_PopulatesUserProfileFromSettings()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { UserDisplayName = "Amit", UserAvatarColorHex = "#EC4899" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+
+        await sut.LoadAsync();
+
+        Assert.Equal("Amit", sut.UserDisplayName);
+        Assert.Equal("#EC4899", sut.UserAvatarColorHex);
+        Assert.Equal("A", sut.AvatarInitial);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithNoNameSet_ShowsAQuestionMarkInitial()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { UserDisplayName = null });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+
+        await sut.LoadAsync();
+
+        Assert.Equal(string.Empty, sut.UserDisplayName);
+        Assert.Equal("?", sut.AvatarInitial);
+    }
+
+    [Fact]
+    public void SelectAvatarColorCommand_UpdatesUserAvatarColorHex()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+
+        sut.SelectAvatarColorCommand.Execute("#10B981");
+
+        Assert.Equal("#10B981", sut.UserAvatarColorHex);
+    }
+
+    [Fact]
+    public async Task SaveAsync_TrimsAndPersistsTheDisplayName()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.UserDisplayName = "  Amit  ";
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.UserDisplayName == "Amit"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WithABlankDisplayName_PersistsNull()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { UserDisplayName = "Amit" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.UserDisplayName = "   ";
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.UserDisplayName == null), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task LoadAsync_PopulatesThemeFromSettings()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { Theme = "Dark" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+
+        await sut.LoadAsync();
+
+        Assert.Equal("Dark", sut.Theme);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithNoSavedTheme_DefaultsToSystem()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+
+        await sut.LoadAsync();
+
+        Assert.Equal("System", sut.Theme);
+    }
+
+    [Fact]
+    public async Task SaveAsync_PersistsTheChosenTheme()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.Theme = "Dark";
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.Theme == "Dark"), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

@@ -12,7 +12,7 @@
         MinWidth="320" MinHeight="220"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
-        Background="#F8FAFC">
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <!--
       Phase 29's PIN Lock — shown instead of the widget at startup when App Lock is on.
@@ -22,9 +22,9 @@
       lock.
     -->
     <StackPanel Margin="24" Spacing="12">
-        <TextBlock Text="🔒 DeskTodo is locked" FontSize="16" FontWeight="SemiBold" Foreground="#1E293B" />
+        <TextBlock Text="🔒 DeskTodo is locked" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
         <TextBox x:Name="PinBox" Text="{Binding EnteredPin}" PasswordChar="•" PlaceholderText="Enter PIN" KeyDown="OnPinKeyDown" />
-        <TextBlock Text="{Binding ErrorMessage}" FontSize="12" Foreground="#DC2626"
+        <TextBlock Text="{Binding ErrorMessage}" FontSize="12" Foreground="{DynamicResource DangerTextBrush}"
                    IsVisible="{Binding ErrorMessage, Converter={x:Static conv:StringNotEmptyConverter.Instance}}" />
         <Button Content="Unlock" Command="{Binding UnlockCommand}" HorizontalAlignment="Right" Padding="16,8" />
     </StackPanel>

@@ -11,15 +11,15 @@
         Width="320" Height="320"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        Background="#F8FAFC">
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="20">
         <TextBlock Grid.Row="0" Text="Import / Export" FontSize="18" FontWeight="SemiBold"
-                   Margin="0,0,0,16" Foreground="#1E293B" />
+                   Margin="0,0,0,16" Foreground="{DynamicResource TextPrimaryBrush}" />
 
         <StackPanel Grid.Row="1" Spacing="18">
             <StackPanel Spacing="6">
-                <TextBlock Text="Export all tasks" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Export all tasks" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                     <ComboBox Grid.Column="0" ItemsSource="{Binding ExportFormats}" SelectedItem="{Binding SelectedExportFormat}"
                               HorizontalAlignment="Stretch" />
@@ -28,13 +28,13 @@
             </StackPanel>
 
             <StackPanel Spacing="6">
-                <TextBlock Text="Import tasks" FontSize="12" Foreground="#64748B" />
+                <TextBlock Text="Import tasks" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <TextBlock Text="From a CSV or JSON file previously exported from DeskTodo (or matching the same columns/shape)."
-                           FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                 <Button Content="Import…" Click="OnImportClick" IsEnabled="{Binding IsBusy, Converter={x:Static convCore:BoolConverters.Not}}" HorizontalAlignment="Left" />
             </StackPanel>
 
-            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#1E293B" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
         </StackPanel>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">

@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Services;
 using DeskTodo.Application.Settings;
+using DeskTodo.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace DeskTodo.App.ViewModels;
@@ -308,6 +309,23 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         }
 
         TaskEditRequested?.Invoke(this, taskId);
+    }
+
+    /// <summary>
+    /// Phase 35's Drag File/Drag Browser Tab to Create Task — called by <c>WidgetWindow</c>'s
+    /// new external-drop handler (a file from Finder/Explorer, or a URL from a browser)
+    /// after it's already determined the drop is external, not the existing in-window
+    /// row-reorder drag. Returns the created task so the caller can attach a dropped file to
+    /// it (see <c>IAttachmentService</c>) — this method itself has no attachment dependency,
+    /// matching <c>TaskEditWindow.OnAttachmentOpenRequested</c>'s "resolve platform/storage
+    /// services directly in code-behind" pattern rather than growing this ViewModel's
+    /// constructor for a File/browser-drop-only need.
+    /// </summary>
+    public async Task<TaskItem> CreateTaskFromDropAsync(string title, string? description = null, CancellationToken cancellationToken = default)
+    {
+        var task = await _taskService.CreateTaskAsync(PlanDate, title, description, cancellationToken: cancellationToken);
+        await LoadTasksAsync(cancellationToken);
+        return task;
     }
 
     [ObservableProperty]
@@ -744,12 +762,28 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     public partial string AccentColorHex { get; set; } = "#3B82F6";
 
+    /// <summary>See <see cref="Application.Settings.AppSettings.Theme"/> — "System"/"Light"/"Dark". Applied at the <c>Application</c> level by <c>App.ApplyTheme</c>, not read directly by any View; kept here only so it round-trips through <see cref="LoadSettingsAsync"/> the same way every other setting does.</summary>
+    [ObservableProperty]
+    public partial string Theme { get; set; } = "System";
+
+    /// <summary>
+    /// Whether the *actual*, resolved theme (after "System" is settled against the real OS
+    /// appearance) is dark — set by <c>WidgetWindow</c> from its own <c>ActualThemeVariant</c>
+    /// after <c>App.ApplyTheme</c> runs, since resolving "System" needs a live Avalonia
+    /// <c>TopLevel</c> this ViewModel deliberately doesn't depend on. Exists only to pick
+    /// <see cref="WidgetBackgroundHex"/>'s blend base — every other themed color in the app
+    /// comes from <c>DynamicResource</c> lookups in XAML, which don't need this at all.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(WidgetBackgroundHex))]
+    public partial bool IsDarkTheme { get; set; }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(WidgetBackgroundHex))]
     public partial double WidgetOpacity { get; set; } = 0.95;
 
-    /// <summary>"#AARRGGBB" — <see cref="WidgetOpacity"/> blended into an otherwise-white background, bound to the widget's outer <c>Border.Background</c>. Text stays fully opaque; only the card behind it fades.</summary>
-    public string WidgetBackgroundHex => $"#{(byte)Math.Round(WidgetOpacity * 255):X2}FFFFFF";
+    /// <summary>"#AARRGGBB" — <see cref="WidgetOpacity"/> blended into an otherwise white (light theme) or dark-slate (dark theme) background, bound to the widget's outer <c>Border.Background</c>. Text stays fully opaque; only the card behind it fades.</summary>
+    public string WidgetBackgroundHex => $"#{(byte)Math.Round(WidgetOpacity * 255):X2}{(IsDarkTheme ? "1E293B" : "FFFFFF")}";
 
     /// <summary>Last-known window bounds from settings — null (all four) means "use the built-in default." Read once by <c>WidgetWindow</c> after <see cref="LoadSettingsAsync"/> to restore position/size; the accent color is applied separately since that's an <c>Application.Resources</c> side effect, not a per-window one.</summary>
     public double? WindowLeft { get; private set; }
@@ -843,6 +877,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         {
             var settings = await _settingsService.LoadAsync(cancellationToken);
             AccentColorHex = settings.AccentColorHex;
+            Theme = settings.Theme;
             WidgetOpacity = settings.WidgetOpacity;
             WindowLeft = settings.WindowLeft;
             WindowTop = settings.WindowTop;

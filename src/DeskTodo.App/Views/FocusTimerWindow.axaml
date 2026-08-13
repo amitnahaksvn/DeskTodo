@@ -12,7 +12,7 @@
         MinWidth="320" MinHeight="420"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
-        Background="#F8FAFC">
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <!--
       Phase 23's session timer — one window for Pomodoro/Stopwatch/Countdown Timer (the
@@ -23,16 +23,16 @@
     -->
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" Margin="20">
         <TextBlock Grid.Row="0" Text="Focus Timer" FontSize="16" FontWeight="SemiBold"
-                   Foreground="#1E293B" Margin="0,0,0,12" />
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
 
         <StackPanel Grid.Row="1" Spacing="4" Margin="0,0,0,10">
-            <TextBlock Text="Type" FontSize="12" Foreground="#64748B" />
+            <TextBlock Text="Type" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
             <ComboBox ItemsSource="{Binding Types}" SelectedItem="{Binding SelectedType}"
                       IsEnabled="{Binding !IsRunning}" HorizontalAlignment="Stretch" />
         </StackPanel>
 
         <StackPanel Grid.Row="2" Spacing="4" Margin="0,0,0,10">
-            <TextBlock Text="Task (optional)" FontSize="12" Foreground="#64748B" />
+            <TextBlock Text="Task (optional)" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
             <ComboBox ItemsSource="{Binding Tasks}" SelectedItem="{Binding SelectedTask}"
                       IsEnabled="{Binding !IsRunning}" HorizontalAlignment="Stretch">
                 <ComboBox.ItemTemplate>
@@ -44,7 +44,7 @@
         </StackPanel>
 
         <StackPanel Grid.Row="3" Spacing="4" Margin="0,0,0,10" IsVisible="{Binding IsCountdownType}">
-            <TextBlock Text="Duration (minutes)" FontSize="12" Foreground="#64748B" />
+            <TextBlock Text="Duration (minutes)" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
             <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="4">
                 <NumericUpDown Grid.Column="0" Value="{Binding SelectedDurationMinutes}"
                                Minimum="1" Increment="5" IsEnabled="{Binding !IsRunning}" />
@@ -58,11 +58,11 @@
         </StackPanel>
 
         <StackPanel Grid.Row="4" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6">
-            <TextBlock Text="{Binding StatusText}" FontSize="14" Foreground="#64748B"
+            <TextBlock Text="{Binding StatusText}" FontSize="14" Foreground="{DynamicResource TextSecondaryBrush}"
                        HorizontalAlignment="Center" />
             <TextBlock Text="{Binding DisplayText}" FontSize="48" FontWeight="Bold"
-                       Foreground="#1E293B" HorizontalAlignment="Center" FontFamily="monospace" />
-            <TextBlock HorizontalAlignment="Center" FontSize="12" Foreground="#94A3B8"
+                       Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" FontFamily="monospace" />
+            <TextBlock HorizontalAlignment="Center" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
                        IsVisible="{Binding IsPomodoroType}">
                 <Run Text="Round" /><Run Text=" " /><Run Text="{Binding RoundNumber}" />
             </TextBlock>
@@ -76,7 +76,7 @@
             <Button Content="Resume" Command="{Binding ResumeCommand}"
                     IsVisible="{Binding CanResume}" Padding="20,10" />
             <Button Content="Stop" Command="{Binding StopCommand}" IsVisible="{Binding IsRunning}"
-                    Padding="20,10" Background="#FEE2E2" Foreground="#DC2626" />
+                    Padding="20,10" Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" />
         </StackPanel>
     </Grid>
 

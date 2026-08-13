@@ -13,7 +13,7 @@
         MinWidth="560" MinHeight="480"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
-        Background="#F8FAFC">
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <!--
       Phase 21's remaining planner views — Week / Year / Agenda / Timeline / Kanban / Matrix
@@ -24,7 +24,7 @@
     -->
     <Grid RowDefinitions="Auto,*" Margin="20">
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
-            <TextBlock Grid.Column="0" Text="Planner" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" />
+            <TextBlock Grid.Column="0" Text="Planner" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
             <Button Grid.Column="1" Content="Close" Command="{Binding CloseCommand}"
                     FontSize="12" Padding="10,4" Background="#3B82F6" Foreground="White" />
         </Grid>
@@ -36,18 +36,18 @@
                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,8">
                         <Button Grid.Column="0" Content="&#x2039;" Command="{Binding Week.PreviousWeekCommand}" Padding="10,4" FontSize="14" />
                         <TextBlock Grid.Column="1" Text="{Binding Week.WeekTitle}" FontSize="14" FontWeight="SemiBold"
-                                   Foreground="#1E293B" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                   Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         <Button Grid.Column="2" Content="&#x203A;" Command="{Binding Week.NextWeekCommand}" Padding="10,4" FontSize="14" Margin="0,0,8,0" />
                         <Button Grid.Column="3" Content="Today" Command="{Binding Week.GoToCurrentWeekCommand}" FontSize="12" Padding="10,4" />
                     </Grid>
                     <prim:UniformGrid Grid.Row="1" Columns="7" Margin="0,0,0,4">
-                        <TextBlock Text="Sun" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-                        <TextBlock Text="Mon" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-                        <TextBlock Text="Tue" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-                        <TextBlock Text="Wed" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-                        <TextBlock Text="Thu" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-                        <TextBlock Text="Fri" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
-                        <TextBlock Text="Sat" HorizontalAlignment="Center" FontSize="11" Foreground="#64748B" />
+                        <TextBlock Text="Sun" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="Mon" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="Tue" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="Wed" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="Thu" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="Fri" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="Sat" HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
                     </prim:UniformGrid>
                     <ItemsControl Grid.Row="2" ItemsSource="{Binding Week.Days}" VerticalAlignment="Top">
                         <ItemsControl.ItemsPanel>
@@ -60,10 +60,10 @@
                                 <Button Command="{Binding SelectCommand}" Padding="0" MinHeight="72"
                                         HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                                         Background="{Binding IsToday, Converter={x:Static conv:BoolToTodayBackgroundConverter.Instance}}"
-                                        BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4">
+                                        BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4">
                                     <StackPanel Margin="4">
-                                        <TextBlock Text="{Binding DayNumber}" FontSize="13" FontWeight="SemiBold" Foreground="#1E293B" />
-                                        <TextBlock Text="{Binding CountDisplay}" FontSize="10" Foreground="#64748B" IsVisible="{Binding HasTasks}" />
+                                        <TextBlock Text="{Binding DayNumber}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Text="{Binding CountDisplay}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" IsVisible="{Binding HasTasks}" />
                                     </StackPanel>
                                 </Button>
                             </DataTemplate>
@@ -78,7 +78,7 @@
                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,8">
                         <Button Grid.Column="0" Content="&#x2039;" Command="{Binding Year.PreviousYearCommand}" Padding="10,4" FontSize="14" />
                         <TextBlock Grid.Column="1" Text="{Binding Year.Year}" FontSize="14" FontWeight="SemiBold"
-                                   Foreground="#1E293B" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                   Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         <Button Grid.Column="2" Content="&#x203A;" Command="{Binding Year.NextYearCommand}" Padding="10,4" FontSize="14" Margin="0,0,8,0" />
                         <Button Grid.Column="3" Content="Today" Command="{Binding Year.GoToCurrentYearCommand}" FontSize="12" Padding="10,4" />
                     </Grid>
@@ -93,10 +93,10 @@
                                 <Button Command="{Binding SelectCommand}" Padding="0" MinHeight="64"
                                         HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                                         Background="{Binding IsCurrentMonth, Converter={x:Static conv:BoolToTodayBackgroundConverter.Instance}}"
-                                        BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4">
+                                        BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4">
                                     <StackPanel Margin="8" Spacing="2">
-                                        <TextBlock Text="{Binding MonthName}" FontSize="13" FontWeight="SemiBold" Foreground="#1E293B" />
-                                        <TextBlock Text="{Binding CountDisplay}" FontSize="10" Foreground="#64748B" />
+                                        <TextBlock Text="{Binding MonthName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Text="{Binding CountDisplay}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
                                     </StackPanel>
                                 </Button>
                             </DataTemplate>
@@ -108,7 +108,7 @@
             <!-- Agenda -->
             <TabItem Header="Agenda">
                 <Grid Margin="0,8,0,0">
-                    <TextBlock Text="Nothing coming up in the next two weeks." FontSize="12" Foreground="#64748B"
+                    <TextBlock Text="Nothing coming up in the next two weeks." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                HorizontalAlignment="Center" Margin="0,24,0,0"
                                IsVisible="{Binding Agenda.HasNoUpcomingTasks}" />
                     <ScrollViewer>
@@ -116,7 +116,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:AgendaGroupViewModel">
                                     <StackPanel Margin="0,0,0,14">
-                                        <TextBlock Text="{Binding DateLabel}" FontSize="13" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,0,0,4" />
+                                        <TextBlock Text="{Binding DateLabel}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
                                         <ItemsControl ItemsSource="{Binding Tasks}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="vm:PlannerTaskRowViewModel">
@@ -125,8 +125,8 @@
                                                         <Grid ColumnDefinitions="Auto,*,Auto">
                                                             <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,8,0"
                                                                      Fill="{Binding PriorityColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
-                                                            <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="#1E293B" VerticalAlignment="Center" />
-                                                            <TextBlock Grid.Column="2" Text="{Binding CategoryName}" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                                            <TextBlock Grid.Column="2" Text="{Binding CategoryName}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
                                                         </Grid>
                                                     </Button>
                                                 </DataTemplate>
@@ -143,7 +143,7 @@
             <!-- Timeline -->
             <TabItem Header="Timeline">
                 <Grid Margin="0,8,0,0">
-                    <TextBlock Text="No tasks with a due date yet." FontSize="12" Foreground="#64748B"
+                    <TextBlock Text="No tasks with a due date yet." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                HorizontalAlignment="Center" Margin="0,24,0,0"
                                IsVisible="{Binding Timeline.HasNoTasksWithDueDates}" />
                     <ScrollViewer>
@@ -154,10 +154,10 @@
                                             Padding="6,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
                                         <Grid ColumnDefinitions="Auto,Auto,*">
                                             <TextBlock Grid.Column="0" Text="{Binding DueDate, StringFormat='{}{0:MMM d, h:mm tt}'}"
-                                                       FontSize="11" Foreground="#64748B" Width="130" VerticalAlignment="Center" />
+                                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Width="130" VerticalAlignment="Center" />
                                             <Ellipse Grid.Column="1" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,8,0"
                                                      Fill="{Binding PriorityColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
-                                            <TextBlock Grid.Column="2" Text="{Binding Title}" Foreground="#1E293B" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                                         </Grid>
                                     </Button>
                                 </DataTemplate>
@@ -171,18 +171,18 @@
             <TabItem Header="Kanban">
                 <Grid ColumnDefinitions="*,*" Margin="0,8,0,0" ColumnSpacing="12">
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Text="To Do" FontSize="13" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,0,0,6" />
+                        <TextBlock Grid.Row="0" Text="To Do" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6" />
                         <ScrollViewer Grid.Row="1">
                             <ItemsControl ItemsSource="{Binding Kanban.ToDoCards}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:KanbanCardViewModel">
-                                        <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4"
+                                        <Border Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4"
                                                 Padding="8" Margin="0,0,0,6">
                                             <StackPanel Spacing="4">
                                                 <Grid ColumnDefinitions="Auto,*">
                                                     <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,6,0"
                                                              Fill="{Binding PriorityColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
-                                                    <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" Foreground="#1E293B" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}" />
                                                 </Grid>
                                                 <Button Content="{Binding MoveButtonLabel}" Command="{Binding MoveCommand}"
                                                         FontSize="10" Padding="6,3" HorizontalAlignment="Left" />
@@ -194,18 +194,18 @@
                         </ScrollViewer>
                     </Grid>
                     <Grid Grid.Column="1" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Text="Done" FontSize="13" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,0,0,6" />
+                        <TextBlock Grid.Row="0" Text="Done" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6" />
                         <ScrollViewer Grid.Row="1">
                             <ItemsControl ItemsSource="{Binding Kanban.DoneCards}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:KanbanCardViewModel">
-                                        <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4"
+                                        <Border Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4"
                                                 Padding="8" Margin="0,0,0,6">
                                             <StackPanel Spacing="4">
                                                 <Grid ColumnDefinitions="Auto,*">
                                                     <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,6,0"
                                                              Fill="{Binding PriorityColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
-                                                    <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" Foreground="#64748B"
+                                                    <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
                                                                TextDecorations="Strikethrough" />
                                                 </Grid>
                                                 <Button Content="{Binding MoveButtonLabel}" Command="{Binding MoveCommand}"
@@ -223,11 +223,11 @@
             <!-- Matrix -->
             <TabItem Header="Matrix">
                 <Grid RowDefinitions="*,*" ColumnDefinitions="*,*" Margin="0,8,0,0" RowSpacing="8" ColumnSpacing="8">
-                    <Border Grid.Row="0" Grid.Column="0" Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="4" Padding="8">
+                    <Border Grid.Row="0" Grid.Column="0" Background="{DynamicResource QuadrantRedBackgroundBrush}" BorderBrush="{DynamicResource QuadrantRedBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Top" Margin="0,0,0,6">
-                                <TextBlock Text="{Binding Matrix.UrgentImportant.Title}" FontSize="12" FontWeight="SemiBold" Foreground="#1E293B" />
-                                <TextBlock Text="{Binding Matrix.UrgentImportant.Subtitle}" FontSize="10" Foreground="#64748B" />
+                                <TextBlock Text="{Binding Matrix.UrgentImportant.Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="{Binding Matrix.UrgentImportant.Subtitle}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
                             <ScrollViewer>
                                 <ItemsControl ItemsSource="{Binding Matrix.UrgentImportant.Tasks}">
@@ -235,18 +235,18 @@
                                         <DataTemplate x:DataType="vm:PlannerTaskRowViewModel">
                                             <Button Command="{Binding SelectCommand}" Content="{Binding Title}" Background="Transparent"
                                                     BorderThickness="0" Padding="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                                    FontSize="11" Foreground="#1E293B" />
+                                                    FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" />
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </ScrollViewer>
                         </DockPanel>
                     </Border>
-                    <Border Grid.Row="0" Grid.Column="1" Background="#EFF6FF" BorderBrush="#93C5FD" BorderThickness="1" CornerRadius="4" Padding="8">
+                    <Border Grid.Row="0" Grid.Column="1" Background="{DynamicResource QuadrantBlueBackgroundBrush}" BorderBrush="{DynamicResource QuadrantBlueBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Top" Margin="0,0,0,6">
-                                <TextBlock Text="{Binding Matrix.NotUrgentImportant.Title}" FontSize="12" FontWeight="SemiBold" Foreground="#1E293B" />
-                                <TextBlock Text="{Binding Matrix.NotUrgentImportant.Subtitle}" FontSize="10" Foreground="#64748B" />
+                                <TextBlock Text="{Binding Matrix.NotUrgentImportant.Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="{Binding Matrix.NotUrgentImportant.Subtitle}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
                             <ScrollViewer>
                                 <ItemsControl ItemsSource="{Binding Matrix.NotUrgentImportant.Tasks}">
@@ -254,18 +254,18 @@
                                         <DataTemplate x:DataType="vm:PlannerTaskRowViewModel">
                                             <Button Command="{Binding SelectCommand}" Content="{Binding Title}" Background="Transparent"
                                                     BorderThickness="0" Padding="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                                    FontSize="11" Foreground="#1E293B" />
+                                                    FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" />
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </ScrollViewer>
                         </DockPanel>
                     </Border>
-                    <Border Grid.Row="1" Grid.Column="0" Background="#FFFBEB" BorderBrush="#FCD34D" BorderThickness="1" CornerRadius="4" Padding="8">
+                    <Border Grid.Row="1" Grid.Column="0" Background="{DynamicResource QuadrantAmberBackgroundBrush}" BorderBrush="{DynamicResource QuadrantAmberBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Top" Margin="0,0,0,6">
-                                <TextBlock Text="{Binding Matrix.UrgentNotImportant.Title}" FontSize="12" FontWeight="SemiBold" Foreground="#1E293B" />
-                                <TextBlock Text="{Binding Matrix.UrgentNotImportant.Subtitle}" FontSize="10" Foreground="#64748B" />
+                                <TextBlock Text="{Binding Matrix.UrgentNotImportant.Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="{Binding Matrix.UrgentNotImportant.Subtitle}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
                             <ScrollViewer>
                                 <ItemsControl ItemsSource="{Binding Matrix.UrgentNotImportant.Tasks}">
@@ -273,18 +273,18 @@
                                         <DataTemplate x:DataType="vm:PlannerTaskRowViewModel">
                                             <Button Command="{Binding SelectCommand}" Content="{Binding Title}" Background="Transparent"
                                                     BorderThickness="0" Padding="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                                    FontSize="11" Foreground="#1E293B" />
+                                                    FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" />
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </ScrollViewer>
                         </DockPanel>
                     </Border>
-                    <Border Grid.Row="1" Grid.Column="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4" Padding="8">
+                    <Border Grid.Row="1" Grid.Column="1" Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Top" Margin="0,0,0,6">
-                                <TextBlock Text="{Binding Matrix.NotUrgentNotImportant.Title}" FontSize="12" FontWeight="SemiBold" Foreground="#1E293B" />
-                                <TextBlock Text="{Binding Matrix.NotUrgentNotImportant.Subtitle}" FontSize="10" Foreground="#64748B" />
+                                <TextBlock Text="{Binding Matrix.NotUrgentNotImportant.Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="{Binding Matrix.NotUrgentNotImportant.Subtitle}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
                             <ScrollViewer>
                                 <ItemsControl ItemsSource="{Binding Matrix.NotUrgentNotImportant.Tasks}">
@@ -292,7 +292,7 @@
                                         <DataTemplate x:DataType="vm:PlannerTaskRowViewModel">
                                             <Button Command="{Binding SelectCommand}" Content="{Binding Title}" Background="Transparent"
                                                     BorderThickness="0" Padding="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                                    FontSize="11" Foreground="#1E293B" />
+                                                    FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" />
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
@@ -309,26 +309,26 @@
                         <TextBox Grid.Column="0" Text="{Binding Goals.NewGoalName}" PlaceholderText="New goal name…" Margin="0,0,8,0" />
                         <Button Grid.Column="1" Content="Add" Command="{Binding Goals.AddGoalCommand}" Padding="12,6" />
                     </Grid>
-                    <TextBlock Grid.Row="1" Text="No goals yet — add one above to start a streak." FontSize="12" Foreground="#64748B"
+                    <TextBlock Grid.Row="1" Text="No goals yet — add one above to start a streak." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                HorizontalAlignment="Center" Margin="0,24,0,0"
                                IsVisible="{Binding Goals.HasNoGoals}" />
                     <ScrollViewer Grid.Row="1">
                         <ItemsControl ItemsSource="{Binding Goals.Goals}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:GoalRowViewModel">
-                                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4"
+                                    <Border Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4"
                                             Padding="10" Margin="0,0,0,6">
                                         <Grid ColumnDefinitions="*,Auto,Auto">
                                             <StackPanel Grid.Column="0" Spacing="2">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#1E293B" />
-                                                <TextBlock FontSize="11" Foreground="#64748B">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}">
                                                     <Run Text="{Binding CurrentStreak}" /><Run Text=" day streak · " /><Run Text="{Binding TotalCompletions}" /><Run Text=" total" />
                                                 </TextBlock>
                                             </StackPanel>
                                             <Button Grid.Column="1" Content="{Binding ToggleButtonLabel}" Command="{Binding ToggleTodayCommand}"
                                                     FontSize="11" Padding="8,4" Margin="0,0,6,0" VerticalAlignment="Center" />
                                             <Button Grid.Column="2" Content="Delete" Command="{Binding DeleteCommand}"
-                                                    FontSize="11" Padding="8,4" Background="#FEE2E2" Foreground="#DC2626" VerticalAlignment="Center" />
+                                                    FontSize="11" Padding="8,4" Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -346,27 +346,27 @@
                         <DatePicker Grid.Column="1" SelectedDate="{Binding Milestones.NewMilestoneTargetDate}" Margin="0,0,8,0" />
                         <Button Grid.Column="2" Content="Add" Command="{Binding Milestones.AddMilestoneCommand}" Padding="12,6" />
                     </Grid>
-                    <TextBlock Grid.Row="1" Text="No milestones yet — add one above." FontSize="12" Foreground="#64748B"
+                    <TextBlock Grid.Row="1" Text="No milestones yet — add one above." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                HorizontalAlignment="Center" Margin="0,24,0,0"
                                IsVisible="{Binding Milestones.HasNoMilestones}" />
                     <ScrollViewer Grid.Row="1">
                         <ItemsControl ItemsSource="{Binding Milestones.Milestones}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:MilestoneRowViewModel">
-                                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4"
+                                    <Border Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4"
                                             Padding="10" Margin="0,0,0,6">
                                         <Grid ColumnDefinitions="*,Auto,Auto">
                                             <StackPanel Grid.Column="0" Spacing="2">
-                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="#1E293B"
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"
                                                            TextDecorations="{Binding IsCompleted, Converter={x:Static conv:BoolToTextDecorationsConverter.Instance}}" />
-                                                <TextBlock FontSize="11" Foreground="#64748B">
+                                                <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}">
                                                     <Run Text="{Binding TargetDateDisplay}" /><Run Text=" · " /><Run Text="{Binding ProgressDisplay}" />
                                                 </TextBlock>
                                             </StackPanel>
                                             <Button Grid.Column="1" Content="{Binding ToggleButtonLabel}" Command="{Binding ToggleCompleteCommand}"
                                                     FontSize="11" Padding="8,4" Margin="0,0,6,0" VerticalAlignment="Center" />
                                             <Button Grid.Column="2" Content="Delete" Command="{Binding DeleteCommand}"
-                                                    FontSize="11" Padding="8,4" Background="#FEE2E2" Foreground="#DC2626" VerticalAlignment="Center" />
+                                                    FontSize="11" Padding="8,4" Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -383,27 +383,27 @@
                         <TextBox Grid.Column="0" Text="{Binding Projects.NewProjectName}" PlaceholderText="New project name…" Margin="0,0,8,0" />
                         <Button Grid.Column="1" Content="Add" Command="{Binding Projects.AddProjectCommand}" Padding="12,6" />
                     </Grid>
-                    <TextBlock Grid.Row="1" Text="No projects yet — add one above." FontSize="12" Foreground="#64748B"
+                    <TextBlock Grid.Row="1" Text="No projects yet — add one above." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                HorizontalAlignment="Center" Margin="0,24,0,0"
                                IsVisible="{Binding Projects.HasNoProjects}" />
                     <ScrollViewer Grid.Row="1">
                         <ItemsControl ItemsSource="{Binding Projects.Projects}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ProjectRowViewModel">
-                                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4"
+                                    <Border Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4"
                                             Padding="10" Margin="0,0,0,6">
                                         <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                             <Ellipse Grid.Column="0" Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"
                                                      Fill="{Binding ColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
                                             <StackPanel Grid.Column="1" Spacing="2">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#1E293B"
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"
                                                            Opacity="{Binding IsArchived, Converter={x:Static conv:BoolToArchivedOpacityConverter.Instance}}" />
-                                                <TextBlock Text="{Binding ProgressDisplay}" FontSize="11" Foreground="#64748B" />
+                                                <TextBlock Text="{Binding ProgressDisplay}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
                                             </StackPanel>
                                             <Button Grid.Column="2" Content="{Binding ToggleButtonLabel}" Command="{Binding ToggleArchivedCommand}"
                                                     FontSize="11" Padding="8,4" Margin="0,0,6,0" VerticalAlignment="Center" />
                                             <Button Grid.Column="3" Content="Delete" Command="{Binding DeleteCommand}"
-                                                    FontSize="11" Padding="8,4" Background="#FEE2E2" Foreground="#DC2626" VerticalAlignment="Center" />
+                                                    FontSize="11" Padding="8,4" Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

@@ -3,9 +3,11 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DeskTodo.App.ViewModels;
+using DeskTodo.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DeskTodo.App.Views;
@@ -182,6 +184,8 @@ public partial class WidgetWindow : Window
         // persist anything, so this just reloads the same settings that were already active.
         await viewModel.LoadSettingsAsync();
         App.ApplyAccentColor(viewModel.AccentColorHex);
+        App.ApplyTheme(viewModel.Theme);
+        viewModel.IsDarkTheme = ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark;
 
         // Only on Save, not Cancel: repositioning is a real action (moves the window the
         // user is looking at), not just re-applying already-persisted state like the two
@@ -447,6 +451,53 @@ public partial class WidgetWindow : Window
         }
 
         await viewModel.ReorderAsync(draggedId, targetItem.Id);
+    }
+
+    // Phase 35's Drag File/Drag Browser Tab to Create Task. Lives on the outer task-list
+    // Panel rather than per-row, so a drop anywhere in the list (including empty space) is
+    // recognized, not just directly on an existing row. This coexists with the row-level
+    // internal reorder drag above without extra guarding: that drag carries an empty
+    // DataTransfer (see the _draggedTaskId field's comment), so Contains(File)/Contains(Text)
+    // below is naturally false for it, and DragOver/Drop are bubbling routed events — this
+    // Panel-level handler runs after the row-level one and simply leaves DragEffects/handling
+    // alone whenever there's no real external payload.
+    private void OnExternalDragOver(object? sender, DragEventArgs e)
+    {
+        if (e.DataTransfer.Contains(DataFormat.File) || e.DataTransfer.Contains(DataFormat.Text))
+        {
+            e.DragEffects = DragDropEffects.Copy;
+        }
+    }
+
+    private async void OnExternalDrop(object? sender, DragEventArgs e)
+    {
+        if (App.Services is null || DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var files = e.DataTransfer.TryGetFiles();
+        if (files is { Length: > 0 })
+        {
+            var attachmentService = App.Services.GetRequiredService<IAttachmentService>();
+            foreach (var file in files)
+            {
+                var task = await viewModel.CreateTaskFromDropAsync(file.Name);
+                var localPath = file.TryGetLocalPath();
+                if (localPath is not null)
+                {
+                    await attachmentService.AddAttachmentAsync(task.Id, localPath);
+                }
+            }
+
+            return;
+        }
+
+        var text = e.DataTransfer.TryGetText()?.Trim();
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            await viewModel.CreateTaskFromDropAsync(text);
+        }
     }
 
     // Delete is gated behind ConfirmDialogWindow here in code-behind rather than

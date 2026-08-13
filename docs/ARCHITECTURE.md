@@ -1877,30 +1877,101 @@ the widget mid-verification); both are covered instead by tests, the same
 tests that caught the UTC/local bug above — direct evidence the coverage
 is substantive, not just padding.
 
-## Phase 27 — Theming & appearance (explicitly skipped for now)
+## Phase 27 — Theming & appearance (scoped down)
 
-Phase 27's own IMPLEMENTATION.md section is fully planned, but no code was
-written for it in this pass — a deliberate, discussed choice, not an
-oversight, worth recording here since every other "not yet started" phase
-in this document simply hasn't been reached yet, while this one was
-reached and set aside on purpose.
+**History:** first reached on 2026-08-12, this phase's own approach note
+flagged it as "the single most invasive item across the whole Extended
+Roadmap from a *files touched* perspective" — every hardcoded hex color
+across every window's XAML becoming a themed `DynamicResource`, plus
+font-scale/compact-mode/zoom, animations, and a full UI polish pass, all
+needing real visual QA. Offered the choice between attempting it in full,
+scoping it down to just Dark Theme, or setting it aside for a smaller
+phase instead, the user chose to set it aside at that point — Phase 28
+(scoped down) was built instead, a smaller, purely additive phase with no
+all-or-nothing retrofit risk.
 
-The roadmap's own approach note for Phase 27 flags it as "the single most
-invasive item across the whole Extended Roadmap from a *files touched*
-perspective" — every hardcoded hex color across every window's XAML
-becoming a themed `DynamicResource`, plus font-scale/compact-mode/zoom,
-animations, and a full UI polish pass, all needing real visual QA. Offered
-the choice between attempting it in full, scoping it down to just Dark
-Theme, or setting it aside for a smaller phase instead, the user chose to
-set it aside. The reasoning that made this the right call rather than
-just deference: a *partial* theming retrofit — some windows converted to
-themed resources, others still hardcoded — would leave the app in a
-worse, more inconsistent state than today's fully-consistent (if
-light-only) UI. Unlike an additive feature (where "half built" still
-mostly works), a retrofit across shared visual infrastructure has a real
-failure mode where stopping partway is strictly worse than not starting.
-Phase 28 (scoped down) was built instead — a smaller, purely additive
-phase with no such all-or-nothing risk.
+**Delivered (2026-08-13):** picked back up on the user's own "lets start
+with 27" instruction. Re-offered the same kind of scope choice — theme
+only, theme plus a full UI polish pass, or the complete original
+deliverables list — and the user chose theme only, the scoped option that
+avoids the exact failure mode the earlier deferral was worried about: a
+*partial* theming retrofit (some windows converted, others still
+hardcoded) would leave the app in a worse, more inconsistent state than
+before starting. Scoping to theme-only meant the *entire* app could be
+converted in one pass rather than converting a subset alongside other
+deliverables and risking running out of time partway through.
+
+**How the retrofit avoided the "worse than not starting" failure mode:**
+every hardcoded structural color (`Foreground`/`Background`/`BorderBrush`
+values for text, backgrounds, borders, danger states, and a handful of
+pastel badge colors) across all 13 window `.axaml` files was
+`grep`-counted first, converted via a single mechanical, attribute-scoped
+substitution pass (e.g. `Foreground="#1E293B"` → `Foreground=
+"{DynamicResource TextPrimaryBrush}"`, never a bare hex-value swap that
+could accidentally touch an unrelated attribute using the same color),
+then `grep`-counted again to confirm the *only* hex values left were the
+ones deliberately excluded — the app's own accent color and the
+`AccentColorPresets`/per-task-color swatches, a fixed brand palette that's
+supposed to look the same in both themes, the same way a colored label
+keeps its color in a dark-mode email client. This before/after count
+match is what makes "every window is themed, not just some" a verified
+claim rather than an assumption.
+
+**The two places a plain XAML `DynamicResource` couldn't reach:**
+1. `WidgetViewModel.WidgetBackgroundHex` (Phase 12) computes the widget's
+   own translucent card color in C#, blending `WidgetOpacity` over a base
+   color — that base was hardcoded white. Added `WidgetViewModel.
+   IsDarkTheme`, set by `WidgetWindow` from its own `ActualThemeVariant`
+   right after `App.ApplyTheme` runs, so the blend base switches to a dark
+   slate in dark mode. Without this, the single most prominent,
+   always-visible surface in the app would have stayed a white card in
+   dark mode — the one retrofit gap that would have been immediately,
+   embarrassingly obvious.
+2. `BoolToTodayBackgroundConverter` (Calendar's "today" cell) and
+   `CompletionCountToHeatColorConverter` (Analytics' heat map zero-level)
+   pick their brush in C#, not via XAML binding — updated both to check
+   `Application.Current.ActualThemeVariant` at each `Convert()` call.
+   **Documented, narrow limitation:** unlike `DynamicResource`, a
+   converter's return value isn't automatically re-resolved when the
+   theme changes live — these two cells only pick up a new theme the next
+   time their bound value changes or the window reopens, not instantly
+   mid-session like every other themed color in the app.
+
+**Theme-switching mechanism:** `App.ApplyTheme(string theme)` — a new
+static method mirroring the existing `App.ApplyAccentColor(hex)` exactly
+("apply once at launch, re-apply live after Settings closes"). Sets
+`Application.Current.RequestedThemeVariant`, which Avalonia's `FluentTheme`
+and this app's own new `ResourceDictionary.ThemeDictionaries` (in
+`App.axaml`, `Light`/`Dark` keys) both key off of — every open window's
+`DynamicResource`-bound colors re-resolve automatically, no per-window
+wiring needed. `AppSettings.Theme` ("System"/"Light"/"Dark") defaults to
+"System", matching the app's behavior before this phase even existed
+(`App.axaml` already had `RequestedThemeVariant="Default"`, it just had no
+themed resources for that to affect).
+
+**Live-verified:** switched to Dark through the real Settings window and
+watched the actual running widget re-theme live with no restart, then
+opened a second window (Planner) fresh afterward and confirmed it opened
+already dark-themed — proving the mechanism works both for a window that
+was already open and one that didn't exist yet when the theme changed.
+Real `settings.json` was backed up first and restored + diffed clean
+after, per this project's established live-testing discipline (Phase
+29/32). Not every individual window/tab was independently screenshotted —
+synthetic OS-level clicks proved flaky against Avalonia's `TabControl` in
+this environment, the same class of automation limitation already noted
+for Phase 29's PIN unlock flow — but the mechanical, audited nature of the
+conversion (identical resource keys, identical substitution pass, matched
+before/after color counts) plus two independent live confirmations give
+high confidence in the untested windows too.
+
+**Deferred to a later pass, not bundled into this one:** Custom Font
+Size/Compact Mode/Zoom (one underlying "UI scale" concept, flagged since
+Phase 12 as higher-risk without dedicated visual QA), Animations
+(transitions for task-complete/reorder/window open-close), Responsive
+Layout (the widget's full resizable range, not just its default size),
+and the general "nice UI like Bootstrap" polish pass — all still fully
+planned in IMPLEMENTATION.md's Phase 27 section, just not part of this
+scoped pass.
 
 ## Phase 28 — Power user tools (scoped down)
 
@@ -2089,6 +2160,147 @@ malformed tag, a network failure — via a fake `HttpMessageHandler` rather
 than depending on GitHub's actual release history staying a particular
 shape.
 
+## Phase 31 — Cloud sync & multi-device (explicitly deferred to last)
+
+No code was written for this phase, and that was the right call, not a
+gap. Its own IMPLEMENTATION.md approach note describes it as "the single
+largest scope item in this entire roadmap" and explicitly recommends
+treating it as its own dedicated planning exercise before any
+implementation attempt — a genuinely different category of "not yet
+started" than a phase that simply hasn't come up yet.
+
+Offered the choice between skipping to a smaller phase, discussing a
+backend approach first (self-hosted sync server vs. a third-party
+backend-as-a-service), or attempting a minimal local stand-in (an
+export/import-based "manual sync"), the user chose to leave the whole
+phase for last. That's a meaningfully different answer than either of the
+other two options would have been: it's not "come back and plan this
+properly later" (which would suggest doing it soon), and it's not "build
+something small now" (which the stand-in option would have been) — it's
+an explicit statement that every other still-pending phase in the roadmap
+should be worked through first. Recorded here rather than just left as a
+silent ⬜, since the roadmap otherwise has no way to distinguish "not yet
+reached" from "deliberately reached and set aside" — see Phase 27 for the
+one other phase this session gave the same treatment, for a related but
+distinct reason (Phase 27 needed a design/QA-risk tradeoff decision; this
+phase needs an infrastructure/hosting decision plus an auth system that
+doesn't exist at all yet).
+
+## Phase 32 — Team collaboration & sharing (scoped down)
+
+The one deliverable this phase's own approach note flagged as shippable
+independently of Phase 31 — User Profile — shipped; everything else stays
+`[ ]`, blocked on the same backend/sync/auth prerequisite Phase 31 was
+just deferred past.
+
+**Why User Profile is safe to build even though Phase 31 isn't done.** A
+name and an avatar color are personalization, not identity — nothing
+downstream needs to resolve "which account does this belong to" for them
+to be genuinely useful today (they render in Settings and nowhere else
+yet, which is honest: there's no second place for them to appear until
+some multi-user surface exists to show them in). This is the same shape
+of decision as Phase 24 reusing `Category` instead of inventing "Project"
+prematurely, or Phase 23 reusing `Goal` for "Habit Tracker" — ship the
+part of a bigger concept that's real today, and be explicit that
+everything past it is waiting on a specific, named prerequisite rather
+than an unspecified "later."
+
+**The avatar color picker reuses `AccentColorPresets`, not a second
+palette.** `SettingsViewModel` already had one set of six preset colors
+for the widget's accent color; the avatar color picker binds to the exact
+same list rather than defining its own. Two independent "pick one of six
+colors" palettes that happen to start out matching but could drift apart
+over time would be a small, needless inconsistency risk for zero benefit
+— one shared list is simply correct here, not just convenient.
+
+**Live-verified, then reverted.** Typed a real name into the running
+app's actual Settings window and watched the avatar's initial update live
+as each character landed — confirming the `NotifyPropertyChangedFor`
+wiring between `UserDisplayName` and `AvatarInitial` actually fires
+through a real `TextBox` binding, not just in a unit test. Saved, then
+confirmed via the real `settings.json` that both fields persisted with
+the expected values, then restored the file to its exact prior state
+(verified with `diff`) so the live-testing pass left no trace — the same
+discipline established (if imperfectly, the first time) in Phase 29.
+
+## Phase 33 — Third-party integrations (explicitly deferred)
+
+Every integration here (GitHub Issues, Jira, Azure DevOps, Google
+Calendar, Slack, ...) needs an OAuth application registered with the
+relevant third-party service — a client ID/secret and callback URL only
+the user can obtain, since it requires an action in an external system
+this environment has no access to. This is a different category of
+blocker than Phase 31's "needs a dedicated planning/architecture
+decision": there's no design question to resolve first, just credentials
+that don't exist yet. Offered to build GitHub Issues integration first (as
+the most natural default) with the exact setup steps the user would need
+to follow, or a different service of their choosing; the user chose to
+defer the whole phase and move to Phase 35 instead. Phase 36 (Developer
+Mode dashboards) is entirely blocked on this phase and was deferred
+alongside it for the same reason.
+
+## Phase 35 — Unique capture features (scoped down)
+
+Drag File to Create Task and Drag Browser Tab to Create Task — the two
+items the phase's own plan called "the most self-contained item here,"
+independent of Phase 34's (not-yet-built) AI service. A file dragged from
+Finder/Explorer, or a URL/text dragged from a browser, onto the widget's
+task list creates a new task; a dropped file is also genuinely attached to
+the new task via the existing `IAttachmentService` (Phase 18), not just
+referenced by name.
+
+**Built by extending, not replacing, the existing `DragDrop` API.** The
+project already uses Avalonia's `DragDrop` for in-window drag-to-reorder
+(Phase 9), which uses an intentionally *empty* `DataTransfer` — it's only
+the drag gesture that matters there, with the actual task ID tracked in a
+private field. The new external-drop handling lives as a second pair of
+handlers (`OnExternalDragOver`/`OnExternalDrop`) on the task-list `Panel`
+itself (not per-row, so a drop anywhere in the list — including empty
+space — is recognized), and coexists with the row-level reorder handlers
+with no extra guarding needed: `DragOver`/`Drop` are bubbling routed
+events, so the row-level handler runs first and the panel-level handler
+runs after it; since the internal reorder drag's `DataTransfer` is empty,
+`Contains(DataFormat.File)`/`Contains(DataFormat.Text)` is naturally false
+for it, so the panel-level logic simply does nothing for that case rather
+than needing an explicit type check to distinguish the two.
+
+**Avalonia 12.1.0's drag-and-drop API was verified empirically, not
+assumed**, continuing this project's standing discipline (see the P/Invoke
+note below). A background research agent loaded the actual installed
+`~/.nuget/packages/avalonia/12.1.0/ref/net10.0/Avalonia.Base.dll` into a
+`System.Reflection.MetadataLoadContext` and dumped its real public API,
+cross-checked against the package's shipped XML doc comments — general
+Avalonia knowledge wasn't trusted here because this exact API changed
+shape across Avalonia's history (`IDataObject`/`.Data` in older versions,
+`IDataTransfer`/`.DataTransfer` here). Confirmed: `DragEventArgs.
+DataTransfer` (`IDataTransfer`, not `.Data`); `IDataTransfer.
+Contains(DataFormat)`/`TryGetText()`/`TryGetFile()`/`TryGetFiles()`
+(extension methods on `DataTransferExtensions`); `DataFormat.File` and
+`DataFormat.Text` as the relevant static format members; `DragEventArgs.
+DragEffects` confirmed as the correct, already-used property name for
+signaling accept/reject during drag-over. No `text/uri-list` format
+constant exists in this API — browser URL drags surface as plain text via
+`DataFormat.Text`, which is what the drop handler treats a non-file drop
+as (title = the dropped text, description = the same text, so a long URL
+used as the title isn't otherwise lost).
+
+**Verified:** 530/530 tests pass (up from 528 — two new
+`WidgetViewModelTests` covering `CreateTaskFromDropAsync`), zero-warning
+build. The app was smoke-launched to confirm the widget window still
+renders correctly with the new drop handlers wired in, then closed — no
+real user data was touched. A genuine native OS drag (an actual file
+dragged out of Finder into the running app) could not be exercised
+end-to-end from this environment — there's no reliable way to synthesize
+a real cross-application drag gesture from the command line — so that
+exact path is authored and unit-tested but not live-verified, stated
+plainly rather than implied as fully confirmed.
+
+**Deferred — everything else in this phase's original wishlist:** Smart
+Clipboard Detection, Screenshot/OCR to Task, Voice to Task, and Email to
+Task all need infrastructure this pass didn't build; Smart Daily Briefing,
+End of Day Summary, Morning Planning Assistant, and AI Workload Prediction
+all need Phase 34's AI service.
+
 ## What's genuinely verified vs. authored-only (Phases 13–16, 22)
 
 This dev environment is macOS-only with no Windows machine and no
@@ -2139,7 +2351,12 @@ carry equivalent, currently-undiscovered risk until it's actually run.
 | Analytics & reporting | Dashboard (live-verified against the real database) with Weekly/Monthly/Overall completion rates, a Streak Counter, Focus Time, a 12-week Heat Map, and a per-category breakdown (Time Per Project delivered as Time Per Category — Phase 25's "Project" concept doesn't exist yet); generated Weekly/Monthly Markdown Reports with copy/save actions | ✅ Done |
 | Organization: projects, workspaces & lists | New `Project` entity (live-verified create + persist + render against the real database) with a Projects tab in the Planner window; Lists satisfied by Projects; Favorites/Bookmarks satisfied by wiring already-existing `IsFavorite`/`IsPinned` flags into new cross-day Smart Lists; Smart Lists (Favorites/Pinned/Overdue/Due Today/High Priority/No Project) and a first-ever filter bar added to the grid view; Saved Searches unified into the grid's existing `GridSavedView` "saved column views" rather than a second concept; Workspaces/Folders/Sections explicitly deferred (documented reasoning) | ✅ Done |
 | Reminder enhancements | Snooze (in-app "remind me again in 1 hour" on any overdue task row, since `display notification` has no action-button support to build on); Sound Notification (a Settings toggle, real on macOS via `sound name`, honestly a no-op on Windows' balloon tips — documented, not silently ignored); Recurring Reminder satisfied by composing existing `Type = Reminder` + Phase 19 recurrence, no new code; a genuine UTC-vs-local timezone bug in the new Snooze field caught by a test written against this dev environment's own timezone, before shipping; Reminder History explicitly deferred (would need a new entity/repository/service/migration/UI tab — left for a future pass) | ✅ Done |
-| Theming & appearance | Explicitly skipped for this pass on the user's own call — the roadmap's single most invasive item by files touched, and a partial retrofit would leave the app more inconsistent than not starting; fully planned, not abandoned | ⬜ Skipped |
+| Theming & appearance | Real switchable Light/Dark/System theme across all 13 windows — every hardcoded structural color converted to a `DynamicResource` token (verified via matched before/after color-usage counts), accent/preset colors deliberately left literal, the widget's own translucent-card blend and two color-picking converters specially handled for the "not directly reachable by XAML binding" case; live-verified switching Dark on in the real Settings window with no restart needed; Font Size/Zoom, Animations, Responsive Layout, and a general polish pass explicitly deferred to a later pass | ✅ Done (scoped down) |
 | Power user tools | Command Palette (Cmd/Ctrl+K, wraps existing `WidgetViewModel` commands rather than a new command layer, live-verified end-to-end via the accessibility tree — filtered to "Open Settings," pressed Enter, confirmed the real window opened); Keyboard Shortcuts (Cmd/Ctrl+K/F/,, registered in code via `OperatingSystem.IsMacOS()` since Avalonia's XAML `KeyGesture` has no Cmd/Ctrl OS translation); Task Templates satisfied by Phase 17; Undo/Redo, Clipboard History, and Activity Log explicitly deferred (each for a distinct, documented reason) | ✅ Done (scoped down) |
 | Security & data protection | PIN Lock (PBKDF2-hashed via the BCL's `Rfc2898DeriveBytes`, no new dependency; a `LockScreenWindow` gates startup, widget still fully constructed so tray Quit always works while locked; live-verified lock-on-startup, wrong-PIN rejection, and close-button bypass refusal against a test PIN injected into the live settings file, then reverted — the successful-unlock click-through wasn't confirmed live due to keystroke-automation flakiness and was cut short at the user's request, covered instead by `LockScreenViewModelTests`); Auto Lock, Windows Hello/Touch ID, Database Encryption, Secure Backup/Restore, and PDF/HTML export all explicitly deferred (each a distinct, documented reason) | ✅ Done (scoped down) |
 | Auto-update system | Read-only version check against the real, public `amitnahaksvn/DeskTodo` GitHub repo (confirmed live via `curl` before writing code, and live-verified again afterward by actually clicking "Check for Updates" in Settings — "You're on the latest version," a genuine round trip, not a mock), with a "View Release" link opening the browser via `TopLevel.Launcher`; this app's first-ever outbound network call, deliberately on-demand only, no background polling; actual update installation explicitly deferred — it depends on a distribution-channel decision (direct download vs. app store vs. MSIX) that hasn't been made, exactly as the phase's own original planning notes anticipated | ✅ Done (scoped down) |
+| Cloud sync & multi-device | Explicitly deferred to last on the user's own call — the roadmap's own planning notes call this the single largest item and recommend dedicated planning before any implementation attempt; not skipped permanently, deliberately ordered after every other still-pending phase | ⬜ Deferred to last |
+| Team collaboration & sharing | User Profile (name + avatar color in Settings, reusing the existing `AccentColorPresets` palette rather than a second one; live-verified typing a name and watching the avatar initial update live, then saved/confirmed/reverted against the real settings file) — the one piece the phase's own plan flagged as shippable without Phase 31; everything else (Assign Tasks, Shared Projects/Tasks, Team Dashboard, Activity Feed, Comments, Mentions, File Sharing, Permissions) explicitly deferred, blocked on the same backend/sync/auth prerequisite Phase 31 was just deferred past | ✅ Done (scoped down) |
+| Third-party integrations | Explicitly deferred on the user's own call — every integration needs an OAuth app registered with the relevant third-party service, credentials only the user can obtain; offered GitHub Issues as a default first integration, deferred instead in favor of Phase 35 | ⬜ Deferred |
+| Unique capture features | Drag File to Create Task and Drag Browser Tab to Create Task, extending the existing `DragDrop` API (Phase 9) rather than a new mechanism; a dropped file is genuinely attached via `IAttachmentService`, dropped text/a URL becomes both the task's title and description; Avalonia 12.1.0's exact drag-and-drop API shape verified empirically via `MetadataLoadContext` reflection over the installed ref assembly rather than assumed; Smart Clipboard Detection, OCR, Voice to Task, Email to Task, and every AI-dependent item (Daily Briefing, Workload Prediction, ...) explicitly deferred | ✅ Done (scoped down) |
+| Developer Mode dashboards | Explicitly deferred — entirely blocked on Phase 33 (which the user chose to defer), since there's no external data to dashboard until that integration exists | ⬜ Deferred |
