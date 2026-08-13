@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -33,6 +34,15 @@ public partial class WidgetWindow : Window
     // back out restores it exactly rather than snapping to a fixed default.
     private double? _preMiniModeHeight;
 
+    // Phase 28's Clipboard History poll. A separate timer from WidgetViewModel's own
+    // 30-second _dayRolloverTimer rather than piggybacking on its Tick event, because
+    // reading the clipboard needs a live TopLevel/IClipboard — an Avalonia dependency
+    // WidgetViewModel deliberately doesn't have (see its doc comments elsewhere). Matches
+    // that timer's cadence so this doesn't introduce a *new* polling rhythm, just a second
+    // instance of the app's existing one for a need that has to live in code-behind.
+    private DispatcherTimer? _clipboardPollTimer;
+    private string? _lastSeenClipboardText;
+
     public WidgetWindow()
     {
         InitializeComponent();
@@ -52,6 +62,7 @@ public partial class WidgetWindow : Window
             viewModel.FocusTimerRequested += OnFocusTimerRequested;
             viewModel.AnalyticsRequested += OnAnalyticsRequested;
             viewModel.CommandPaletteRequested += OnCommandPaletteRequested;
+            viewModel.ClipboardHistoryRequested += OnClipboardHistoryRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
@@ -64,7 +75,52 @@ public partial class WidgetWindow : Window
         if (App.Services is not null)
         {
             FocusTimerIndicator.DataContext = App.Services.GetRequiredService<FocusTimerViewModel>();
+
+            _clipboardPollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+            _clipboardPollTimer.Tick += OnClipboardPollTick;
+            _clipboardPollTimer.Start();
         }
+    }
+
+    /// <summary>
+    /// Phase 28's Clipboard History poll tick. Reads the current clipboard text and hands it
+    /// to the DI-singleton ClipboardHistoryViewModel — which itself no-ops for null/blank/
+    /// unchanged/too-long text (see its <see cref="ClipboardHistoryViewModel.AddEntry"/> doc
+    /// comment), so <see cref="_lastSeenClipboardText"/> here only needs to short-circuit the
+    /// common case (clipboard unchanged since last poll) before even reaching for a
+    /// TopLevel/IClipboard, not duplicate that dedupe logic.
+    /// </summary>
+    private async void OnClipboardPollTick(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null)
+        {
+            return;
+        }
+
+        var text = await clipboard.TryGetTextAsync();
+        if (text == _lastSeenClipboardText)
+        {
+            return;
+        }
+
+        _lastSeenClipboardText = text;
+        App.Services.GetRequiredService<ClipboardHistoryViewModel>().AddEntry(text);
+    }
+
+    private void OnClipboardHistoryRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        ClipboardHistoryWindow.ShowOrActivate(App.Services.GetRequiredService<ClipboardHistoryViewModel>());
     }
 
     /// <summary>
@@ -154,7 +210,15 @@ public partial class WidgetWindow : Window
             viewModel.FocusTimerRequested -= OnFocusTimerRequested;
             viewModel.AnalyticsRequested -= OnAnalyticsRequested;
             viewModel.CommandPaletteRequested -= OnCommandPaletteRequested;
+            viewModel.ClipboardHistoryRequested -= OnClipboardHistoryRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        }
+
+        if (_clipboardPollTimer is not null)
+        {
+            _clipboardPollTimer.Stop();
+            _clipboardPollTimer.Tick -= OnClipboardPollTick;
+            _clipboardPollTimer = null;
         }
 
         (DataContext as IDisposable)?.Dispose();
@@ -329,6 +393,7 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("Open Analytics & Reports", viewModel.OpenAnalyticsCommand),
             new CommandPaletteEntry("Open Settings", viewModel.OpenSettingsCommand),
             new CommandPaletteEntry("Toggle Mini Widget", viewModel.ToggleMiniWidgetModeCommand),
+            new CommandPaletteEntry("Clipboard History", viewModel.OpenClipboardHistoryCommand),
         ]);
 
         var paletteWindow = new CommandPaletteWindow { DataContext = paletteViewModel };

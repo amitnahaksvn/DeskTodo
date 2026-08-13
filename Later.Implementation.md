@@ -3,19 +3,21 @@
 > A cross-platform desktop productivity application for Windows & macOS built with .NET.
 
 > **Status key:** `[x]` shipped (see IMPLEMENTATION.md for which phase). `[ ]`
-> not built. Checked/unchecked below reflects the state as of Phase 27
-> completing (2026-08-13, picked back up after being set aside on
-> 2026-08-12) — Phase 31 was explicitly deferred to last on the user's own
-> call, and Phases 33 and 36 were explicitly deferred (33 needs
+> not built. Checked/unchecked below reflects the state as of Phase 28's
+> Clipboard History completing (2026-08-14, picked back up after being
+> deferred earlier) — Phase 31 was explicitly deferred to last on the
+> user's own call, and Phases 33 and 36 were explicitly deferred (33 needs
 > user-supplied OAuth credentials; 36 is blocked on 33) (see
-> IMPLEMENTATION.md's own Phase 31/33/36 sections). Phases 27–30, 32, and
-> 35 all shipped scoped down — cross-referenced item by item against
-> IMPLEMENTATION.md, not assumed; several `[x]` items note a partial scope
-> inline (see IMPLEMENTATION.md's Phase 17–35 sections for the full detail
-> on what shipped vs. what's still deliberately out of scope). Everything
-> still `[ ]` here has been carried into IMPLEMENTATION.md's "Extended
-> Roadmap" as a planned, not-yet-started item (Phase 31 deferred to last,
-> Phase 33 deferred, Phase 34, Phase 36 deferred, and Phase 37).
+> IMPLEMENTATION.md's own Phase 31/33/36 sections). Phase 28 still has two
+> deliberately-deferred items (Undo/Redo, Activity Log); Phases 27, 29–30,
+> 32, and 35 all shipped scoped down — cross-referenced item by item
+> against IMPLEMENTATION.md, not assumed; several `[x]` items note a
+> partial scope inline (see IMPLEMENTATION.md's Phase 17–35 sections for
+> the full detail on what shipped vs. what's still deliberately out of
+> scope). Everything still `[ ]` here has been carried into
+> IMPLEMENTATION.md's "Extended Roadmap" as a planned, not-yet-started
+> item (Phase 31 deferred to last, Phase 33 deferred, Phase 34, Phase 36
+> deferred, and Phase 37).
 
 ---
 
@@ -207,7 +209,7 @@
 - [x] Quick Search _(in-app search bar; no global hotkey)_
 - [x] Quick Add _(standalone Quick Add window, summoned from the tray or the Cmd/Ctrl+Shift+N global shortcut)_
 - [ ] Undo / Redo _(deferred — an architecturally significant command-stack pattern shift touching nearly every mutating operation; needs its own dedicated pass)_
-- [ ] Clipboard History _(deferred — needs OS clipboard-change monitoring with no existing precedent in this codebase)_
+- [x] Clipboard History _(a ClipboardHistoryWindow reachable from the tray menu and Command Palette — up to 20 recent clipboard text entries, polled every 30 seconds, in-memory only/never persisted to disk for privacy reasons)_
 - [ ] Activity Log _(deferred — overlaps with Phase 26's already-deferred Reminder History; better designed as one shared piece of infrastructure for both in a future pass)_
 - [x] Batch Actions _(bulk complete/delete on a multi-selection)_
 - [x] Task Templates _(same feature already listed under Core Task Management, above)_

@@ -184,6 +184,9 @@ public partial class App : global::Avalonia.Application
         var settingsItem = new NativeMenuItem("Settings…");
         settingsItem.Click += (_, _) => widgetViewModel.OpenSettingsCommand.Execute(null);
 
+        var clipboardHistoryItem = new NativeMenuItem("Clipboard History…");
+        clipboardHistoryItem.Click += (_, _) => widgetViewModel.OpenClipboardHistoryCommand.Execute(null);
+
         var quitItem = new NativeMenuItem("Quit");
         quitItem.Click += (_, _) =>
         {
@@ -199,6 +202,7 @@ public partial class App : global::Avalonia.Application
             {
                 toggleVisibilityItem,
                 quickAddItem,
+                clipboardHistoryItem,
                 settingsItem,
                 new NativeMenuItemSeparator(),
                 quitItem,

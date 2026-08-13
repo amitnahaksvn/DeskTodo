@@ -36,6 +36,11 @@ public static class ServiceCollectionExtensions
         // FocusTimerWindow is currently open — see FocusTimerViewModel's own doc comment.
         services.AddSingleton<FocusTimerViewModel>();
 
+        // Singleton, same reasoning as FocusTimerViewModel above: the clipboard poll keeps
+        // accumulating history in the background whether or not ClipboardHistoryWindow is
+        // open — see ClipboardHistoryViewModel's own doc comment.
+        services.AddSingleton<ClipboardHistoryViewModel>();
+
         return services;
     }
 }

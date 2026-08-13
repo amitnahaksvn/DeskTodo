@@ -1975,9 +1975,9 @@ scoped pass.
 
 ## Phase 28 — Power user tools (scoped down)
 
-Command Palette and Keyboard Shortcuts shipped; Undo/Redo, Clipboard
-History, and Activity Log were deferred — each for a different, specific
-reason, not a blanket "ran out of time."
+Command Palette, Keyboard Shortcuts, and (picked back up 2026-08-14)
+Clipboard History shipped; Undo/Redo and Activity Log remain deferred —
+each for a different, specific reason, not a blanket "ran out of time."
 
 **Command Palette wraps existing commands, not a new command layer.**
 `CommandPaletteViewModel` has no dependency on `WidgetViewModel`, any
@@ -2019,11 +2019,6 @@ and `WindowsGlobalHotkeyService` already are.
   phase that's also shipping two other features would mean scoping it
   hastily; it deserves its own dedicated pass where "single action undo"
   vs. "full multi-level stack" gets decided deliberately, not implicitly.
-- **Clipboard History** — needs OS clipboard-change monitoring (polling or
-  a native change-notification API), a category of platform integration
-  this codebase has no existing precedent for at all — unlike, say,
-  notifications or global hotkeys, which Phase 13/22 already established
-  patterns for.
 - **Activity Log** — genuinely overlaps with Phase 26's already-deferred
   Reminder History: both are "a persisted log of past events, shown
   somewhere." Building two similar logs in back-to-back phases would be
@@ -2041,6 +2036,67 @@ exercised the real `KeyBinding` → `OpenCommandPaletteCommand` →
 `CommandPaletteWindow` → filter → `ExecuteSelectedCommand` →
 `OpenSettingsCommand` chain in the running app, not a unit test standing
 in for it.
+
+**Clipboard History, picked back up 2026-08-14.** Re-offered the three
+still-deferred items as a scope choice (Clipboard History alone, Activity
+Log unified with Phase 26's Reminder History, Undo/Redo, or all three);
+the user chose Clipboard History alone — the one item with no dependency
+on other deferred work and no architecture-wide pattern shift.
+
+**Why the clipboard poll is a second `DispatcherTimer`, not a Tick handler
+added to `WidgetViewModel`'s existing one.** `WidgetViewModel`'s own
+`_dayRolloverTimer` already fires three independent Tick handlers every 30
+seconds (day rollover, notification checks, wellness reminders) — the
+established pattern for "don't spin up a new timer for every periodic
+need." Clipboard polling couldn't join that list without breaking a
+different, load-bearing convention: `WidgetViewModel` deliberately has no
+Avalonia dependency of its own (confirmed by its own doc comments
+elsewhere), and reading the clipboard needs a live `TopLevel.Clipboard`,
+which only exists in code-behind. Rather than compromise either
+convention, `WidgetWindow` runs its own `_clipboardPollTimer` at the same
+30-second interval — matching the app's existing polling rhythm without
+literally sharing the timer instance.
+
+**The Avalonia 12.1.0 clipboard-read API was verified, not assumed.**
+`AnalyticsWindow.axaml.cs` already called `IClipboard.SetTextAsync` (a
+write), but nothing in this codebase had ever *read* from the clipboard
+before. Checked the installed package's `Avalonia.Base.xml` docs directly:
+`IClipboard` itself only declares `ClearAsync`/`SetDataAsync`/
+`FlushAsync`/`TryGetDataAsync` — the familiar `GetTextAsync`/`SetTextAsync`
+names are `ClipboardExtensions` extension methods in the same
+`Avalonia.Input.Platform` namespace, and the read counterpart is
+specifically `TryGetTextAsync()` (nullable-returning, not `GetTextAsync`,
+which doesn't exist), confirmed before writing any code against it.
+
+**In-memory only, by design, not by oversight.** `ClipboardHistoryViewModel`
+never persists to disk — clipboard content routinely includes passwords
+and other text someone copied briefly and never meant to keep, and
+writing that into a SQLite file that outlives the running app would be a
+real privacy cost for a "nice to have" power-user feature. History resets
+every restart; the ViewModel is a DI singleton (same reasoning as
+`FocusTimerViewModel`) purely so it survives the *window* being closed
+and reopened within one running session, not across sessions.
+
+**The one place a plain compiled binding wasn't enough.** Each
+`ClipboardHistoryWindow` row is a bare `string` (from `ObservableCollection
+<string>`), so its "Copy" button's `Command` can't bind to something on
+the row's own `DataContext` the way a `TaskItemViewModel` row's buttons
+do — the command lives on the window's `ClipboardHistoryViewModel`
+instead. Resolved via `{Binding $parent[ListBox].((vm:ClipboardHistory
+ViewModel)DataContext).CopyBackCommand}` with `CommandParameter="{Binding}"`
+supplying the row's own string — verified live, not just compiled: copied
+a throwaway string to the OS clipboard, clicked "Copy" next to a specific
+history entry via the accessibility tree, and confirmed via `pbpaste`
+that the real OS clipboard changed to that entry's text, a genuine
+round trip through the relative binding rather than an assumption that a
+successful build meant a working binding.
+
+**Live-verified beyond the binding itself:** launched the real app,
+copied text via `pbcopy`, waited a real 30-second poll cycle, and opened
+Clipboard History through the Command Palette — the entry appeared.
+Copied a second, different string and waited another cycle to confirm
+the poll tracks changes across multiple ticks (not just once at startup).
+Full test suite: 541/541 passing, zero-warning build.
 
 ## Phase 29 — Security & data protection (scoped down)
 
@@ -2352,7 +2408,7 @@ carry equivalent, currently-undiscovered risk until it's actually run.
 | Organization: projects, workspaces & lists | New `Project` entity (live-verified create + persist + render against the real database) with a Projects tab in the Planner window; Lists satisfied by Projects; Favorites/Bookmarks satisfied by wiring already-existing `IsFavorite`/`IsPinned` flags into new cross-day Smart Lists; Smart Lists (Favorites/Pinned/Overdue/Due Today/High Priority/No Project) and a first-ever filter bar added to the grid view; Saved Searches unified into the grid's existing `GridSavedView` "saved column views" rather than a second concept; Workspaces/Folders/Sections explicitly deferred (documented reasoning) | ✅ Done |
 | Reminder enhancements | Snooze (in-app "remind me again in 1 hour" on any overdue task row, since `display notification` has no action-button support to build on); Sound Notification (a Settings toggle, real on macOS via `sound name`, honestly a no-op on Windows' balloon tips — documented, not silently ignored); Recurring Reminder satisfied by composing existing `Type = Reminder` + Phase 19 recurrence, no new code; a genuine UTC-vs-local timezone bug in the new Snooze field caught by a test written against this dev environment's own timezone, before shipping; Reminder History explicitly deferred (would need a new entity/repository/service/migration/UI tab — left for a future pass) | ✅ Done |
 | Theming & appearance | Real switchable Light/Dark/System theme across all 13 windows — every hardcoded structural color converted to a `DynamicResource` token (verified via matched before/after color-usage counts), accent/preset colors deliberately left literal, the widget's own translucent-card blend and two color-picking converters specially handled for the "not directly reachable by XAML binding" case; live-verified switching Dark on in the real Settings window with no restart needed; Font Size/Zoom, Animations, Responsive Layout, and a general polish pass explicitly deferred to a later pass | ✅ Done (scoped down) |
-| Power user tools | Command Palette (Cmd/Ctrl+K, wraps existing `WidgetViewModel` commands rather than a new command layer, live-verified end-to-end via the accessibility tree — filtered to "Open Settings," pressed Enter, confirmed the real window opened); Keyboard Shortcuts (Cmd/Ctrl+K/F/,, registered in code via `OperatingSystem.IsMacOS()` since Avalonia's XAML `KeyGesture` has no Cmd/Ctrl OS translation); Task Templates satisfied by Phase 17; Undo/Redo, Clipboard History, and Activity Log explicitly deferred (each for a distinct, documented reason) | ✅ Done (scoped down) |
+| Power user tools | Command Palette (Cmd/Ctrl+K, wraps existing `WidgetViewModel` commands rather than a new command layer, live-verified end-to-end via the accessibility tree — filtered to "Open Settings," pressed Enter, confirmed the real window opened); Keyboard Shortcuts (Cmd/Ctrl+K/F/,, registered in code via `OperatingSystem.IsMacOS()` since Avalonia's XAML `KeyGesture` has no Cmd/Ctrl OS translation); Task Templates satisfied by Phase 17; Clipboard History (picked back up 2026-08-14 — a second 30-second poll timer in `WidgetWindow` reading `IClipboard.TryGetTextAsync()`, an in-memory-only DI-singleton history for privacy reasons, live-verified copying real text through the OS clipboard and back); Undo/Redo and Activity Log still explicitly deferred (each for a distinct, documented reason) | ✅ Done (scoped down) |
 | Security & data protection | PIN Lock (PBKDF2-hashed via the BCL's `Rfc2898DeriveBytes`, no new dependency; a `LockScreenWindow` gates startup, widget still fully constructed so tray Quit always works while locked; live-verified lock-on-startup, wrong-PIN rejection, and close-button bypass refusal against a test PIN injected into the live settings file, then reverted — the successful-unlock click-through wasn't confirmed live due to keystroke-automation flakiness and was cut short at the user's request, covered instead by `LockScreenViewModelTests`); Auto Lock, Windows Hello/Touch ID, Database Encryption, Secure Backup/Restore, and PDF/HTML export all explicitly deferred (each a distinct, documented reason) | ✅ Done (scoped down) |
 | Auto-update system | Read-only version check against the real, public `amitnahaksvn/DeskTodo` GitHub repo (confirmed live via `curl` before writing code, and live-verified again afterward by actually clicking "Check for Updates" in Settings — "You're on the latest version," a genuine round trip, not a mock), with a "View Release" link opening the browser via `TopLevel.Launcher`; this app's first-ever outbound network call, deliberately on-demand only, no background polling; actual update installation explicitly deferred — it depends on a distribution-channel decision (direct download vs. app store vs. MSIX) that hasn't been made, exactly as the phase's own original planning notes anticipated | ✅ Done (scoped down) |
 | Cloud sync & multi-device | Explicitly deferred to last on the user's own call — the roadmap's own planning notes call this the single largest item and recommend dedicated planning before any implementation attempt; not skipped permanently, deliberately ordered after every other still-pending phase | ⬜ Deferred to last |

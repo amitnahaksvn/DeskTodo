@@ -7,7 +7,7 @@ that one is the reasoning.
 
 **Legend:** ✅ Done · 🚧 Partial · ⬜ Not started
 
-**Last updated:** 2026-08-13 (Phases 1–16 done; Phases 17–26 fully done — including their originally-deferred items; Phase 27 done (scoped to Light/Dark/System theme only) — see its own section; Phases 28–30 done (all three scoped down); Phase 31 deferred to last on the user's own call — see its own section; Phase 32 done (scoped to its one independently-shippable piece); Phase 33 explicitly deferred (needs user-supplied OAuth credentials) — see its own section; Phase 35 done (scoped to Drag File/Drag Browser Tab) — see its own section; Phase 36 deferred, blocked on Phase 33; Phases 34, 37 still pending)
+**Last updated:** 2026-08-14 (Phases 1–16 done; Phases 17–26 fully done — including their originally-deferred items; Phase 27 done (scoped to Light/Dark/System theme only) — see its own section; Phase 28 done (Command Palette/Keyboard Shortcuts, plus Clipboard History picked back up 2026-08-14 — Undo/Redo and Activity Log still deferred) — see its own section; Phases 29–30 done (both scoped down); Phase 31 deferred to last on the user's own call — see its own section; Phase 32 done (scoped to its one independently-shippable piece); Phase 33 explicitly deferred (needs user-supplied OAuth credentials) — see its own section; Phase 35 done (scoped to Drag File/Drag Browser Tab) — see its own section; Phase 36 deferred, blocked on Phase 33; Phases 34, 37 still pending)
 
 > **Note on numbering:** phases 1–16 mirror the tracked work items
 > one-to-one, with one deliberate exception — the DesktopSheet→DeskTodo
@@ -64,20 +64,20 @@ originally named — see each phase's own section below for the full detail.
 | 24 | [Analytics & reporting](#24-analytics--reporting) | Analytics | ✅ |
 | 25 | [Organization: projects, workspaces & lists](#25-organization-projects-workspaces--lists) | Organization | ✅ |
 | 26 | [Reminder enhancements](#26-reminder-enhancements) | Reminders | ✅ |
+| 27 | [Theming & appearance](#27-theming--appearance) | Appearance, "Later" notes | ✅ (scoped down) |
 | 28 | [Power user tools](#28-power-user-tools) | Power User Features | ✅ (scoped down) |
 | 29 | [Security & data protection](#29-security--data-protection) | Security, Import/Export | ✅ (scoped down) |
 | 30 | [Auto-update system](#30-auto-update-system) | "Later" notes | ✅ (scoped down) |
+| 32 | [Team collaboration & sharing](#32-team-collaboration--sharing) | Team Features, "Later" notes | ✅ (scoped down) |
+| 35 | [Unique capture features](#35-unique-capture-features) | Unique Features | ✅ (scoped down) |
 
 ## Extended Roadmap — Phase 27+
 
 | # | Phase | Source category (Later.Implementation.md) | Status |
 |---|-------|---------------------------------------------|--------|
-| 27 | [Theming & appearance](#27-theming--appearance) | Appearance, "Later" notes | ✅ (scoped down) |
 | 31 | [Cloud sync & multi-device](#31-cloud-sync--multi-device) | Cloud Features | ⬜ (deferred to last) |
-| 32 | [Team collaboration & sharing](#32-team-collaboration--sharing) | Team Features, "Later" notes | ✅ (scoped down) |
 | 33 | [Third-party integrations](#33-third-party-integrations) | Integrations | ⬜ (explicitly deferred) |
 | 34 | [AI features](#34-ai-features) | AI Features | ⬜ | do at very last
-| 35 | [Unique capture features](#35-unique-capture-features) | Unique Features | ✅ (scoped down) |
 | 36 | [Developer Mode dashboards](#36-developer-mode-dashboards) | Developer Mode | ⬜ (deferred — blocked on Phase 33) |
 | 37 | [Companion apps & extensions](#37-companion-apps--extensions) | Future Ideas | ⬜ |
 | 38 | [have a list of task which can add to day, days, week or month on 1 click] allow user to create multiple task groups and on click it adds to ther to do list
@@ -1392,28 +1392,12 @@ mouse, or who want more forgiving editing (undo/redo).
   Templates; this wishlist entry was the same feature listed a second
   time under "Power User Features," not a second one to build.
 
-**Deferred (documented, not silently dropped):**
-- **Undo/Redo** — the architecturally significant item here: it implies
-  every mutating `TaskService`/`WidgetViewModel` operation pushes an
-  invertible command onto a stack, a real pattern shift from the "call the
-  service, reload" model used throughout this app since Phase 8. Building
-  it well needs its own dedicated, carefully-scoped pass, not something to
-  fold into a phase already delivering two other features.
-- **Clipboard History** — needs OS clipboard-change monitoring with no
-  existing precedent anywhere in this codebase; deferred rather than
-  built as a rushed first pass.
-- **Activity Log** — a chronological log of actions taken, which overlaps
-  meaningfully with Phase 26's already-deferred Reminder History (both are
-  "a persisted log of things that happened, shown somewhere"). Better to
-  design one shared piece of infrastructure for both in a future pass than
-  build two similar logs separately.
-
-**Live-verified:** launched the real app, pressed Cmd+K, and confirmed
-(via the accessibility tree, not just a screenshot) every expected entry
-appeared in the palette. Typed "settings" — the list filtered to "Open
-Settings" — pressed Enter, and confirmed the real Settings window opened
-and the palette closed itself, a genuine end-to-end trip through the
-actual command binding, not a mocked one.
+**Live-verified (Command Palette):** launched the real app, pressed
+Cmd+K, and confirmed (via the accessibility tree, not just a screenshot)
+every expected entry appeared in the palette. Typed "settings" — the list
+filtered to "Open Settings" — pressed Enter, and confirmed the real
+Settings window opened and the palette closed itself, a genuine
+end-to-end trip through the actual command binding, not a mocked one.
 
 - `src/DeskTodo.App/ViewModels/{CommandPaletteEntry,CommandPaletteViewModel}.cs`
 - `src/DeskTodo.App/Views/{CommandPaletteWindow.axaml,CommandPaletteWindow.axaml.cs}`
@@ -1421,6 +1405,70 @@ actual command binding, not a mocked one.
   `src/DeskTodo.App/Views/WidgetWindow.axaml.cs` (`OnCommandPaletteRequested`,
   `RegisterKeyboardShortcuts`)
 - Tests: `CommandPaletteViewModelTests`, `CommandPaletteWindowRenderTests`
+
+**Delivered (2026-08-14), Clipboard History:** picked back up on the
+user's own "implement 27 phase" (meant Phase 28) instruction, after
+which the three remaining deferred items were re-offered as a scope
+choice — Clipboard History alone, Activity Log (unified with Phase 26's
+Reminder History), Undo/Redo, or all three. The user chose Clipboard
+History alone, the most self-contained of the three.
+
+A new `ClipboardHistoryWindow`, reachable from the tray menu ("Clipboard
+History…") and the Command Palette, shows up to the 20 most recent
+distinct clipboard text entries with a per-row "Copy" button to write one
+back to the OS clipboard, and a "Clear History" button. Polling (`Widget
+Window`'s new `_clipboardPollTimer`, a *second* 30-second
+`DispatcherTimer` alongside `WidgetViewModel`'s own `_dayRolloverTimer` —
+kept separate rather than merged, since reading the clipboard needs a
+live `TopLevel`/`IClipboard`, an Avalonia dependency `WidgetViewModel`
+deliberately doesn't have) calls `IClipboard.TryGetTextAsync()` — the
+correct Avalonia 12.1.0 extension method, confirmed against
+`ClipboardExtensions` in the installed package rather than assumed — and
+hands any changed text to a DI-singleton `ClipboardHistoryViewModel`
+(same "must persist whether or not its own window is open" reasoning as
+`FocusTimerViewModel`).
+
+**Deliberately in-memory only, never persisted to disk.** Clipboard
+content can include passwords and other sensitive text someone copied
+briefly and never meant to keep; writing it into a SQLite file that
+outlives the running app would be a real privacy cost this feature
+doesn't need to take on to be useful. History resets on every app
+restart — an explicit scoping choice, not an oversight.
+
+**Live-verified:** launched the real app, copied "Buy milk and eggs" to
+the system clipboard via `pbcopy`, waited a real 30-second poll cycle,
+and opened Clipboard History through the Command Palette (typed "clip",
+Enter) — the entry appeared. Copied a second, different string, waited
+another poll cycle, and confirmed *both* entries were present (proving
+the poll correctly tracks changes across multiple ticks, not just once).
+Set the clipboard to a third, unrelated value, clicked "Copy" next to
+"Buy milk and eggs" (via the accessibility tree, not just a screenshot),
+and confirmed via `pbpaste` that the OS clipboard actually changed back
+to "Buy milk and eggs" — a genuine end-to-end round trip through the
+relative-binding `CommandParameter` wiring in the `ListBox` item
+template, not assumed correct just because it compiled. Full test suite:
+541/541 passing, zero-warning build.
+
+- `src/DeskTodo.App/ViewModels/ClipboardHistoryViewModel.cs`
+- `src/DeskTodo.App/Views/{ClipboardHistoryWindow.axaml,ClipboardHistoryWindow.axaml.cs}`
+- `src/DeskTodo.App/ViewModels/WidgetViewModel.cs` (`ClipboardHistoryRequested`/`OpenClipboardHistoryCommand`)
+- `src/DeskTodo.App/Views/WidgetWindow.axaml.cs` (`_clipboardPollTimer`, `OnClipboardPollTick`, `OnClipboardHistoryRequested`)
+- `src/DeskTodo.App/App.axaml.cs` (tray menu's "Clipboard History…" item)
+- `src/DeskTodo.App/DependencyInjection/ServiceCollectionExtensions.cs` (singleton registration)
+- Tests: `ClipboardHistoryViewModelTests`
+
+**Still deferred (documented, not silently dropped):**
+- **Undo/Redo** — the architecturally significant item here: it implies
+  every mutating `TaskService`/`WidgetViewModel` operation pushes an
+  invertible command onto a stack, a real pattern shift from the "call the
+  service, reload" model used throughout this app since Phase 8. Building
+  it well needs its own dedicated, carefully-scoped pass, not something to
+  fold into a phase already delivering other features.
+- **Activity Log** — a chronological log of actions taken, which overlaps
+  meaningfully with Phase 26's already-deferred Reminder History (both are
+  "a persisted log of things that happened, shown somewhere"). Better to
+  design one shared piece of infrastructure for both in a future pass than
+  build two similar logs separately.
 
 ## 29. Security & data protection ✅ (scoped down)
 

@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="440"
+        x:Class="DeskTodo.App.Views.ClipboardHistoryWindow"
+        x:DataType="vm:ClipboardHistoryViewModel"
+        Title="Clipboard History"
+        Width="360" Height="440"
+        MinWidth="320" MinHeight="300"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!--
+      Phase 28's Clipboard History — recent clipboard text, polled by WidgetWindow every 30
+      seconds and kept here for as long as the app is running (see the ViewModel's own doc
+      comment for why nothing is persisted to disk). Non-modal, singleton-backed like
+      FocusTimerWindow: closing this window doesn't stop history from accumulating.
+    -->
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Clipboard History" FontSize="16" FontWeight="SemiBold"
+                   Margin="0,0,0,12" Foreground="{DynamicResource TextPrimaryBrush}" />
+
+        <Panel Grid.Row="1">
+            <ListBox ItemsSource="{Binding Entries}" IsVisible="{Binding Entries.Count}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                            <TextBlock Grid.Column="0" Text="{Binding}" FontSize="12"
+                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                       VerticalAlignment="Center" Margin="0,0,8,0"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       ToolTip.Tip="{Binding}" />
+                            <Button Grid.Column="1" Content="Copy"
+                                    Command="{Binding $parent[ListBox].((vm:ClipboardHistoryViewModel)DataContext).CopyBackCommand}"
+                                    CommandParameter="{Binding}" FontSize="11" Padding="8,3" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <TextBlock Text="Nothing copied yet" IsVisible="{Binding !Entries.Count}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextMutedBrush}" FontSize="13" />
+        </Panel>
+
+        <Button Grid.Row="2" Content="Clear History" Command="{Binding ClearHistoryCommand}"
+                IsEnabled="{Binding Entries.Count}" HorizontalAlignment="Left" Margin="0,12,0,0"
+                Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" />
+    </Grid>
+
+</Window>
