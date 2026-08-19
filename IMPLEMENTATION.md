@@ -81,6 +81,7 @@ originally named — see each phase's own section below for the full detail.
 | 36 | [Developer Mode dashboards](#36-developer-mode-dashboards) | Developer Mode | ⬜ (deferred — blocked on Phase 33) |
 | 37 | [Companion apps & extensions](#37-companion-apps--extensions) | Future Ideas | ⬜ |
 | 38 | [Task Groups](#38-task-groups) | (raw idea, not sourced from Later.Implementation.md) | ✅ |
+| 39–100 | [Features 39–100](Roadmap-39-100.md) — a large pasted specification (Task Inbox, Undo/Redo Engine, Goals/Milestones/Project Health, Backup/Restore, Custom Fields/Workflows, Event Bus, Local REST API, Plugin SDK, and more) | Separate document, not yet reconciled against Phases 1–38 | ⬜ Planning only — see that file |
 ---
 
 ## 1. Solution scaffold ✅
