@@ -13,6 +13,8 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<TaskTemplate> TaskTemplates => Set<TaskTemplate>();
 
+    public DbSet<TaskGroup> TaskGroups => Set<TaskGroup>();
+
     public DbSet<Tag> Tags => Set<Tag>();
 
     public DbSet<Attachment> Attachments => Set<Attachment>();

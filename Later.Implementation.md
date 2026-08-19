@@ -469,5 +469,5 @@ prose:
 - [x] App version display + update-available prompt _(read-only half only — a "Check for Updates" Settings button against the real GitHub Releases API, with a link to the release page; actually downloading/installing an update is deferred, since it depends on a distribution-channel decision — direct download vs. app store vs. MSIX — that hasn't been made. Updating never touching existing data is moot for now: nothing installs anything yet)_
 - [ ] Nicer UI polish (a "Bootstrap-like" free component/styling pass)
 - [ ] Send a task to another user, who can accept or reject it
-- [ ] Group tasks (shared, multi-user task groups)
+- [ ] Group tasks (shared, multi-user task groups — needs Phase 31's deferred backend; not the same as Phase 38's local, single-user Task Groups feature)
 - [x] User profile concept _(the local half only — a name/avatar in Settings, purely personalization, not an account/identity system; "which account does this belong to" still needs Phase 31's deferred backend/sync to mean anything)_

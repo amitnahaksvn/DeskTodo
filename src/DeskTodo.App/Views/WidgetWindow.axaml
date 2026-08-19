@@ -154,10 +154,12 @@
             <Panel Grid.Row="3" Margin="20,4,20,8"
                    IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}">
                 <Grid IsVisible="{Binding IsSelectMode, Converter={x:Static convCore:BoolConverters.Not}}"
-                      ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                      ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
                     <TextBox Grid.Column="0" PlaceholderText="Add a task…" Text="{Binding NewTaskTitle}" KeyDown="OnAddTaskKeyDown" />
                     <ComboBox Grid.Column="1" ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplateToApply}"
                               PlaceholderText="From template…" Width="130" ToolTip.Tip="Create a task from a saved template" />
+                    <Button Grid.Column="2" Content="Groups" Command="{Binding OpenTaskGroupsCommand}"
+                            FontSize="11" Padding="8,4" ToolTip.Tip="Add a saved group of templates to a day, in one click" />
                 </Grid>
                 <Grid IsVisible="{Binding IsSelectMode}" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
                     <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">

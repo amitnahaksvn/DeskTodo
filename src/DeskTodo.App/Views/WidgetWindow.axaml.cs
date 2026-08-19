@@ -63,6 +63,7 @@ public partial class WidgetWindow : Window
             viewModel.AnalyticsRequested += OnAnalyticsRequested;
             viewModel.CommandPaletteRequested += OnCommandPaletteRequested;
             viewModel.ClipboardHistoryRequested += OnClipboardHistoryRequested;
+            viewModel.TaskGroupsRequested += OnTaskGroupsRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
@@ -121,6 +122,22 @@ public partial class WidgetWindow : Window
         }
 
         ClipboardHistoryWindow.ShowOrActivate(App.Services.GetRequiredService<ClipboardHistoryViewModel>());
+    }
+
+    private async void OnTaskGroupsRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var groupViewModel = App.Services.GetRequiredService<TaskGroupViewModel>();
+        var groupWindow = new TaskGroupWindow { DataContext = groupViewModel };
+        await groupWindow.ShowDialog(this);
+
+        // A group may have just added tasks for the day currently being viewed — same
+        // "reload after the dialog closes" pattern OnSettingsRequested and Import/Export use.
+        await viewModel.LoadTasksAsync();
     }
 
     /// <summary>
@@ -211,6 +228,7 @@ public partial class WidgetWindow : Window
             viewModel.AnalyticsRequested -= OnAnalyticsRequested;
             viewModel.CommandPaletteRequested -= OnCommandPaletteRequested;
             viewModel.ClipboardHistoryRequested -= OnClipboardHistoryRequested;
+            viewModel.TaskGroupsRequested -= OnTaskGroupsRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -394,6 +412,7 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("Open Settings", viewModel.OpenSettingsCommand),
             new CommandPaletteEntry("Toggle Mini Widget", viewModel.ToggleMiniWidgetModeCommand),
             new CommandPaletteEntry("Clipboard History", viewModel.OpenClipboardHistoryCommand),
+            new CommandPaletteEntry("Task Groups", viewModel.OpenTaskGroupsCommand),
         ]);
 
         var paletteWindow = new CommandPaletteWindow { DataContext = paletteViewModel };

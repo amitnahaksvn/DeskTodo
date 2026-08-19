@@ -568,4 +568,37 @@ public class GridViewModelTests
         Assert.Equal(string.Empty, _sut.SearchText);
         Assert.Equal(GridSmartFilter.None, _sut.SelectedSmartFilter);
     }
+
+    // Regression coverage for a real crash: SelectedCategoryFilter/SelectedProjectFilter are
+    // declared non-nullable, but a bound ComboBox's SelectedItem can transiently go null when
+    // its ItemsSource (CategoryFilterOptions/ProjectFilterOptions) is cleared and repopulated
+    // — which LoadAsync does on every call. That transient null used to reach
+    // RefreshVisibleRows() unguarded and throw a NullReferenceException.
+    [Fact]
+    public void SettingStatusFilter_WithSelectedCategoryAndProjectFilterNull_DoesNotThrow()
+    {
+        _sut.SelectedCategoryFilter = null!;
+        _sut.SelectedProjectFilter = null!;
+
+        var exception = Record.Exception(() => _sut.SelectedStatusFilter = TaskStatusFilter.Active);
+
+        Assert.Null(exception);
+        Assert.Empty(_sut.VisibleRows);
+    }
+
+    [Fact]
+    public async Task SaveCurrentViewAsync_WithSelectedCategoryAndProjectFilterNull_DoesNotThrow_AndSavesNullIds()
+    {
+        var settings = new AppSettings();
+        _settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
+        _sut.SelectedCategoryFilter = null!;
+        _sut.SelectedProjectFilter = null!;
+
+        var exception = await Record.ExceptionAsync(() => _sut.SaveCurrentViewAsync("My Search"));
+
+        Assert.Null(exception);
+        _settingsService.Verify(s => s.SaveAsync(
+            It.Is<AppSettings>(a => a.GridSavedViews.Any(v => v.Name == "My Search" && v.CategoryId == null && v.ProjectId == null)),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

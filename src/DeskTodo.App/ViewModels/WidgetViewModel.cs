@@ -877,6 +877,12 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenClipboardHistory() => ClipboardHistoryRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised by the quick-add row's "Groups" button and the Command Palette. Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? TaskGroupsRequested;
+
+    [RelayCommand]
+    private void OpenTaskGroups() => TaskGroupsRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try

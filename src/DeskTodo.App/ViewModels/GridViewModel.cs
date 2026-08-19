@@ -186,15 +186,13 @@ public sealed partial class GridViewModel : ViewModelBase
             _ => query,
         };
 
-        if (SelectedCategoryFilter.Id.HasValue)
+        if (SelectedCategoryFilter?.Id is { } categoryId)
         {
-            var categoryId = SelectedCategoryFilter.Id.Value;
             query = query.Where(r => r.Category.Id == categoryId);
         }
 
-        if (SelectedProjectFilter.Id.HasValue)
+        if (SelectedProjectFilter?.Id is { } projectId)
         {
-            var projectId = SelectedProjectFilter.Id.Value;
             query = query.Where(r => r.ProjectId == projectId);
         }
 
@@ -480,8 +478,8 @@ public sealed partial class GridViewModel : ViewModelBase
                 Name = trimmedName,
                 HiddenColumns = settings.HiddenGridColumns.ToList(),
                 SearchText = string.IsNullOrEmpty(SearchText) ? null : SearchText,
-                CategoryId = SelectedCategoryFilter.Id,
-                ProjectId = SelectedProjectFilter.Id,
+                CategoryId = SelectedCategoryFilter?.Id,
+                ProjectId = SelectedProjectFilter?.Id,
                 StatusFilter = SelectedStatusFilter.ToString(),
                 SmartFilter = SelectedSmartFilter.ToString(),
             });

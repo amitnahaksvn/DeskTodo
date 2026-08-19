@@ -51,6 +51,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IChecklistRepository, ChecklistRepository>();
         services.AddScoped<ITaskTemplateRepository, TaskTemplateRepository>();
+        services.AddScoped<ITaskGroupRepository, TaskGroupRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IAttachmentRepository, AttachmentRepository>();
         services.AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
@@ -61,6 +62,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<IChecklistService, ChecklistService>();
         services.AddScoped<ITaskTemplateService, TaskTemplateService>();
+        services.AddScoped<ITaskGroupService, TaskGroupService>();
         services.AddScoped<ITagService, TagService>();
         services.AddScoped<IAttachmentService, AttachmentService>();
         services.AddScoped<ITaskDependencyService, TaskDependencyService>();

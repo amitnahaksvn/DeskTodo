@@ -7,7 +7,7 @@ that one is the reasoning.
 
 **Legend:** ✅ Done · 🚧 Partial · ⬜ Not started
 
-**Last updated:** 2026-08-14 (Phases 1–16 done; Phases 17–26 fully done — including their originally-deferred items; Phase 27 done (scoped to Light/Dark/System theme only) — see its own section; Phase 28 done (Command Palette/Keyboard Shortcuts, plus Clipboard History picked back up 2026-08-14 — Undo/Redo and Activity Log still deferred) — see its own section; Phases 29–30 done (both scoped down); Phase 31 deferred to last on the user's own call — see its own section; Phase 32 done (scoped to its one independently-shippable piece); Phase 33 explicitly deferred (needs user-supplied OAuth credentials) — see its own section; Phase 35 done (scoped to Drag File/Drag Browser Tab) — see its own section; Phase 36 deferred, blocked on Phase 33; Phases 34, 37 still pending)
+**Last updated:** 2026-08-19 (Phases 1–16 done; Phases 17–26 fully done — including their originally-deferred items; Phase 27 done (scoped to Light/Dark/System theme only) — see its own section; Phase 28 done (Command Palette/Keyboard Shortcuts, plus Clipboard History picked back up 2026-08-14 — Undo/Redo and Activity Log still deferred) — see its own section; Phases 29–30 done (both scoped down); Phase 31 deferred to last on the user's own call — see its own section; Phase 32 done (scoped to its one independently-shippable piece); Phase 33 explicitly deferred (needs user-supplied OAuth credentials) — see its own section; Phase 35 done (scoped to Drag File/Drag Browser Tab) — see its own section; Phase 36 deferred, blocked on Phase 33; Phase 38 done (Task Groups, a raw idea from the roadmap table, not Later.Implementation.md) — see its own section; Phases 34, 37 still pending)
 
 > **Note on numbering:** phases 1–16 mirror the tracked work items
 > one-to-one, with one deliberate exception — the DesktopSheet→DeskTodo
@@ -80,7 +80,7 @@ originally named — see each phase's own section below for the full detail.
 | 34 | [AI features](#34-ai-features) | AI Features | ⬜ | do at very last
 | 36 | [Developer Mode dashboards](#36-developer-mode-dashboards) | Developer Mode | ⬜ (deferred — blocked on Phase 33) |
 | 37 | [Companion apps & extensions](#37-companion-apps--extensions) | Future Ideas | ⬜ |
-| 38 | [have a list of task which can add to day, days, week or month on 1 click] allow user to create multiple task groups and on click it adds to ther to do list
+| 38 | [Task Groups](#38-task-groups) | (raw idea, not sourced from Later.Implementation.md) | ✅ |
 ---
 
 ## 1. Solution scaffold ✅
@@ -720,6 +720,27 @@ naturally instead of being two disconnected mechanisms.
 - Tests: `GridViewModelTests` (incl. clipboard build/parse, hidden-column/freeze/saved-view persistence),
   `TaskGridRowViewModelTests`, `SettingsServiceTests` (round-trips the new settings fields),
   `GridWindowRenderTests` (headless, incl. a screenshot-verified render)
+
+**Bug fix (2026-08-20):** `SelectedCategoryFilter`/`SelectedProjectFilter`
+are declared as non-nullable `CategoryFilterOption`/`ProjectFilterOption`,
+but a bound `ComboBox`'s `SelectedItem` can transiently go `null` when its
+`ItemsSource` (`CategoryFilterOptions`/`ProjectFilterOptions`) is cleared
+and repopulated — which `LoadAsync` does exactly once, right as the grid
+window opens (confirmed by checking every call site — it's never
+re-invoked while the window stays open, so this is a narrow startup-only
+exposure window, not something everyday filter use could trigger). That
+transient `null` reached `RefreshVisibleRows()` and `SaveCurrentViewAsync`
+unguarded, throwing a `NullReferenceException` — caught live (via
+`GridViewModel.RefreshVisibleRows()`'s stack trace surfacing in the real
+app) while testing an unrelated feature (Phase 38). Fixed by treating a
+`null` selection as "no category/project filter" at all three read sites
+(`?.Id is { } value` pattern-matching instead of an unguarded `.Id.HasValue`/`.Id`),
+rather than chasing the exact `ComboBox`/binding timing that produces the
+transient `null` — the guard is correct regardless of why or when it
+happens. Covered by two new regression tests (`GridViewModelTests`)
+reproducing the exact crash: setting both filters to `null` directly,
+then confirming neither `RefreshVisibleRows()` (via `SelectedStatusFilter`)
+nor `SaveCurrentViewAsync` throws. Full suite: 557/557 passing.
 
 ## 21. Calendar, weekly/monthly/year views & alternate layouts ✅
 
@@ -1624,6 +1645,32 @@ auth/identity system that doesn't exist yet as a hard prerequisite), so
 attempting even a scoped-down version now would mean guessing at
 decisions only the user should make.
 
+**Picked back up and re-deferred (2026-08-20), approach decision now
+recorded so it isn't re-litigated from scratch next time.** Offered the
+real backend choices directly — sync via a cloud folder the user already
+has (Dropbox/iCloud Drive/Google Drive/OneDrive, no backend or hosting
+cost), a third-party backend-as-a-service (e.g. Supabase, real per-record
+sync + auth, needs an account), a self-hosted sync API (full control,
+real ops burden on the user), or defer again. **The user chose the cloud
+folder approach.** Before any code was written, the existing Phase 14
+Import/Export machinery was checked for reuse and found unsuitable as-is:
+`TaskExportRecord` deliberately carries no task `Id` (by design, for
+one-time portable export — see its own doc comment), so reusing it for
+repeated sync would create duplicate tasks every cycle instead of merging
+them. A real implementation needs a separate sync-specific snapshot
+format (Ids + the existing `TaskItem.ModifiedAt` for per-record
+last-write-wins merging), a manual "Sync Now" trigger rather than a
+background timer (writing to a cloud-synced folder at unpredictable times
+is the riskiest part of this approach), and two limitations flagged to
+the user upfront: no deletion sync (a task deleted on one device can
+reappear after syncing from a device that still has it) and no true
+field-level conflict merging (a genuine same-task double-edit just picks
+the newer `ModifiedAt` wholesale). **Re-deferred at this point** — the
+user asked to mark it for last again rather than provide the specific
+sync folder path needed to actually start building. Next time this is
+picked up: the approach is decided (cloud folder, snapshot+merge, manual
+trigger), the only missing piece is that folder path.
+
 **Deliverables:**
 - Cloud Sync, Multi-Device Sync — the same task data available and kept in
   sync across more than one installation of DeskTodo
@@ -1904,3 +1951,102 @@ cloud sync existing first, since a companion app with no shared backend is
 just a second, disconnected copy of DeskTodo — this is realistically "the
 roadmap after this roadmap," worth acknowledging honestly rather than
 scoping in detail prematurely.
+
+## 38. Task Groups ✅
+
+Not sourced from Later.Implementation.md's wishlist — a raw idea typed
+directly into the Extended Roadmap table: *"have a list of task which can
+add to day, days, week or month on 1 click; allow user to create multiple
+task groups and on click it adds to their to do list."* Picked up
+(2026-08-19) as the only genuinely unblocked, unstarted item in the
+roadmap once every numbered pending phase turned out to already have an
+explicit blocker or "do last" call from an earlier session.
+
+**Scoped in two rounds of clarification before writing any code** — the
+raw idea bundled two ambiguous questions:
+1. *Which phase did "1 pending phase" even mean?* Phases 31/33/34/36/37
+   were all already blocked or explicitly deferred by earlier decisions;
+   this raw idea was the only unblocked candidate.
+2. *What does "add to day, days, week, or month" actually mean for a
+   group of N tasks?* Offered three readings — all N tasks land on one
+   chosen day (just not locked to today); the whole group repeats once
+   per day across a date range (a 3-task group added to "week" creates 21
+   tasks); or defer the question until a UI mockup existed. The user
+   picked the first — simpler, and avoids inventing distribution
+   semantics nobody asked for.
+
+**What shipped:** a `TaskGroup` — a named, ordered list of existing
+`TaskTemplate` ids (Phase 17), not a second task-shape definition. A new
+"Groups" button next to "From template…" in the widget's quick-add row
+(and a Command Palette entry, "Task Groups") opens `TaskGroupWindow`:
+create a group from a checkbox multi-select of every existing template,
+delete a group, or click "Add to Day" to create one real task per member
+template on a `DatePicker`-chosen date (defaulting to today, not locked
+to it — the "days" part of the original ask).
+
+**Reuses `ITaskTemplateService.CreateTaskFromTemplateAsync` rather than
+duplicating it.** `TaskGroupService.CreateTasksFromGroupAsync` loops the
+group's member ids and calls the *existing* Phase 17 single-task-from-
+template method once per member — checklist copying and every other
+"new task from template" behavior stays defined in exactly one place. A
+member template id that's since been deleted is silently skipped rather
+than failing the whole batch, so a group still creates whatever tasks it
+still can.
+
+**New `TaskGroup` domain entity + `TaskGroups` table**, added via a real
+EF Core migration (`AddTaskGroups`) that applies automatically on next
+startup, the same as every other schema change in this app. `TemplateIds`
+(an ordered `List<Guid>`) is stored as a JSON string column via a manual
+`HasConversion`, mirroring `TaskTemplateConfiguration.ChecklistItems`'s
+existing `List<string>` approach exactly — same technique, different
+element type.
+
+**A pre-existing, unrelated DI issue was blocking `dotnet ef migrations
+add` entirely** — `FocusTimerViewModel` (a singleton) consumes
+`IFocusSessionService` (scoped), which the EF Core CLI's own host
+bootstrapping validates strictly (`ServiceProviderOptions.ValidateScopes`)
+in a way normal app startup never does, so the app runs fine but
+`dotnet ef` couldn't build the host at all. Rather than change an
+unrelated singleton's lifetime as a side effect of adding a migration,
+added `DeskTodoDbContextFactory` (`IDesignTimeDbContextFactory`) — the
+standard EF Core pattern for exactly this situation, letting the CLI
+build just a `DbContextOptions` pointing at the real SQLite file without
+constructing the whole app's DI container. Worth fixing that underlying
+lifetime issue properly in a future pass; noted here rather than silently
+worked around with no trace.
+
+**Verified:** 555/555 tests passing (14 new — `TaskGroupServiceTests`
+covering create/update/delete, in-order task creation, skipping deleted
+member templates, and the not-found exception path; `TaskGroupViewModelTests`
+covering the form-validation error paths, the "reset form after create"
+behavior, and that `ApplyDate` correctly becomes the created tasks'
+`PlanDate`), zero-warning build. The EF migration was confirmed to apply
+automatically against the real database on next launch (the `TaskGroups`
+table existed immediately after startup, checked directly via `sqlite3`,
+not assumed).
+
+**Live UI verification was cut short for a safety reason, not a code
+reason.** Mid-verification, it became clear that synthetic clicks/
+keystrokes were landing on the user's actual, actively-used desktop (a
+real Finder window into their own files) rather than an isolated test
+surface — continuing risked interfering with their real session, so live
+GUI testing was stopped rather than pushed through. Two pieces of
+incidental evidence survived that session even so: an early screenshot of
+`TaskGroupWindow` rendering correctly with real seeded templates and a
+correct default date, and — more tellingly — a genuine `TaskGroup` and a
+real task actually got created via the stray input before automation was
+halted, meaning the full create → apply → task-creation chain did fire
+correctly end-to-end at least once, just not under deliberate control.
+Both were inspected directly in the database and cleaned up afterward.
+The user chose to trust the test suite over further live verification
+rather than resume UI automation.
+
+- `src/DeskTodo.Domain/Entities/TaskGroup.cs`, `src/DeskTodo.Domain/Exceptions/TaskGroupNotFoundException.cs`
+- `src/DeskTodo.Application/Abstractions/ITaskGroupRepository.cs`, `src/DeskTodo.Application/Services/{ITaskGroupService,TaskGroupService}.cs`
+- `src/DeskTodo.Infrastructure/Repositories/TaskGroupRepository.cs`, `src/DeskTodo.Infrastructure/Data/Configurations/TaskGroupConfiguration.cs`, `src/DeskTodo.Infrastructure/Data/DeskTodoDbContextFactory.cs`
+- `src/DeskTodo.Infrastructure/Data/Migrations/20260819201045_AddTaskGroups.cs`
+- `src/DeskTodo.App/ViewModels/{TaskGroupViewModel,TaskGroupOption,SelectableTemplateOption}.cs`
+- `src/DeskTodo.App/Views/{TaskGroupWindow.axaml,TaskGroupWindow.axaml.cs}`
+- `src/DeskTodo.App/ViewModels/WidgetViewModel.cs` (`TaskGroupsRequested`/`OpenTaskGroupsCommand`), `src/DeskTodo.App/Views/WidgetWindow.axaml{,.cs}` ("Groups" button, `OnTaskGroupsRequested`, Command Palette entry)
+- `src/DeskTodo.Infrastructure/DependencyInjection/ServiceCollectionExtensions.cs`, `src/DeskTodo.App/DependencyInjection/ServiceCollectionExtensions.cs` (DI registrations)
+- Tests: `TaskGroupServiceTests`, `TaskGroupViewModelTests`

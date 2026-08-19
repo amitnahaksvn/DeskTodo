@@ -2379,6 +2379,84 @@ compiled but actually caught a real bug on first live attempt (see Phase
 code can carry silently; the Windows implementation should be assumed to
 carry equivalent, currently-undiscovered risk until it's actually run.
 
+## Phase 38 — Task Groups
+
+Not sourced from Later.Implementation.md's wishlist — a raw idea typed
+directly into IMPLEMENTATION.md's Extended Roadmap table asking for
+one-click task groups. Picked up once every numbered pending phase
+(31/33/34/36/37) turned out to already be blocked or explicitly deferred
+by an earlier decision, leaving this the only genuinely startable item.
+
+**Two rounds of clarification before any code, not one.** First, which
+phase "1 pending phase" even meant — every numbered candidate had a
+blocker, so the raw table idea was the only real option. Second, and more
+substantively: the idea's own "add to day, days, week, or month" phrase
+has more than one honest reading for what happens to a 3-task group
+applied to, say, "week" — one chosen day, or a repeated copy on every day
+of that week (21 tasks)? Rather than guess at the interaction model for a
+feature with no prior wishlist context to lean on, this was asked
+directly, with the third option being "sketch a mockup and ask again."
+The user picked the simplest reading — one chosen day, not locked to
+today. This is a materially different kind of ambiguity than most of this
+project's earlier scoping calls: those were about *how much* of an
+already-understood feature to build (Phase 32's User Profile, Phase 35's
+drag-and-drop), not *what the feature's interaction model even is*.
+
+**A `TaskGroup` is a named, ordered list of `TaskTemplate` ids (Phase
+17) — not a second task-shape definition.** `TaskGroupService.
+CreateTasksFromGroupAsync` reuses `ITaskTemplateService.
+CreateTaskFromTemplateAsync` once per member id rather than duplicating
+its checklist-copying logic; a member id that's since been deleted is
+silently skipped so the group still creates whatever it still can, rather
+than failing the whole batch over one stale reference.
+
+**`TemplateIds` (`List<Guid>`) is stored as a JSON column via the same
+manual `HasConversion` technique `TaskTemplateConfiguration.
+ChecklistItems` already established for `List<string>`** — same
+reasoning (unambiguous, proven on this project's pinned SQLite provider,
+not dependent on verifying EF Core's newer built-in primitive-collection
+mapping), different element type.
+
+**A pre-existing, unrelated DI lifetime bug blocked `dotnet ef migrations
+add` entirely.** `FocusTimerViewModel` (singleton) consumes
+`IFocusSessionService` (scoped) — invalid under strict DI validation, but
+normal app startup never runs with `ServiceProviderOptions.ValidateScopes`
+on, so the app itself has always worked fine. The EF Core CLI's own host
+bootstrapping *does* validate strictly, so `dotnet ef migrations add`
+failed outright the first time it was tried for this phase, with no
+relation to the migration's own content. Rather than change
+`FocusTimerViewModel`'s lifetime as an incidental side effect of adding a
+Task Groups migration, added `DeskTodoDbContextFactory` implementing
+`IDesignTimeDbContextFactory<DeskTodoDbContext>` — the standard,
+documented EF Core pattern for letting design-time tooling build just a
+`DbContextOptions` against the real SQLite path without constructing the
+app's full DI container. The underlying singleton/scoped mismatch is real
+and still there; this works around the CLI-specific symptom without
+masking or fixing the cause, which belongs in its own pass.
+
+**Verified via tests and direct database inspection, not a completed live
+UI pass.** 555/555 tests passing (14 new), zero-warning build, and the
+`TaskGroups` table was confirmed to exist immediately after the app's
+next startup — the migration applying automatically, checked directly via
+`sqlite3` rather than assumed. Live GUI verification started normally
+(one clean screenshot exists of `TaskGroupWindow` rendering correctly
+against real seeded templates, with a correctly-defaulted date picker),
+but was deliberately cut short mid-session: it became apparent that
+synthetic clicks/keystrokes were reaching the user's actual,
+concurrently-in-use desktop (a real Finder window into their own files),
+not an isolated surface, and continuing risked interfering with their
+live session rather than just being flaky. This is a different category
+of limitation than the Phase 27/28/35 automation flakiness already
+documented elsewhere in this file (a `TabControl`/`ComboBox` popup not
+responding to synthetic events) — those were safe but unreliable; this
+one was a genuine reason to stop, not just retry. Notably, the stray
+input that occurred before automation was halted did create a real
+`TaskGroup` and a real task from it — direct, if accidental, evidence
+that the create → apply → task-creation chain fires correctly end to end.
+Both were found via `sqlite3` and deleted afterward. Offered a choice
+between manual verification or trusting the test suite; the user chose to
+trust the tests rather than resume live testing.
+
 ## Roadmap
 
 | Stage | Scope | Status |
@@ -2416,3 +2494,4 @@ carry equivalent, currently-undiscovered risk until it's actually run.
 | Third-party integrations | Explicitly deferred on the user's own call — every integration needs an OAuth app registered with the relevant third-party service, credentials only the user can obtain; offered GitHub Issues as a default first integration, deferred instead in favor of Phase 35 | ⬜ Deferred |
 | Unique capture features | Drag File to Create Task and Drag Browser Tab to Create Task, extending the existing `DragDrop` API (Phase 9) rather than a new mechanism; a dropped file is genuinely attached via `IAttachmentService`, dropped text/a URL becomes both the task's title and description; Avalonia 12.1.0's exact drag-and-drop API shape verified empirically via `MetadataLoadContext` reflection over the installed ref assembly rather than assumed; Smart Clipboard Detection, OCR, Voice to Task, Email to Task, and every AI-dependent item (Daily Briefing, Workload Prediction, ...) explicitly deferred | ✅ Done (scoped down) |
 | Developer Mode dashboards | Explicitly deferred — entirely blocked on Phase 33 (which the user chose to defer), since there's no external data to dashboard until that integration exists | ⬜ Deferred |
+| Task Groups | A raw idea from the roadmap table, not Later.Implementation.md's wishlist — a named, ordered list of existing `TaskTemplate` ids (Phase 17), applied to a chosen day in one click via the existing `CreateTaskFromTemplateAsync`, not a second task-shape definition; a pre-existing, unrelated singleton/scoped DI lifetime mismatch was blocking `dotnet ef migrations add` entirely, worked around with a standard `IDesignTimeDbContextFactory` rather than patched as a side effect; 555/555 tests passing, migration confirmed applying automatically via direct `sqlite3` inspection; live GUI verification deliberately cut short mid-session on a safety concern (synthetic input reaching the user's actual concurrently-in-use desktop, not just automation flakiness) — the user chose to trust the test suite over resuming it | ✅ Done |
