@@ -80,6 +80,15 @@ public sealed class TaskItem
     public bool IsDeleted { get; private set; }
 
     /// <summary>
+    /// When <see cref="SoftDelete"/> was called — distinct from <see cref="ModifiedAt"/>,
+    /// which any later mutation would overwrite. Feature 46's Trash view needs a stable "how
+    /// long has this been in the trash" timestamp that survives being touched again (e.g. if
+    /// a future retention sweep reads it). Null unless <see cref="IsDeleted"/> is true; cleared
+    /// by <see cref="Restore"/>.
+    /// </summary>
+    public DateTime? DeletedAt { get; private set; }
+
+    /// <summary>
     /// A second, independent boolean flag from <see cref="IsPinned"/> — Pin means "keep at
     /// the top of today's list"; Favorite means "important to me across every day" (e.g. a
     /// long-running goal-adjacent task). Deliberately not unified into one flag since they
@@ -202,12 +211,14 @@ public sealed class TaskItem
     {
         IsArchived = false;
         IsDeleted = false;
+        DeletedAt = null;
         Touch();
     }
 
     public void SoftDelete()
     {
         IsDeleted = true;
+        DeletedAt = DateTime.UtcNow;
         Touch();
     }
 

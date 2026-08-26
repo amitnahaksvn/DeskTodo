@@ -883,6 +883,12 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenTaskGroups() => TaskGroupsRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised from the tray menu's "Trash…" item and the Command Palette (Roadmap-39-100.md's Feature 46). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? TrashRequested;
+
+    [RelayCommand]
+    private void OpenTrash() => TrashRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try

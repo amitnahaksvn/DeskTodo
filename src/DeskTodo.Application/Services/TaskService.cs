@@ -6,7 +6,7 @@ using DeskTodo.Domain.Exceptions;
 namespace DeskTodo.Application.Services;
 
 /// <inheritdoc cref="ITaskService"/>
-public sealed class TaskService(ITaskRepository taskRepository) : ITaskService
+public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepository taskHistoryRepository) : ITaskService
 {
     public Task<IReadOnlyList<TaskItem>> GetTasksForDateAsync(DateOnly planDate, CancellationToken cancellationToken = default) =>
         taskRepository.GetByDateAsync(planDate, cancellationToken);
@@ -42,17 +42,31 @@ public sealed class TaskService(ITaskRepository taskRepository) : ITaskService
         };
 
         await taskRepository.AddAsync(task, cancellationToken);
+        await RecordHistoryAsync(task.Id, TaskHistoryAction.Created, cancellationToken: cancellationToken);
         return task;
     }
 
     public async Task UpdateTaskAsync(TaskItem task, CancellationToken cancellationToken = default)
     {
+        var before = await taskRepository.GetByIdAsync(task.Id, cancellationToken);
         task.Touch();
         await taskRepository.UpdateAsync(task, cancellationToken);
+
+        if (before is not null)
+        {
+            await RecordFieldChangesAsync(before, task, cancellationToken);
+        }
     }
 
-    public Task RenameTaskAsync(Guid taskId, string newTitle, CancellationToken cancellationToken = default) =>
-        MutateAsync(taskId, task => { task.Title = newTitle; task.Touch(); }, cancellationToken);
+    public async Task RenameTaskAsync(Guid taskId, string newTitle, CancellationToken cancellationToken = default)
+    {
+        var task = await GetRequiredAsync(taskId, cancellationToken);
+        var oldTitle = task.Title;
+        task.Title = newTitle;
+        task.Touch();
+        await taskRepository.UpdateAsync(task, cancellationToken);
+        await RecordIfChangedAsync(taskId, TaskHistoryAction.Renamed, nameof(TaskItem.Title), oldTitle, newTitle, cancellationToken);
+    }
 
     public async Task<TaskItem> DuplicateTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
@@ -87,6 +101,7 @@ public sealed class TaskService(ITaskRepository taskRepository) : ITaskService
 
         task.Complete();
         await taskRepository.UpdateAsync(task, cancellationToken);
+        await RecordHistoryAsync(taskId, TaskHistoryAction.Completed, cancellationToken: cancellationToken);
 
         if (task.GetNextOccurrencePlanDate() is not { } nextPlanDate)
         {
@@ -112,8 +127,11 @@ public sealed class TaskService(ITaskRepository taskRepository) : ITaskService
         await taskRepository.AddAsync(nextOccurrence, cancellationToken);
     }
 
-    public Task ReopenTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
-        MutateAsync(taskId, task => task.Reopen(), cancellationToken);
+    public async Task ReopenTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
+    {
+        await MutateAsync(taskId, task => task.Reopen(), cancellationToken);
+        await RecordHistoryAsync(taskId, TaskHistoryAction.Reopened, cancellationToken: cancellationToken);
+    }
 
     public Task PinTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
         MutateAsync(taskId, task => task.Pin(), cancellationToken);
@@ -130,14 +148,38 @@ public sealed class TaskService(ITaskRepository taskRepository) : ITaskService
     public Task UnfavoriteTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
         MutateAsync(taskId, task => task.UnmarkFavorite(), cancellationToken);
 
-    public Task ArchiveTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
-        MutateAsync(taskId, task => task.Archive(), cancellationToken);
+    public async Task ArchiveTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
+    {
+        await MutateAsync(taskId, task => task.Archive(), cancellationToken);
+        await RecordHistoryAsync(taskId, TaskHistoryAction.Archived, cancellationToken: cancellationToken);
+    }
 
-    public Task RestoreTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
-        MutateAsync(taskId, task => task.Restore(), cancellationToken);
+    public async Task RestoreTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
+    {
+        await MutateAsync(taskId, task => task.Restore(), cancellationToken);
+        await RecordHistoryAsync(taskId, TaskHistoryAction.Restored, cancellationToken: cancellationToken);
+    }
 
-    public Task DeleteTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
-        MutateAsync(taskId, task => task.SoftDelete(), cancellationToken);
+    public async Task DeleteTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
+    {
+        await MutateAsync(taskId, task => task.SoftDelete(), cancellationToken);
+        await RecordHistoryAsync(taskId, TaskHistoryAction.Deleted, cancellationToken: cancellationToken);
+    }
+
+    public Task<IReadOnlyList<TaskItem>> GetDeletedTasksAsync(CancellationToken cancellationToken = default) =>
+        taskRepository.GetDeletedAsync(cancellationToken);
+
+    public Task PermanentlyDeleteTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
+        taskRepository.RemoveAsync(taskId, cancellationToken);
+
+    public async Task EmptyTrashAsync(CancellationToken cancellationToken = default)
+    {
+        var deleted = await taskRepository.GetDeletedAsync(cancellationToken);
+        foreach (var task in deleted)
+        {
+            await taskRepository.RemoveAsync(task.Id, cancellationToken);
+        }
+    }
 
     public Task ReorderTasksAsync(DateOnly planDate, IReadOnlyList<Guid> orderedTaskIds, CancellationToken cancellationToken = default) =>
         taskRepository.ReorderAsync(planDate, orderedTaskIds, cancellationToken);
@@ -165,6 +207,9 @@ public sealed class TaskService(ITaskRepository taskRepository) : ITaskService
         return overdueTasks.Count;
     }
 
+    public Task<IReadOnlyList<TaskHistory>> GetTaskHistoryAsync(Guid taskId, CancellationToken cancellationToken = default) =>
+        taskHistoryRepository.GetForTaskAsync(taskId, cancellationToken);
+
     private async Task MutateAsync(Guid taskId, Action<TaskItem> mutate, CancellationToken cancellationToken)
     {
         var task = await GetRequiredAsync(taskId, cancellationToken);
@@ -174,4 +219,35 @@ public sealed class TaskService(ITaskRepository taskRepository) : ITaskService
 
     private async Task<TaskItem> GetRequiredAsync(Guid taskId, CancellationToken cancellationToken) =>
         await taskRepository.GetByIdAsync(taskId, cancellationToken) ?? throw new TaskNotFoundException(taskId);
+
+    /// <summary>
+    /// The fields the general-purpose editor (<see cref="UpdateTaskAsync"/>) checks for changes.
+    /// Deliberately a fixed subset (not every <see cref="TaskItem"/> property) — see
+    /// <see cref="TaskHistory"/>'s doc comment on why this stays a curated, high-signal list.
+    /// </summary>
+    private async Task RecordFieldChangesAsync(TaskItem before, TaskItem after, CancellationToken cancellationToken)
+    {
+        await RecordIfChangedAsync(after.Id, TaskHistoryAction.Updated, nameof(TaskItem.Title), before.Title, after.Title, cancellationToken);
+        await RecordIfChangedAsync(after.Id, TaskHistoryAction.Updated, nameof(TaskItem.Description), before.Description, after.Description, cancellationToken);
+        await RecordIfChangedAsync(after.Id, TaskHistoryAction.Updated, nameof(TaskItem.Priority), before.Priority.ToString(), after.Priority.ToString(), cancellationToken);
+        await RecordIfChangedAsync(after.Id, TaskHistoryAction.Updated, nameof(TaskItem.DueDate), before.DueDate?.ToString("O"), after.DueDate?.ToString("O"), cancellationToken);
+        await RecordIfChangedAsync(after.Id, TaskHistoryAction.Updated, nameof(TaskItem.PlanDate), before.PlanDate.ToString("O"), after.PlanDate.ToString("O"), cancellationToken);
+        await RecordIfChangedAsync(after.Id, TaskHistoryAction.Updated, nameof(TaskItem.CategoryId), before.CategoryId?.ToString(), after.CategoryId?.ToString(), cancellationToken);
+    }
+
+    private Task RecordIfChangedAsync(Guid taskId, TaskHistoryAction action, string fieldName, string? oldValue, string? newValue, CancellationToken cancellationToken) =>
+        oldValue == newValue
+            ? Task.CompletedTask
+            : RecordHistoryAsync(taskId, action, fieldName, oldValue, newValue, cancellationToken);
+
+    private Task RecordHistoryAsync(
+        Guid taskId,
+        TaskHistoryAction action,
+        string? fieldName = null,
+        string? oldValue = null,
+        string? newValue = null,
+        CancellationToken cancellationToken = default) =>
+        taskHistoryRepository.AddAsync(
+            new TaskHistory { TaskId = taskId, Action = action, FieldName = fieldName, OldValue = oldValue, NewValue = newValue },
+            cancellationToken);
 }

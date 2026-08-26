@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="480"
+        x:Class="DeskTodo.App.Views.TaskHistoryWindow"
+        x:DataType="vm:TaskHistoryViewModel"
+        Title="Task History"
+        Width="400" Height="480"
+        MinWidth="360" MinHeight="320"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!--
+      Roadmap-39-100.md's Feature 42 — a single task's audit timeline, most recent first.
+      Read-only: nothing here to act on, only to look at.
+    -->
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <StackPanel Grid.Row="0" Spacing="2" Margin="0,0,0,12">
+            <TextBlock Text="History" FontSize="16" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+            <TextBlock Text="{Binding TaskTitle}" FontSize="12"
+                       Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Panel Grid.Row="1">
+            <ScrollViewer IsVisible="{Binding Entries.Count}">
+                <ItemsControl ItemsSource="{Binding Entries}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:TaskHistoryEntryOption">
+                            <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding Description}" FontSize="13"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding TimestampDisplay}" FontSize="11"
+                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <TextBlock Text="No history yet" IsVisible="{Binding !Entries.Count}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextMutedBrush}" FontSize="13" />
+        </Panel>
+
+        <Button Grid.Row="2" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

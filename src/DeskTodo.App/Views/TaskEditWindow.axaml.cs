@@ -24,6 +24,7 @@ public partial class TaskEditWindow : Window
         {
             viewModel.AttachmentOpenRequested += OnAttachmentOpenRequested;
             viewModel.StartTimerRequested += OnStartTimerRequested;
+            viewModel.HistoryRequested += OnHistoryRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             RefreshNotesPreview(viewModel);
         }
@@ -35,6 +36,7 @@ public partial class TaskEditWindow : Window
         {
             viewModel.AttachmentOpenRequested -= OnAttachmentOpenRequested;
             viewModel.StartTimerRequested -= OnStartTimerRequested;
+            viewModel.HistoryRequested -= OnHistoryRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -52,6 +54,19 @@ public partial class TaskEditWindow : Window
         var focusTimerViewModel = App.Services.GetRequiredService<FocusTimerViewModel>();
         focusTimerViewModel.PreselectTask(viewModel.TaskId, viewModel.Title);
         FocusTimerWindow.ShowOrActivate(focusTimerViewModel);
+    }
+
+    private async void OnHistoryRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not TaskEditViewModel viewModel)
+        {
+            return;
+        }
+
+        var historyViewModel = App.Services.GetRequiredService<TaskHistoryViewModel>();
+        var historyWindow = new TaskHistoryWindow { DataContext = historyViewModel };
+        await historyViewModel.LoadAsync(viewModel.TaskId, viewModel.Title);
+        await historyWindow.ShowDialog(this);
     }
 
     private void OnNewChecklistItemKeyDown(object? sender, KeyEventArgs e)

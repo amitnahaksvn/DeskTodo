@@ -48,6 +48,7 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddScoped<ITaskRepository, TaskRepository>();
+        services.AddScoped<ITaskHistoryRepository, TaskHistoryRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IChecklistRepository, ChecklistRepository>();
         services.AddScoped<ITaskTemplateRepository, TaskTemplateRepository>();

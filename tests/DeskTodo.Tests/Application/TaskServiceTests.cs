@@ -10,11 +10,12 @@ namespace DeskTodo.Tests.Application;
 public class TaskServiceTests
 {
     private readonly Mock<ITaskRepository> _taskRepository = new();
+    private readonly Mock<ITaskHistoryRepository> _taskHistoryRepository = new();
     private readonly TaskService _sut;
 
     public TaskServiceTests()
     {
-        _sut = new TaskService(_taskRepository.Object);
+        _sut = new TaskService(_taskRepository.Object, _taskHistoryRepository.Object);
     }
 
     [Fact]
@@ -287,5 +288,190 @@ public class TaskServiceTests
         await _sut.AddActualMinutesAsync(task.Id, 25);
 
         Assert.Equal(55, task.ActualMinutes);
+    }
+
+    [Fact]
+    public async Task GetDeletedTasksAsync_DelegatesToTheRepository()
+    {
+        var deleted = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Deleted" };
+        _taskRepository.Setup(r => r.GetDeletedAsync(It.IsAny<CancellationToken>())).ReturnsAsync([deleted]);
+
+        var results = await _sut.GetDeletedTasksAsync();
+
+        Assert.Equal([deleted], results);
+    }
+
+    [Fact]
+    public async Task PermanentlyDeleteTaskAsync_DelegatesToTheRepository()
+    {
+        var taskId = Guid.NewGuid();
+
+        await _sut.PermanentlyDeleteTaskAsync(taskId);
+
+        _taskRepository.Verify(r => r.RemoveAsync(taskId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task EmptyTrashAsync_PermanentlyDeletesEveryCurrentlyDeletedTask()
+    {
+        var first = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "First" };
+        var second = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Second" };
+        _taskRepository.Setup(r => r.GetDeletedAsync(It.IsAny<CancellationToken>())).ReturnsAsync([first, second]);
+
+        await _sut.EmptyTrashAsync();
+
+        _taskRepository.Verify(r => r.RemoveAsync(first.Id, It.IsAny<CancellationToken>()), Times.Once);
+        _taskRepository.Verify(r => r.RemoveAsync(second.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateTaskAsync_RecordsACreatedHistoryEntry()
+    {
+        var planDate = new DateOnly(2026, 7, 27);
+        _taskRepository.Setup(r => r.GetMaxDayOrderAsync(planDate, It.IsAny<CancellationToken>())).ReturnsAsync(-1);
+
+        var task = await _sut.CreateTaskAsync(planDate, "Morning Exercise");
+
+        _taskHistoryRepository.Verify(r => r.AddAsync(
+            It.Is<TaskHistory>(h => h.TaskId == task.Id && h.Action == TaskHistoryAction.Created),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CompleteTaskAsync_RecordsACompletedHistoryEntry()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Read System Design" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.CompleteTaskAsync(task.Id);
+
+        _taskHistoryRepository.Verify(r => r.AddAsync(
+            It.Is<TaskHistory>(h => h.TaskId == task.Id && h.Action == TaskHistoryAction.Completed),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReopenTaskAsync_RecordsAReopenedHistoryEntry()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Read System Design" };
+        task.Complete();
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.ReopenTaskAsync(task.Id);
+
+        _taskHistoryRepository.Verify(r => r.AddAsync(
+            It.Is<TaskHistory>(h => h.TaskId == task.Id && h.Action == TaskHistoryAction.Reopened),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ArchiveTaskAsync_RecordsAnArchivedHistoryEntry()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "DSA Practice" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.ArchiveTaskAsync(task.Id);
+
+        _taskHistoryRepository.Verify(r => r.AddAsync(
+            It.Is<TaskHistory>(h => h.TaskId == task.Id && h.Action == TaskHistoryAction.Archived),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RestoreTaskAsync_RecordsARestoredHistoryEntry()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "DSA Practice" };
+        task.Archive();
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.RestoreTaskAsync(task.Id);
+
+        _taskHistoryRepository.Verify(r => r.AddAsync(
+            It.Is<TaskHistory>(h => h.TaskId == task.Id && h.Action == TaskHistoryAction.Restored),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteTaskAsync_RecordsADeletedHistoryEntry()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "DSA Practice" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.DeleteTaskAsync(task.Id);
+
+        _taskHistoryRepository.Verify(r => r.AddAsync(
+            It.Is<TaskHistory>(h => h.TaskId == task.Id && h.Action == TaskHistoryAction.Deleted),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RenameTaskAsync_RecordsARenamedHistoryEntry_WithOldAndNewTitle()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Old title" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.RenameTaskAsync(task.Id, "New title");
+
+        _taskHistoryRepository.Verify(r => r.AddAsync(
+            It.Is<TaskHistory>(h => h.TaskId == task.Id
+                && h.Action == TaskHistoryAction.Renamed
+                && h.OldValue == "Old title"
+                && h.NewValue == "New title"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RenameTaskAsync_ToTheSameTitle_RecordsNoHistoryEntry()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Same title" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await _sut.RenameTaskAsync(task.Id, "Same title");
+
+        _taskHistoryRepository.Verify(r => r.AddAsync(It.IsAny<TaskHistory>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_RecordsAnUpdatedHistoryEntryPerChangedField()
+    {
+        var existing = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Task", Priority = TaskPriority.Low };
+        var edited = new TaskItem { Id = existing.Id, PlanDate = existing.PlanDate, Title = "Task", Priority = TaskPriority.High };
+        _taskRepository.Setup(r => r.GetByIdAsync(existing.Id, It.IsAny<CancellationToken>())).ReturnsAsync(existing);
+
+        await _sut.UpdateTaskAsync(edited);
+
+        _taskHistoryRepository.Verify(r => r.AddAsync(
+            It.Is<TaskHistory>(h => h.TaskId == existing.Id
+                && h.Action == TaskHistoryAction.Updated
+                && h.FieldName == nameof(TaskItem.Priority)
+                && h.OldValue == "Low"
+                && h.NewValue == "High"),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _taskHistoryRepository.Verify(r => r.AddAsync(
+            It.Is<TaskHistory>(h => h.FieldName == nameof(TaskItem.Title)),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_WithNoActualChanges_RecordsNoHistoryEntry()
+    {
+        var existing = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Task" };
+        _taskRepository.Setup(r => r.GetByIdAsync(existing.Id, It.IsAny<CancellationToken>())).ReturnsAsync(existing);
+
+        await _sut.UpdateTaskAsync(existing);
+
+        _taskHistoryRepository.Verify(r => r.AddAsync(It.IsAny<TaskHistory>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetTaskHistoryAsync_DelegatesToTheRepository()
+    {
+        var taskId = Guid.NewGuid();
+        var entry = new TaskHistory { TaskId = taskId, Action = TaskHistoryAction.Created };
+        _taskHistoryRepository.Setup(r => r.GetForTaskAsync(taskId, It.IsAny<CancellationToken>())).ReturnsAsync([entry]);
+
+        var results = await _sut.GetTaskHistoryAsync(taskId);
+
+        Assert.Equal([entry], results);
     }
 }

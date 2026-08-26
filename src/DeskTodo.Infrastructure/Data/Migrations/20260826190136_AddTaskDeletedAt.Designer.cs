@@ -3,6 +3,7 @@ using System;
 using DeskTodo.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DeskTodo.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(DeskTodoDbContext))]
-    partial class DeskTodoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260826190136_AddTaskDeletedAt")]
+    partial class AddTaskDeletedAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -370,39 +373,6 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                     b.ToTable("TaskGroups", (string)null);
                 });
 
-            modelBuilder.Entity("DeskTodo.Domain.Entities.TaskHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Action")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("FieldName")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("NewValue")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OldValue")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("TaskId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TaskId");
-
-                    b.HasIndex("Timestamp");
-
-                    b.ToTable("TaskHistories", (string)null);
-                });
-
             modelBuilder.Entity("DeskTodo.Domain.Entities.TaskItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -713,16 +683,6 @@ namespace DeskTodo.Infrastructure.Data.Migrations
                     b.Navigation("BlockedTask");
 
                     b.Navigation("BlockingTask");
-                });
-
-            modelBuilder.Entity("DeskTodo.Domain.Entities.TaskHistory", b =>
-                {
-                    b.HasOne("DeskTodo.Domain.Entities.TaskItem", "Task")
-                        .WithMany()
-                        .HasForeignKey("TaskId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Task");
                 });
 
             modelBuilder.Entity("DeskTodo.Domain.Entities.TaskItem", b =>

@@ -64,6 +64,7 @@ public partial class WidgetWindow : Window
             viewModel.CommandPaletteRequested += OnCommandPaletteRequested;
             viewModel.ClipboardHistoryRequested += OnClipboardHistoryRequested;
             viewModel.TaskGroupsRequested += OnTaskGroupsRequested;
+            viewModel.TrashRequested += OnTrashRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
@@ -137,6 +138,22 @@ public partial class WidgetWindow : Window
 
         // A group may have just added tasks for the day currently being viewed — same
         // "reload after the dialog closes" pattern OnSettingsRequested and Import/Export use.
+        await viewModel.LoadTasksAsync();
+    }
+
+    private async void OnTrashRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var trashViewModel = App.Services.GetRequiredService<TrashViewModel>();
+        var trashWindow = new TrashWindow { DataContext = trashViewModel };
+        await trashWindow.ShowDialog(this);
+
+        // A restore may have just brought back a task for the day currently being viewed —
+        // same "reload after the dialog closes" pattern OnTaskGroupsRequested uses.
         await viewModel.LoadTasksAsync();
     }
 
@@ -229,6 +246,7 @@ public partial class WidgetWindow : Window
             viewModel.CommandPaletteRequested -= OnCommandPaletteRequested;
             viewModel.ClipboardHistoryRequested -= OnClipboardHistoryRequested;
             viewModel.TaskGroupsRequested -= OnTaskGroupsRequested;
+            viewModel.TrashRequested -= OnTrashRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -413,6 +431,7 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("Toggle Mini Widget", viewModel.ToggleMiniWidgetModeCommand),
             new CommandPaletteEntry("Clipboard History", viewModel.OpenClipboardHistoryCommand),
             new CommandPaletteEntry("Task Groups", viewModel.OpenTaskGroupsCommand),
+            new CommandPaletteEntry("Trash", viewModel.OpenTrashCommand),
         ]);
 
         var paletteWindow = new CommandPaletteWindow { DataContext = paletteViewModel };

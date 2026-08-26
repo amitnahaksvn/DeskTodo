@@ -31,6 +31,8 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<Project> Projects => Set<Project>();
 
+    public DbSet<TaskHistory> TaskHistories => Set<TaskHistory>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeskTodoDbContext).Assembly);

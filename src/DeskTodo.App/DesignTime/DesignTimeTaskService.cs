@@ -58,6 +58,15 @@ internal sealed class DesignTimeTaskService : ITaskService
 
     public Task DeleteTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+    public Task<IReadOnlyList<TaskItem>> GetDeletedTasksAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<TaskItem>>([]);
+
+    public Task PermanentlyDeleteTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public Task EmptyTrashAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public Task<IReadOnlyList<TaskHistory>> GetTaskHistoryAsync(Guid taskId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<TaskHistory>>([]);
+
     public Task ReorderTasksAsync(DateOnly planDate, IReadOnlyList<Guid> orderedTaskIds, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 

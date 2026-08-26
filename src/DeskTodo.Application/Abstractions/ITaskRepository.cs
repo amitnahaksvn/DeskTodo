@@ -32,6 +32,9 @@ public interface ITaskRepository
 
     Task<IReadOnlyList<TaskItem>> GetArchivedAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Soft-deleted tasks, most recently deleted first — Feature 46's Trash view.</summary>
+    Task<IReadOnlyList<TaskItem>> GetDeletedAsync(CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<TaskItem>> GetPinnedAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Highest <see cref="TaskItem.DayOrder"/> currently used on the given day, or -1 if it has no tasks.</summary>
@@ -41,6 +44,13 @@ public interface ITaskRepository
 
     /// <summary>Persists in-memory changes made to a previously-fetched (and since detached) <see cref="TaskItem"/>.</summary>
     Task UpdateAsync(TaskItem task, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Hard delete — permanently removes the row, unlike every other "delete" in this app
+    /// (see <see cref="TaskItem.SoftDelete"/>). Only Feature 46's Trash view ("Delete
+    /// Permanently"/"Empty Trash") should ever call this. No-ops if the task doesn't exist.
+    /// </summary>
+    Task RemoveAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Applies a new drag-to-reorder sequence for a day's task list in a

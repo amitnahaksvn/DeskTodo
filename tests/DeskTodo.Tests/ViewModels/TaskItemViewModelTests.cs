@@ -37,7 +37,7 @@ public class TaskItemViewModelTests
         // naive "IsCompleted = task.IsCompleted" would previously re-persist each
         // task's own state back to the database on every single load.
         var taskRepository = new Mock<ITaskRepository>();
-        var taskService = new TaskService(taskRepository.Object);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
 
         _ = new TaskItemViewModel(CreateTask(completed), taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
 
@@ -51,7 +51,7 @@ public class TaskItemViewModelTests
         var task = CreateTask(completed: false);
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
-        var taskService = new TaskService(taskRepository.Object);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
         var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
 
         await sut.ToggleCompleteCommand.ExecuteAsync(null);
@@ -66,7 +66,7 @@ public class TaskItemViewModelTests
         var task = CreateTask(completed: true);
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
-        var taskService = new TaskService(taskRepository.Object);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
         var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
 
         await sut.ToggleCompleteCommand.ExecuteAsync(null);
@@ -107,7 +107,7 @@ public class TaskItemViewModelTests
         var task = CreateTask(completed: false);
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
-        var taskService = new TaskService(taskRepository.Object);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
         var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
         sut.BeginEditCommand.Execute(null);
         sut.EditingTitle = "Evening Exercise";
@@ -124,7 +124,7 @@ public class TaskItemViewModelTests
     {
         var task = CreateTask(completed: false);
         var taskRepository = new Mock<ITaskRepository>();
-        var taskService = new TaskService(taskRepository.Object);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
         var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
         sut.BeginEditCommand.Execute(null);
         sut.EditingTitle = "   ";
@@ -142,7 +142,7 @@ public class TaskItemViewModelTests
         var task = CreateTask(completed: false);
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
-        var taskService = new TaskService(taskRepository.Object);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
         var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
 
         await sut.TogglePinCommand.ExecuteAsync(null);
@@ -158,7 +158,7 @@ public class TaskItemViewModelTests
         var task = CreateTask(completed: false);
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
-        var taskService = new TaskService(taskRepository.Object);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
         var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
 
         await sut.SnoozeCommand.ExecuteAsync(null);
@@ -173,7 +173,7 @@ public class TaskItemViewModelTests
         var task = CreateTask(completed: false);
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
-        var taskService = new TaskService(taskRepository.Object);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
         var refreshRequested = false;
         var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => refreshRequested = true, _ => { });
 
@@ -189,7 +189,7 @@ public class TaskItemViewModelTests
         var task = CreateTask(completed: false);
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
-        var taskService = new TaskService(taskRepository.Object);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
         var refreshRequested = false;
         var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => refreshRequested = true, _ => { });
 
@@ -206,7 +206,7 @@ public class TaskItemViewModelTests
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
         taskRepository.Setup(r => r.GetMaxDayOrderAsync(task.PlanDate, It.IsAny<CancellationToken>())).ReturnsAsync(0);
-        var taskService = new TaskService(taskRepository.Object);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
         var refreshRequested = false;
         var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => refreshRequested = true, _ => { });
 
@@ -222,7 +222,7 @@ public class TaskItemViewModelTests
         var task = CreateTask(completed: false);
         var taskRepository = new Mock<ITaskRepository>();
         taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
-        var taskService = new TaskService(taskRepository.Object);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
         var sut = new TaskItemViewModel(task, taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { });
 
         await sut.ToggleFavoriteCommand.ExecuteAsync(null);

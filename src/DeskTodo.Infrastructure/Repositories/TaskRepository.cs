@@ -71,6 +71,18 @@ public sealed class TaskRepository(IDbContextFactory<DeskTodoDbContext> contextF
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<TaskItem>> GetDeletedAsync(CancellationToken cancellationToken = default)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await context.Tasks
+            .AsNoTracking()
+            .Include(t => t.Category)
+            .Where(t => t.IsDeleted)
+            .OrderByDescending(t => t.DeletedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<TaskItem>> GetPinnedAsync(CancellationToken cancellationToken = default)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
@@ -113,6 +125,44 @@ public sealed class TaskRepository(IDbContextFactory<DeskTodoDbContext> contextF
         // persisted here, so the reachable Category is attached as Unchanged
         // (no UPDATE emitted for it) rather than being pulled into the write.
         context.Entry(task).State = EntityState.Modified;
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        var task = await context.Tasks.FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
+        if (task is null)
+        {
+            return;
+        }
+
+        // TaskDependencyConfiguration deliberately uses DeleteBehavior.Restrict on both FKs
+        // (a dependency shouldn't silently vanish just because one side got edited) — but a
+        // permanent delete is different from an edit: the relationship is meaningless once
+        // this task is gone, so it's cleaned up here rather than left to throw a foreign-key
+        // violation on SaveChangesAsync.
+        var dependencies = await context.TaskDependencies
+            .Where(d => d.BlockingTaskId == id || d.BlockedTaskId == id)
+            .ToListAsync(cancellationToken);
+        context.TaskDependencies.RemoveRange(dependencies);
+
+        // ParentTaskId is also Restrict (see TaskItemConfiguration's comment on why — that
+        // comment is now only true for every OTHER delete path in this app, not this one).
+        // Orphaning rather than cascading: a subtask of a since-soft-deleted parent may still
+        // be an entirely live, non-deleted task the user can see and cares about — silently
+        // cascading its deletion just because its parent was purged from Trash would delete
+        // something the user never asked to delete.
+        var subtasks = await context.Tasks
+            .Where(t => t.ParentTaskId == id)
+            .ToListAsync(cancellationToken);
+        foreach (var subtask in subtasks)
+        {
+            subtask.ParentTaskId = null;
+        }
+
+        context.Tasks.Remove(task);
         await context.SaveChangesAsync(cancellationToken);
     }
 

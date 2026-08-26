@@ -32,9 +32,12 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
             .OnDelete(DeleteBehavior.SetNull);
 
         // Self-referencing one-level parent/child (Subtasks). Restrict rather than Cascade:
-        // no code path ever hard-deletes a Tasks row (deletion is always the IsDeleted soft
-        // flag), so the delete behavior is moot in practice, but Restrict is the safer
-        // no-surprises default for a self-referencing FK on the rare provider where it isn't.
+        // deletion is normally the IsDeleted soft flag, which never touches this FK at all.
+        // Feature 46's Trash ("Delete Permanently"/"Empty Trash") is the one genuine hard-delete
+        // path in this app — TaskRepository.RemoveAsync orphans any subtasks (clears
+        // ParentTaskId) itself before removing the row, rather than relying on Cascade here,
+        // since a subtask of a since-soft-deleted parent may still be an entirely live task
+        // the user hasn't asked to delete.
         builder.HasOne(t => t.ParentTask)
             .WithMany(t => t.Subtasks)
             .HasForeignKey(t => t.ParentTaskId)

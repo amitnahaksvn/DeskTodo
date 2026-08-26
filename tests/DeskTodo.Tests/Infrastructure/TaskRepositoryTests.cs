@@ -1,5 +1,6 @@
 using DeskTodo.Domain.Entities;
 using DeskTodo.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace DeskTodo.Tests.Infrastructure;
 
@@ -195,5 +196,77 @@ public class TaskRepositoryTests : IDisposable
 
         var results = await _sut.GetByDateAsync(planDate);
         Assert.Equal(["B", "A"], results.Select(t => t.Title));
+    }
+
+    [Fact]
+    public async Task GetDeletedAsync_ReturnsOnlySoftDeletedTasks_MostRecentlyDeletedFirst()
+    {
+        var planDate = new DateOnly(2026, 7, 27);
+        var olderDeleted = new TaskItem { PlanDate = planDate, Title = "Older" };
+        olderDeleted.SoftDelete();
+        await _sut.AddAsync(olderDeleted);
+
+        await Task.Delay(10); // Ensures a distinct, later DeletedAt for the second one.
+        var newerDeleted = new TaskItem { PlanDate = planDate, Title = "Newer" };
+        newerDeleted.SoftDelete();
+        await _sut.AddAsync(newerDeleted);
+
+        await _sut.AddAsync(new TaskItem { PlanDate = planDate, Title = "Not deleted" });
+
+        var results = await _sut.GetDeletedAsync();
+
+        Assert.Equal(["Newer", "Older"], results.Select(t => t.Title));
+    }
+
+    [Fact]
+    public async Task RemoveAsync_PermanentlyDeletesTheTask()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Gone forever" };
+        task.SoftDelete();
+        await _sut.AddAsync(task);
+
+        await _sut.RemoveAsync(task.Id);
+
+        var results = await _sut.GetDeletedAsync();
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task RemoveAsync_OnATaskWithDependencies_RemovesTheDependencyRowsTooInsteadOfThrowing()
+    {
+        var blocked = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Blocked task" };
+        blocked.SoftDelete();
+        await _sut.AddAsync(blocked);
+        var blocker = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Blocker task" };
+        await _sut.AddAsync(blocker);
+
+        await using (var context = _fixture.ContextFactory.CreateDbContext())
+        {
+            context.TaskDependencies.Add(new TaskDependency { BlockingTaskId = blocker.Id, BlockedTaskId = blocked.Id });
+            await context.SaveChangesAsync();
+        }
+
+        var exception = await Record.ExceptionAsync(() => _sut.RemoveAsync(blocked.Id));
+
+        Assert.Null(exception);
+        await using var verifyContext = _fixture.ContextFactory.CreateDbContext();
+        Assert.False(await verifyContext.TaskDependencies.AnyAsync(d => d.BlockedTaskId == blocked.Id));
+    }
+
+    [Fact]
+    public async Task RemoveAsync_OnATaskWithSubtasks_OrphansTheSubtasksInsteadOfDeletingThem()
+    {
+        var parent = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Parent" };
+        parent.SoftDelete();
+        await _sut.AddAsync(parent);
+        var subtask = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Still-live subtask", ParentTaskId = parent.Id };
+        await _sut.AddAsync(subtask);
+
+        await _sut.RemoveAsync(parent.Id);
+
+        var results = await _sut.GetByDateAsync(new DateOnly(2026, 7, 27));
+        var survivingSubtask = Assert.Single(results);
+        Assert.Equal("Still-live subtask", survivingSubtask.Title);
+        Assert.Null(survivingSubtask.ParentTaskId);
     }
 }

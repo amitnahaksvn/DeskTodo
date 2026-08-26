@@ -66,6 +66,20 @@ public interface ITaskService
     /// <summary>Soft-deletes a task (recoverable via <see cref="RestoreTaskAsync"/>).</summary>
     Task DeleteTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
 
+    /// <summary>Feature 46's Trash view — every soft-deleted task, most recently deleted first.</summary>
+    Task<IReadOnlyList<TaskItem>> GetDeletedTasksAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Hard delete — permanently and irreversibly removes the task (and its checklist items,
+    /// attachments, tag links, dependency links; any subtasks are orphaned, not deleted — see
+    /// <see cref="Abstractions.ITaskRepository.RemoveAsync"/>). Unlike <see cref="DeleteTaskAsync"/>,
+    /// there is no undo. Only Feature 46's Trash view should call this.
+    /// </summary>
+    Task PermanentlyDeleteTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
+
+    /// <summary>Permanently deletes every currently soft-deleted task — Trash's "Empty Trash" action. Same irreversibility as <see cref="PermanentlyDeleteTaskAsync"/>, applied to all of them at once.</summary>
+    Task EmptyTrashAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Applies a new drag-to-reorder sequence for a day's task list.</summary>
     Task ReorderTasksAsync(DateOnly planDate, IReadOnlyList<Guid> orderedTaskIds, CancellationToken cancellationToken = default);
 
@@ -84,4 +98,7 @@ public interface ITaskService
     /// many tasks were moved.
     /// </summary>
     Task<int> RescheduleOverdueTasksAsync(DateOnly today, CancellationToken cancellationToken = default);
+
+    /// <summary>Feature 42's audit timeline for a single task, most recent first.</summary>
+    Task<IReadOnlyList<TaskHistory>> GetTaskHistoryAsync(Guid taskId, CancellationToken cancellationToken = default);
 }

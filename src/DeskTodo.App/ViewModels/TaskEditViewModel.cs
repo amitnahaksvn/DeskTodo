@@ -203,6 +203,12 @@ public sealed partial class TaskEditViewModel : ViewModelBase
     [RelayCommand]
     private void StartTimer() => StartTimerRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised when "History" is clicked (Feature 42, Roadmap-39-100.md) — opening the History window needs a separate DI-resolved <c>TaskHistoryViewModel</c>, so <c>TaskEditWindow</c> handles it, the same split as <see cref="StartTimerRequested"/>.</summary>
+    public event EventHandler? HistoryRequested;
+
+    [RelayCommand]
+    private void ShowHistory() => HistoryRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
         _taskId = taskId;
