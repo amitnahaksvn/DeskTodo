@@ -34,6 +34,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<WidgetViewModel> _logger;
     private readonly ILogger<TaskItemViewModel> _taskItemLogger;
+    private readonly IUndoRedoService _undoRedoService;
     private readonly DispatcherTimer _dayRolloverTimer;
 
     // Tracks what "today" was as of the last check, separately from PlanDate (the day
@@ -76,7 +77,8 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         INotificationService notificationService,
         TimeProvider timeProvider,
         ILogger<WidgetViewModel> logger,
-        ILogger<TaskItemViewModel> taskItemLogger)
+        ILogger<TaskItemViewModel> taskItemLogger,
+        IUndoRedoService undoRedoService)
     {
         _taskService = taskService;
         _categoryRepository = categoryRepository;
@@ -88,6 +90,12 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         _timeProvider = timeProvider;
         _logger = logger;
         _taskItemLogger = taskItemLogger;
+        _undoRedoService = undoRedoService;
+        _undoRedoService.StateChanged += (_, _) =>
+        {
+            UndoCommand.NotifyCanExecuteChanged();
+            RedoCommand.NotifyCanExecuteChanged();
+        };
 
         _lastKnownToday = Today();
         PlanDate = _lastKnownToday;
@@ -376,7 +384,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
             Tasks.Clear();
             foreach (var task in tasks)
             {
-                var itemViewModel = new TaskItemViewModel(task, _taskService, _taskItemLogger, () => _ = LoadTasksAsync(), id => RequestTaskEdit(id, task.Title))
+                var itemViewModel = new TaskItemViewModel(task, _taskService, _taskItemLogger, () => _ = LoadTasksAsync(), id => RequestTaskEdit(id, task.Title), _undoRedoService)
                 {
                     IsSelectModeActive = IsSelectMode,
                 };
@@ -888,6 +896,46 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
 
     [RelayCommand]
     private void OpenTrash() => TrashRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised from the tray menu's "Backups…" item and the Command Palette (Feature 67, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? BackupRequested;
+
+    [RelayCommand]
+    private void OpenBackups() => BackupRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised from the tray menu's "Data Integrity Check…" item and the Command Palette (Feature 70, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? IntegrityCheckRequested;
+
+    [RelayCommand]
+    private void OpenIntegrityCheck() => IntegrityCheckRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// Feature 43's Undo/Redo Engine — undoes the most recent complete/reopen, rename,
+    /// pin/unpin, or delete/restore action recorded by a <see cref="TaskItemViewModel"/> row.
+    /// Reloads today's list afterward since the undone action (e.g. a delete) may change which
+    /// rows belong on the currently-viewed day.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private async Task UndoAsync()
+    {
+        if (await _undoRedoService.UndoAsync())
+        {
+            await LoadTasksAsync();
+        }
+    }
+
+    private bool CanUndo() => _undoRedoService.CanUndo;
+
+    [RelayCommand(CanExecute = nameof(CanRedo))]
+    private async Task RedoAsync()
+    {
+        if (await _undoRedoService.RedoAsync())
+        {
+            await LoadTasksAsync();
+        }
+    }
+
+    private bool CanRedo() => _undoRedoService.CanRedo;
 
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {

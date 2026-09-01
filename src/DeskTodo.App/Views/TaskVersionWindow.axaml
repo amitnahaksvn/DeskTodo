@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="480"
+        x:Class="DeskTodo.App.Views.TaskVersionWindow"
+        x:DataType="vm:TaskVersionViewModel"
+        Title="Task Versions"
+        Width="420" Height="480"
+        MinWidth="380" MinHeight="320"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!--
+      Roadmap-39-100.md's Feature 44 — a single task's version snapshots, most recent first,
+      each restorable back onto the live task.
+    -->
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <StackPanel Grid.Row="0" Spacing="2" Margin="0,0,0,12">
+            <TextBlock Text="Versions" FontSize="16" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+            <TextBlock Text="{Binding TaskTitle}" FontSize="12"
+                       Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Panel Grid.Row="1">
+            <ScrollViewer IsVisible="{Binding Versions.Count}">
+                <ItemsControl ItemsSource="{Binding Versions}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:TaskVersionOption">
+                            <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="{Binding Title}" FontSize="13"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding CapturedAtDisplay}" FontSize="11"
+                                                   Foreground="{DynamicResource TextMutedBrush}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Restore" Padding="10,4" VerticalAlignment="Center"
+                                            Command="{Binding $parent[ItemsControl].((vm:TaskVersionViewModel)DataContext).RestoreCommand}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <TextBlock Text="No earlier versions yet" IsVisible="{Binding !Versions.Count}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextMutedBrush}" FontSize="13" />
+        </Panel>
+
+        <Button Grid.Row="2" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

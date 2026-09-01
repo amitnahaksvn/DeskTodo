@@ -101,4 +101,16 @@ public interface ITaskService
 
     /// <summary>Feature 42's audit timeline for a single task, most recent first.</summary>
     Task<IReadOnlyList<TaskHistory>> GetTaskHistoryAsync(Guid taskId, CancellationToken cancellationToken = default);
+
+    /// <summary>Feature 44's version snapshots for a single task, most recent first.</summary>
+    Task<IReadOnlyList<TaskVersion>> GetTaskVersionsAsync(Guid taskId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Overwrites the task's editable fields (title/description/priority/category/due
+    /// date/notes/color/estimated minutes) with a previously captured <see cref="TaskVersion"/>'s
+    /// values. The task's state *before* the restore is itself captured as a new version first,
+    /// so a restore is never a one-way trip — restoring again just goes back to whichever version
+    /// is picked next.
+    /// </summary>
+    Task RestoreTaskVersionAsync(Guid taskId, Guid versionId, CancellationToken cancellationToken = default);
 }

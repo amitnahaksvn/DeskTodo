@@ -42,7 +42,7 @@ The existing application already contains (Phases 1–38, see `IMPLEMENTATION.md
 
 The features below therefore intentionally focus on capabilities that are not already represented by those phases.
 
-**Status:** planning only, except where noted — nothing in this document was implemented as of when it was written. See `IMPLEMENTATION.md`'s roadmap table for a one-line link to this file and its live status. **Feature 46 (Trash / Recovery Center) has since been delivered — see that feature's own section below for what shipped.**
+**Status:** planning only, except where noted — nothing in this document was implemented as of when it was written. See `IMPLEMENTATION.md`'s roadmap table for a one-line link to this file and its live status. **Features 46 (Trash), 42 (Task History), 43 (Undo/Redo), 44 (Task Versioning), 67 (Local Backup Manager), 68 (Backup Restore Simulator) and 70 (Data Integrity Checker) have since been delivered — see each feature's own section below for what shipped.**
 
 ---
 
@@ -544,13 +544,37 @@ Do not allow ordinary users to edit audit records.
 
 ---
 
-# Feature 43 — Undo / Redo Engine
+# Feature 43 — Undo / Redo Engine ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Provide application-wide reversible operations.
 
 > **Note:** DeskTodo's own Phase 28 planning notes already flagged this as "the architecturally significant item" in that phase — a real pattern shift from the "call the service, reload" model used throughout the app since Phase 8. This entry is the detailed design for that same deferred item, not a new idea.
+
+**Delivered, deliberately scoped down from the full Command-pattern architecture below.**
+Rather than an `ICommand` object per mutation type (`CreateTaskCommand`/`UpdateTaskCommand`/etc.),
+a single `IUndoRedoService` (`src/DeskTodo.Application/Services/{IUndoRedoService,UndoRedoService}.cs`)
+holds a bounded (50-entry) stack of `(description, undo delegate, redo delegate)` tuples —
+`TaskItemViewModel`'s own row commands (`ToggleCompleteAsync`, `CommitEditAsync` (rename),
+`TogglePinAsync`, `DeleteAsync`) each record a pair of closures over `ITaskService` calls after
+their action succeeds. `WidgetViewModel` exposes `UndoCommand`/`RedoCommand` (Cmd/Ctrl+Z,
+Cmd/Ctrl+Shift+Z, and Command Palette entries), reloading today's list after either runs so
+every row reflects the new state uniformly rather than each command patching its own row.
+
+**Deliberately not built:** per-command classes, and undo/redo for every mutation in the app
+(bulk actions, grid edits, settings, archive/duplicate) — scoped to the four actions above,
+matching the same cut Phase 11 and Phase 28 already called out when they first deferred general
+undo/redo. Undoing a completion that triggered a recurring task's next occurrence
+(`TaskService.CompleteTaskAsync`) does not remove that occurrence — a narrow, documented
+limitation. Bulk-operations-as-one-undo-entry (this file's own "Important" note above) isn't
+implemented, since bulk actions aren't covered at all in this pass.
+
+**Verified:** `UndoRedoServiceTests` (pure unit — LIFO order, redo-stack-clears-on-new-record,
+state-changed event) plus the underlying `ITaskService` calls each undo/redo delegate closes
+over are already covered by `TaskServiceTests`. 619 tests passing (2 pre-existing macOS-only
+failures unrelated to this feature — this sandbox has no real macOS Carbon APIs), zero-warning
+build.
 
 ## Architecture
 
@@ -610,11 +634,33 @@ Selecting 100 tasks and changing their priority should be undone with one action
 
 ---
 
-# Feature 44 — Task Versioning
+# Feature 44 — Task Versioning ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Allow users to see and restore previous task versions.
+
+**Delivered.** A new `TaskVersion` entity (`Id`, `TaskId` (nullable, `SetNull` on hard delete —
+same survives-permanent-deletion pattern as `TaskHistory.TaskId`), `VersionNumber`, and a
+structured column per field (`Title`/`Description`/`Priority`/`CategoryId`/`DueDate`/`Notes`/
+`ColorHex`/`EstimatedMinutes`) rather than a normalized JSON blob — a structured table, per this
+spec's own "Snapshot can be normalized JSON or a structured version table" note, keeps a version
+row queryable/diffable without a deserialize step. `TaskService.UpdateTaskAsync` and
+`RenameTaskAsync` each capture the task's *pre-edit* state as a new version before applying the
+change; `RestoreTaskVersionAsync` overwrites the live task's fields from a chosen version and
+captures the pre-restore state as one more version first, so a restore is never a one-way trip.
+Reachable via a new "Versions" button in the task editor (`TaskEditWindow`, next to Feature 42's
+"History"), opening a `TaskVersionWindow` with a "Restore" action per row.
+
+**Deliberately not built:** `CreatedBy`/`ChangeReason` fields (single-user desktop app — no
+"who," and a reason field would just sit empty), and the "Compare Versions" diff view from this
+feature's own UI sketch — a version's raw field values are shown, not a before/after diff
+against another chosen version.
+
+**Verified:** a real EF Core/SQLite integration test confirms the same `SetNull`-on-hard-delete
+survival behavior Feature 42 verified for `TaskHistory`, plus repository- and service-level
+tests for capture-on-edit, capture-on-rename, restore-overwrites-fields, and
+restore-captures-the-pre-restore-state-too. 619 tests passing, zero-warning build.
 
 ## Difference from History
 
@@ -1656,11 +1702,33 @@ Both can be retained.
 
 ---
 
-# Feature 67 — Local Backup Manager
+# Feature 67 — Local Backup Manager ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Protect user data independently of cloud sync.
+
+**Delivered, scoped to Manual/Full backups only (see below).** `IBackupService`
+(`src/DeskTodo.Infrastructure/Backup/BackupService.cs`) zips the live SQLite database and
+settings.json into a timestamped archive under `{AppStorageOptions.RootDirectory}/backups/` —
+millisecond-resolution filenames (`desktodo-backup-yyyyMMdd-HHmmssfff.zip`), not just seconds,
+specifically so a rapid pair of backups (e.g. the pre-restore safety backup Feature 68 takes)
+can never collide and silently overwrite one another. Retention keeps the most recent 14
+backups, pruning older ones after each create. Reachable via a new `BackupWindow` (Create Backup
+Now / Preview Restore / Delete per row), from the tray menu ("Backups…") and Command Palette.
+
+**Deliberately not built:** Scheduled/Incremental backup types (manual-only, matching Feature
+46's Trash own "manual-only, no auto-purge" scope cut), Attachments/Templates/Custom Fields in
+the archive (only the database file + settings.json — attachments live under the same root
+directory the database backup already anchors to, but aren't separately archived in this pass),
+and encrypted backups.
+
+**Verified:** real (not mocked) file-based tests — an actual SQLite file on disk, a real zip
+archive, and a real file-copy restore — covering create/list/delete, and restore actually
+replacing the live database's row count. One genuine bug this testing caught and fixed: the
+original second-resolution filename let a same-second safety-backup overwrite the very backup
+being restored from, silently no-op'ing the restore; the millisecond-resolution filename above
+is the fix, verified by a regression test exercising exactly that sequence.
 
 ## Backup Types
 
@@ -1698,11 +1766,30 @@ Optional encrypted backup.
 
 ---
 
-# Feature 68 — Backup Restore Simulator
+# Feature 68 — Backup Restore Simulator ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Verify that backups are usable without overwriting the active workspace.
+
+**Delivered, as a diff summary rather than a temporary-workspace dry-run (see below).**
+`IBackupService.SimulateRestoreAsync` extracts a backup's database to a temp file and reads its
+`Tasks` table via a raw ADO.NET query (deliberately *not* a second `DeskTodoDbContext` — pointing
+EF Core's migration-aware context at an old backup file could try to apply pending migrations to
+it, which a read-only preview should never risk), then compares task IDs/`ModifiedAt`/
+`IsDeleted` against the live database to report how many tasks would be added/updated/removed,
+with a handful of sample titles. `BackupWindow`'s "Preview Restore" shows this summary before
+"Restore This Backup" is enabled, gated behind the same `ConfirmDialogWindow` every other
+consequential action in this app uses.
+
+**Deliberately not built:** the "Create Temporary Workspace → Restore → Run Migrations" flow —
+no second full copy of the app's storage tree is materialized; the raw-query comparison above
+answers the same "is this backup usable and what would change" question without needing a
+throwaway workspace. Attachment/index/migration-version counts from this feature's own sketch
+output aren't included, only task-level add/update/remove counts.
+
+**Verified:** a real file-based test seeds a live database with an extra task the backup doesn't
+have, then asserts `SimulateRestoreAsync` correctly reports it as a removal.
 
 ## Process
 
@@ -1768,11 +1855,34 @@ Destructive operations must require confirmation.
 
 ---
 
-# Feature 70 — Data Integrity Checker
+# Feature 70 — Data Integrity Checker ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Find invalid internal references and inconsistent data.
+
+**Delivered.** `IDataIntegrityService` (`src/DeskTodo.Infrastructure/Data/DataIntegrityService.cs`)
+runs SQLite's own `PRAGMA integrity_check` (low-level page corruption — reported, never
+auto-repaired) plus application-level checks: a task referencing a deleted category, a task that
+is its own parent or references a deleted parent, an attachment row whose backing file is
+missing from disk, and negative estimated/actual-minutes values. Each finding is an
+`IntegrityIssue(Category, Description, IsAutoRepairable)`; `RepairAsync` fixes only the
+unambiguously-safe subset (clearing a dangling reference, removing an orphaned attachment row,
+clamping a negative minutes value to 0) — never the SQLite-level corruption finding. Reachable
+via a new `IntegrityCheckWindow` ("Run Check" / "Fix All Safe Issues"), from the tray menu ("Data
+Integrity Check…") and Command Palette.
+
+**Deliberately not built:** duplicate-identifier and invalid-status checks (this schema has no
+free-form status field to validate — see `TaskItem`'s own doc comment on why there's no single
+`TaskStatus` enum — and GUID primary keys make accidental duplicates a non-issue), and Project/
+Milestone dangling-reference checks (only `CategoryId`/`ParentTaskId`/`Attachment` are covered in
+this pass — Project and Milestone both already use `SetNull` FKs the same way Category does, so
+a dangling reference there isn't actually reachable today, but a check wasn't added for
+completeness beyond what's currently possible to produce).
+
+**Verified:** real EF Core/SQLite tests (a genuinely self-parented task, a genuinely negative
+estimate, a genuinely missing attachment file) confirming both detection and repair, plus a
+healthy-database case confirming zero false positives.
 
 ## Checks
 
@@ -3299,7 +3409,7 @@ Implement:
 
 These reduce the risk of adding many features on top of unstable data behavior.
 
-**Progress: 46 (Trash) delivered 2026-08-26; 42 (Task History) delivered 2026-08-27 — see each feature's section above.**
+**Progress: 46 (Trash) delivered 2026-08-26; 42 (Task History) delivered 2026-08-27; 43 (Undo/Redo), 44 (Task Versioning), 67 (Local Backup Manager), 68 (Backup Restore Simulator) and 70 (Data Integrity Checker) delivered 2026-09-01 — Stage 1 is now fully delivered except 69 (Database Maintenance Center), the one item in this stage not yet built. See each feature's section above.**
 
 ---
 

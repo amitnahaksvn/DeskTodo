@@ -22,13 +22,15 @@ public sealed partial class TaskItemViewModel : ViewModelBase
     private readonly ILogger<TaskItemViewModel> _logger;
     private readonly Action _requestListRefresh;
     private readonly Action<Guid> _requestFullEdit;
+    private readonly IUndoRedoService _undoRedoService;
 
-    public TaskItemViewModel(TaskItem task, ITaskService taskService, ILogger<TaskItemViewModel> logger, Action requestListRefresh, Action<Guid> requestFullEdit)
+    public TaskItemViewModel(TaskItem task, ITaskService taskService, ILogger<TaskItemViewModel> logger, Action requestListRefresh, Action<Guid> requestFullEdit, IUndoRedoService undoRedoService)
     {
         _taskService = taskService;
         _logger = logger;
         _requestListRefresh = requestListRefresh;
         _requestFullEdit = requestFullEdit;
+        _undoRedoService = undoRedoService;
 
         Id = task.Id;
         DisplayNumber = task.DayOrder + 1;
@@ -166,6 +168,15 @@ public sealed partial class TaskItemViewModel : ViewModelBase
         if (await TryAsync(() => newValue ? _taskService.CompleteTaskAsync(Id) : _taskService.ReopenTaskAsync(Id), "toggle completion for"))
         {
             IsCompleted = newValue;
+
+            // Feature 43's Undo/Redo Engine. Undoing a completion that created a recurring
+            // next occurrence (TaskService.CompleteTaskAsync) doesn't remove that occurrence —
+            // a narrow, documented limitation, not a silent one.
+            var id = Id;
+            _undoRedoService.Record(
+                newValue ? $"Complete \"{Title}\"" : $"Reopen \"{Title}\"",
+                undo: () => newValue ? _taskService.ReopenTaskAsync(id) : _taskService.CompleteTaskAsync(id),
+                redo: () => newValue ? _taskService.CompleteTaskAsync(id) : _taskService.ReopenTaskAsync(id));
         }
     }
 
@@ -196,9 +207,16 @@ public sealed partial class TaskItemViewModel : ViewModelBase
             return;
         }
 
+        var oldTitle = Title;
         if (await TryAsync(() => _taskService.RenameTaskAsync(Id, newTitle), "rename"))
         {
             Title = newTitle;
+
+            var id = Id;
+            _undoRedoService.Record(
+                $"Rename \"{oldTitle}\" to \"{newTitle}\"",
+                undo: () => _taskService.RenameTaskAsync(id, oldTitle),
+                redo: () => _taskService.RenameTaskAsync(id, newTitle));
         }
 
         IsEditing = false;
@@ -212,6 +230,12 @@ public sealed partial class TaskItemViewModel : ViewModelBase
         if (await TryAsync(() => newValue ? _taskService.PinTaskAsync(Id) : _taskService.UnpinTaskAsync(Id), "toggle pin for"))
         {
             IsPinned = newValue;
+
+            var id = Id;
+            _undoRedoService.Record(
+                newValue ? $"Pin \"{Title}\"" : $"Unpin \"{Title}\"",
+                undo: () => newValue ? _taskService.UnpinTaskAsync(id) : _taskService.PinTaskAsync(id),
+                redo: () => newValue ? _taskService.PinTaskAsync(id) : _taskService.UnpinTaskAsync(id));
         }
     }
 
@@ -267,6 +291,13 @@ public sealed partial class TaskItemViewModel : ViewModelBase
     {
         if (await TryAsync(() => _taskService.DeleteTaskAsync(Id), "delete"))
         {
+            var id = Id;
+            var title = Title;
+            _undoRedoService.Record(
+                $"Delete \"{title}\"",
+                undo: () => _taskService.RestoreTaskAsync(id),
+                redo: () => _taskService.DeleteTaskAsync(id));
+
             _requestListRefresh();
         }
     }

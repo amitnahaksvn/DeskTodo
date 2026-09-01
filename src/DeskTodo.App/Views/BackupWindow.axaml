@@ -1,0 +1,82 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="560"
+        x:Class="DeskTodo.App.Views.BackupWindow"
+        x:DataType="vm:BackupViewModel"
+        Title="Backups"
+        Width="440" Height="560"
+        MinWidth="400" MinHeight="400"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!--
+      Roadmap-39-100.md's Features 67 (Local Backup Manager) and 68 (Backup Restore
+      Simulator) — create/list/delete on-disk backups, and preview what restoring one would
+      change before committing to it.
+    -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="20">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+            <TextBlock Grid.Column="0" Text="Backups" FontSize="16" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Content="Create Backup Now" Command="{Binding CreateBackupCommand}"
+                    IsEnabled="{Binding !IsBusy}" FontSize="11" Padding="8,4" />
+        </Grid>
+
+        <TextBlock Grid.Row="1" Text="{Binding StatusMessage}"
+                    IsVisible="{Binding StatusMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" TextWrapping="Wrap" />
+
+        <Panel Grid.Row="2">
+            <ScrollViewer IsVisible="{Binding Backups.Count}">
+                <ItemsControl ItemsSource="{Binding Backups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:BackupOption">
+                            <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                                <Grid ColumnDefinitions="*,Auto,Auto">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="{Binding CreatedAtDisplay}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Text="{Binding SizeDisplay}" FontSize="11"
+                                                   Foreground="{DynamicResource TextMutedBrush}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Preview Restore"
+                                            Command="{Binding $parent[ItemsControl].((vm:BackupViewModel)DataContext).SimulateRestoreCommand}"
+                                            CommandParameter="{Binding}" FontSize="11" Padding="8,3" Margin="6,0,0,0" />
+                                    <Button Grid.Column="2" Content="Delete"
+                                            Command="{Binding $parent[ItemsControl].((vm:BackupViewModel)DataContext).DeleteBackupCommand}"
+                                            CommandParameter="{Binding}" FontSize="11" Padding="8,3" Margin="6,0,0,0"
+                                            Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <TextBlock Text="No backups yet" IsVisible="{Binding !Backups.Count}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextMutedBrush}" FontSize="13" />
+        </Panel>
+
+        <StackPanel Grid.Row="3" Spacing="8" Margin="0,12,0,0"
+                    IsVisible="{Binding SimulationSummary, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}">
+            <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10">
+                <TextBlock Text="{Binding SimulationSummary}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextPrimaryBrush}" />
+            </Border>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button Content="Cancel" Command="{Binding CancelRestorePreviewCommand}" Padding="12,6" />
+                <Button Content="Restore This Backup" Click="OnConfirmRestoreClick" Padding="12,6"
+                        Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" />
+            </StackPanel>
+        </StackPanel>
+
+        <Button Grid.Row="4" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

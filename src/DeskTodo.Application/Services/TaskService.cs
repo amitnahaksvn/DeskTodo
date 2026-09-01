@@ -6,7 +6,7 @@ using DeskTodo.Domain.Exceptions;
 namespace DeskTodo.Application.Services;
 
 /// <inheritdoc cref="ITaskService"/>
-public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepository taskHistoryRepository) : ITaskService
+public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepository taskHistoryRepository, ITaskVersionRepository taskVersionRepository) : ITaskService
 {
     public Task<IReadOnlyList<TaskItem>> GetTasksForDateAsync(DateOnly planDate, CancellationToken cancellationToken = default) =>
         taskRepository.GetByDateAsync(planDate, cancellationToken);
@@ -49,6 +49,12 @@ public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepo
     public async Task UpdateTaskAsync(TaskItem task, CancellationToken cancellationToken = default)
     {
         var before = await taskRepository.GetByIdAsync(task.Id, cancellationToken);
+
+        if (before is not null)
+        {
+            await CaptureVersionAsync(before, cancellationToken);
+        }
+
         task.Touch();
         await taskRepository.UpdateAsync(task, cancellationToken);
 
@@ -61,6 +67,7 @@ public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepo
     public async Task RenameTaskAsync(Guid taskId, string newTitle, CancellationToken cancellationToken = default)
     {
         var task = await GetRequiredAsync(taskId, cancellationToken);
+        await CaptureVersionAsync(task, cancellationToken);
         var oldTitle = task.Title;
         task.Title = newTitle;
         task.Touch();
@@ -209,6 +216,53 @@ public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepo
 
     public Task<IReadOnlyList<TaskHistory>> GetTaskHistoryAsync(Guid taskId, CancellationToken cancellationToken = default) =>
         taskHistoryRepository.GetForTaskAsync(taskId, cancellationToken);
+
+    public Task<IReadOnlyList<TaskVersion>> GetTaskVersionsAsync(Guid taskId, CancellationToken cancellationToken = default) =>
+        taskVersionRepository.GetForTaskAsync(taskId, cancellationToken);
+
+    public async Task RestoreTaskVersionAsync(Guid taskId, Guid versionId, CancellationToken cancellationToken = default)
+    {
+        var version = await taskVersionRepository.GetByIdAsync(versionId, cancellationToken)
+            ?? throw new InvalidOperationException($"Task version '{versionId}' was not found.");
+
+        var task = await GetRequiredAsync(taskId, cancellationToken);
+
+        // Capture the pre-restore state too, so restoring is never a one-way trip.
+        await CaptureVersionAsync(task, cancellationToken);
+
+        var oldTitle = task.Title;
+        task.Title = version.Title;
+        task.Description = version.Description;
+        task.Priority = version.Priority;
+        task.CategoryId = version.CategoryId;
+        task.DueDate = version.DueDate;
+        task.Notes = version.Notes;
+        task.ColorHex = version.ColorHex;
+        task.EstimatedMinutes = version.EstimatedMinutes;
+        task.Touch();
+        await taskRepository.UpdateAsync(task, cancellationToken);
+        await RecordIfChangedAsync(taskId, TaskHistoryAction.Updated, nameof(TaskItem.Title), oldTitle, task.Title, cancellationToken);
+    }
+
+    private async Task CaptureVersionAsync(TaskItem task, CancellationToken cancellationToken)
+    {
+        var nextVersionNumber = await taskVersionRepository.GetMaxVersionNumberAsync(task.Id, cancellationToken) + 1;
+        await taskVersionRepository.AddAsync(
+            new TaskVersion
+            {
+                TaskId = task.Id,
+                VersionNumber = nextVersionNumber,
+                Title = task.Title,
+                Description = task.Description,
+                Priority = task.Priority,
+                CategoryId = task.CategoryId,
+                DueDate = task.DueDate,
+                Notes = task.Notes,
+                ColorHex = task.ColorHex,
+                EstimatedMinutes = task.EstimatedMinutes,
+            },
+            cancellationToken);
+    }
 
     private async Task MutateAsync(Guid taskId, Action<TaskItem> mutate, CancellationToken cancellationToken)
     {

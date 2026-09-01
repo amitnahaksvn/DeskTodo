@@ -65,6 +65,8 @@ public partial class WidgetWindow : Window
             viewModel.ClipboardHistoryRequested += OnClipboardHistoryRequested;
             viewModel.TaskGroupsRequested += OnTaskGroupsRequested;
             viewModel.TrashRequested += OnTrashRequested;
+            viewModel.BackupRequested += OnBackupRequested;
+            viewModel.IntegrityCheckRequested += OnIntegrityCheckRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
@@ -157,6 +159,32 @@ public partial class WidgetWindow : Window
         await viewModel.LoadTasksAsync();
     }
 
+    /// <summary>Feature 67, Roadmap-39-100.md.</summary>
+    private async void OnBackupRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var backupViewModel = App.Services.GetRequiredService<BackupViewModel>();
+        var backupWindow = new BackupWindow { DataContext = backupViewModel };
+        await backupWindow.ShowDialog(this);
+    }
+
+    /// <summary>Feature 70, Roadmap-39-100.md.</summary>
+    private async void OnIntegrityCheckRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var integrityViewModel = App.Services.GetRequiredService<IntegrityCheckViewModel>();
+        var integrityWindow = new IntegrityCheckWindow { DataContext = integrityViewModel };
+        await integrityWindow.ShowDialog(this);
+    }
+
     /// <summary>
     /// Phase 28's app-wide keyboard shortcuts, added programmatically rather than declared
     /// as static <c>KeyBinding</c>s in XAML — Avalonia's <c>KeyGesture</c> string parser has
@@ -172,6 +200,12 @@ public partial class WidgetWindow : Window
         KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.K, modifier), Command = viewModel.OpenCommandPaletteCommand });
         KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.F, modifier), Command = viewModel.ToggleSearchBarCommand });
         KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.OemComma, modifier), Command = viewModel.OpenSettingsCommand });
+
+        // Feature 43's Undo/Redo Engine. Redo is Cmd/Ctrl+Shift+Z everywhere (not Ctrl+Y,
+        // Windows' own convention) — a single cross-platform gesture is simpler than another
+        // OS-conditional branch, and Shift+Z is already widely recognized on Windows too.
+        KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.Z, modifier), Command = viewModel.UndoCommand });
+        KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.Z, modifier | KeyModifiers.Shift), Command = viewModel.RedoCommand });
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -247,6 +281,8 @@ public partial class WidgetWindow : Window
             viewModel.ClipboardHistoryRequested -= OnClipboardHistoryRequested;
             viewModel.TaskGroupsRequested -= OnTaskGroupsRequested;
             viewModel.TrashRequested -= OnTrashRequested;
+            viewModel.BackupRequested -= OnBackupRequested;
+            viewModel.IntegrityCheckRequested -= OnIntegrityCheckRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -432,6 +468,10 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("Clipboard History", viewModel.OpenClipboardHistoryCommand),
             new CommandPaletteEntry("Task Groups", viewModel.OpenTaskGroupsCommand),
             new CommandPaletteEntry("Trash", viewModel.OpenTrashCommand),
+            new CommandPaletteEntry("Backups", viewModel.OpenBackupsCommand),
+            new CommandPaletteEntry("Data Integrity Check", viewModel.OpenIntegrityCheckCommand),
+            new CommandPaletteEntry("Undo", viewModel.UndoCommand),
+            new CommandPaletteEntry("Redo", viewModel.RedoCommand),
         ]);
 
         var paletteWindow = new CommandPaletteWindow { DataContext = paletteViewModel };

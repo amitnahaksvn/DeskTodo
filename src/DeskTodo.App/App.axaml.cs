@@ -62,7 +62,8 @@ public partial class App : global::Avalonia.Application
                     new NullNotificationService(),
                     TimeProvider.System,
                     NullLogger<WidgetViewModel>.Instance,
-                    NullLogger<TaskItemViewModel>.Instance);
+                    NullLogger<TaskItemViewModel>.Instance,
+                    new UndoRedoService());
 
             // Loaded synchronously (blocking on a local JSON file read, same pattern as
             // Program.cs's database migration) so the window's first frame already has the
@@ -190,6 +191,12 @@ public partial class App : global::Avalonia.Application
         var trashItem = new NativeMenuItem("Trash…");
         trashItem.Click += (_, _) => widgetViewModel.OpenTrashCommand.Execute(null);
 
+        var backupItem = new NativeMenuItem("Backups…");
+        backupItem.Click += (_, _) => widgetViewModel.OpenBackupsCommand.Execute(null);
+
+        var integrityCheckItem = new NativeMenuItem("Data Integrity Check…");
+        integrityCheckItem.Click += (_, _) => widgetViewModel.OpenIntegrityCheckCommand.Execute(null);
+
         var quitItem = new NativeMenuItem("Quit");
         quitItem.Click += (_, _) =>
         {
@@ -207,6 +214,8 @@ public partial class App : global::Avalonia.Application
                 quickAddItem,
                 clipboardHistoryItem,
                 trashItem,
+                backupItem,
+                integrityCheckItem,
                 settingsItem,
                 new NativeMenuItemSeparator(),
                 quitItem,

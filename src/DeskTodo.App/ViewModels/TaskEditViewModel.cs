@@ -209,6 +209,12 @@ public sealed partial class TaskEditViewModel : ViewModelBase
     [RelayCommand]
     private void ShowHistory() => HistoryRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised when "Versions" is clicked (Feature 44, Roadmap-39-100.md) — same "TaskEditWindow resolves the DI-scoped ViewModel" split as <see cref="HistoryRequested"/>.</summary>
+    public event EventHandler? VersionsRequested;
+
+    [RelayCommand]
+    private void ShowVersions() => VersionsRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
         _taskId = taskId;

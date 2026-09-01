@@ -49,6 +49,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<ITaskRepository, TaskRepository>();
         services.AddScoped<ITaskHistoryRepository, TaskHistoryRepository>();
+        services.AddScoped<ITaskVersionRepository, TaskVersionRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IChecklistRepository, ChecklistRepository>();
         services.AddScoped<ITaskTemplateRepository, TaskTemplateRepository>();
@@ -75,6 +76,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<ITaskExportService, TaskExportService>();
         services.AddSingleton<ITaskImportService, TaskImportService>();
+        services.AddScoped<IBackupService, LocalBackup.BackupService>();
+        services.AddScoped<IDataIntegrityService, DataIntegrityService>();
+
+        // Singleton — the undo/redo stack is app-wide state that must survive across
+        // WidgetViewModel's own DI lifetime the same way FocusTimerViewModel's timer does.
+        services.AddSingleton<IUndoRedoService, UndoRedoService>();
 
         // A single shared instance rather than the full IHttpClientFactory machinery
         // (which would need a new Microsoft.Extensions.Http package reference) — this app

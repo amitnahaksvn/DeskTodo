@@ -35,7 +35,7 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
             taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<TaskItem>());
             var categoryRepository = new Mock<ICategoryRepository>();
             categoryRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([category]);
-            var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
+            var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>(), Mock.Of<ITaskVersionRepository>());
             var checklistService = new Mock<IChecklistService>();
             var tagService = new Mock<ITagService>();
             var templateService = new Mock<ITaskTemplateService>();
@@ -98,7 +98,7 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
             taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<TaskItem>());
             var categoryRepository = new Mock<ICategoryRepository>();
             categoryRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
-            var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>());
+            var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>(), Mock.Of<ITaskVersionRepository>());
             var checklistService = new Mock<IChecklistService>();
             var tagService = new Mock<ITagService>();
             var templateService = new Mock<ITaskTemplateService>();

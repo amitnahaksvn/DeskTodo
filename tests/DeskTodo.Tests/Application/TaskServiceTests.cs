@@ -11,11 +11,12 @@ public class TaskServiceTests
 {
     private readonly Mock<ITaskRepository> _taskRepository = new();
     private readonly Mock<ITaskHistoryRepository> _taskHistoryRepository = new();
+    private readonly Mock<ITaskVersionRepository> _taskVersionRepository = new();
     private readonly TaskService _sut;
 
     public TaskServiceTests()
     {
-        _sut = new TaskService(_taskRepository.Object, _taskHistoryRepository.Object);
+        _sut = new TaskService(_taskRepository.Object, _taskHistoryRepository.Object, _taskVersionRepository.Object);
     }
 
     [Fact]
@@ -473,5 +474,79 @@ public class TaskServiceTests
         var results = await _sut.GetTaskHistoryAsync(taskId);
 
         Assert.Equal([entry], results);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_CapturesAVersionSnapshot_OfTheTaskAsItWasBeforeTheEdit()
+    {
+        var existing = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Before", Priority = TaskPriority.Low };
+        var edited = new TaskItem { Id = existing.Id, PlanDate = existing.PlanDate, Title = "After", Priority = TaskPriority.High };
+        _taskRepository.Setup(r => r.GetByIdAsync(existing.Id, It.IsAny<CancellationToken>())).ReturnsAsync(existing);
+        _taskVersionRepository.Setup(r => r.GetMaxVersionNumberAsync(existing.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+
+        await _sut.UpdateTaskAsync(edited);
+
+        _taskVersionRepository.Verify(r => r.AddAsync(
+            It.Is<TaskVersion>(v => v.TaskId == existing.Id && v.Title == "Before" && v.VersionNumber == 1),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RenameTaskAsync_CapturesAVersionSnapshot_BeforeRenaming()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Old title" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        _taskVersionRepository.Setup(r => r.GetMaxVersionNumberAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+
+        await _sut.RenameTaskAsync(task.Id, "New title");
+
+        _taskVersionRepository.Verify(r => r.AddAsync(
+            It.Is<TaskVersion>(v => v.TaskId == task.Id && v.Title == "Old title" && v.VersionNumber == 3),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RestoreTaskVersionAsync_OverwritesTheTasksFields_WithTheVersionsValues()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Current", Priority = TaskPriority.High, Notes = "current notes" };
+        var version = new TaskVersion { Id = Guid.NewGuid(), TaskId = task.Id, VersionNumber = 1, Title = "Old", Priority = TaskPriority.Low, Notes = "old notes" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        _taskVersionRepository.Setup(r => r.GetByIdAsync(version.Id, It.IsAny<CancellationToken>())).ReturnsAsync(version);
+        _taskVersionRepository.Setup(r => r.GetMaxVersionNumberAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        await _sut.RestoreTaskVersionAsync(task.Id, version.Id);
+
+        Assert.Equal("Old", task.Title);
+        Assert.Equal(TaskPriority.Low, task.Priority);
+        Assert.Equal("old notes", task.Notes);
+        _taskRepository.Verify(r => r.UpdateAsync(task, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RestoreTaskVersionAsync_CapturesThePreRestoreStateAsANewVersionFirst()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Current" };
+        var version = new TaskVersion { Id = Guid.NewGuid(), TaskId = task.Id, VersionNumber = 1, Title = "Old" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        _taskVersionRepository.Setup(r => r.GetByIdAsync(version.Id, It.IsAny<CancellationToken>())).ReturnsAsync(version);
+        _taskVersionRepository.Setup(r => r.GetMaxVersionNumberAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        await _sut.RestoreTaskVersionAsync(task.Id, version.Id);
+
+        _taskVersionRepository.Verify(r => r.AddAsync(
+            It.Is<TaskVersion>(v => v.Title == "Current" && v.VersionNumber == 2),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetTaskVersionsAsync_DelegatesToTheRepository()
+    {
+        var taskId = Guid.NewGuid();
+        var version = new TaskVersion { TaskId = taskId, VersionNumber = 1, Title = "v1" };
+        _taskVersionRepository.Setup(r => r.GetForTaskAsync(taskId, It.IsAny<CancellationToken>())).ReturnsAsync([version]);
+
+        var results = await _sut.GetTaskVersionsAsync(taskId);
+
+        Assert.Equal([version], results);
     }
 }

@@ -25,6 +25,7 @@ public partial class TaskEditWindow : Window
             viewModel.AttachmentOpenRequested += OnAttachmentOpenRequested;
             viewModel.StartTimerRequested += OnStartTimerRequested;
             viewModel.HistoryRequested += OnHistoryRequested;
+            viewModel.VersionsRequested += OnVersionsRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             RefreshNotesPreview(viewModel);
         }
@@ -37,6 +38,7 @@ public partial class TaskEditWindow : Window
             viewModel.AttachmentOpenRequested -= OnAttachmentOpenRequested;
             viewModel.StartTimerRequested -= OnStartTimerRequested;
             viewModel.HistoryRequested -= OnHistoryRequested;
+            viewModel.VersionsRequested -= OnVersionsRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -67,6 +69,21 @@ public partial class TaskEditWindow : Window
         var historyWindow = new TaskHistoryWindow { DataContext = historyViewModel };
         await historyViewModel.LoadAsync(viewModel.TaskId, viewModel.Title);
         await historyWindow.ShowDialog(this);
+    }
+
+    /// <summary>Feature 44, Roadmap-39-100.md — same DI-resolved-child-window split as <see cref="OnHistoryRequested"/>. Reloads this editor's own fields afterward, since a restore may have just changed them.</summary>
+    private async void OnVersionsRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not TaskEditViewModel viewModel)
+        {
+            return;
+        }
+
+        var versionViewModel = App.Services.GetRequiredService<TaskVersionViewModel>();
+        var versionWindow = new TaskVersionWindow { DataContext = versionViewModel };
+        await versionViewModel.LoadAsync(viewModel.TaskId, viewModel.Title);
+        await versionWindow.ShowDialog(this);
+        await viewModel.LoadAsync(viewModel.TaskId);
     }
 
     private void OnNewChecklistItemKeyDown(object? sender, KeyEventArgs e)
