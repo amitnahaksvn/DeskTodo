@@ -35,6 +35,8 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
             taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<TaskItem>());
             var categoryRepository = new Mock<ICategoryRepository>();
             categoryRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([category]);
+            var contextRepository = new Mock<IFocusContextRepository>();
+            contextRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FocusContext>());
             var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>(), Mock.Of<ITaskVersionRepository>());
             var checklistService = new Mock<IChecklistService>();
             var tagService = new Mock<ITagService>();
@@ -49,6 +51,7 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
             var viewModel = new TaskEditViewModel(
                 taskService,
                 categoryRepository.Object,
+                contextRepository.Object,
                 checklistService.Object,
                 tagService.Object,
                 templateService.Object,
@@ -98,6 +101,8 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
             taskRepository.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<TaskItem>());
             var categoryRepository = new Mock<ICategoryRepository>();
             categoryRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+            var contextRepository = new Mock<IFocusContextRepository>();
+            contextRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FocusContext>());
             var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>(), Mock.Of<ITaskVersionRepository>());
             var checklistService = new Mock<IChecklistService>();
             var tagService = new Mock<ITagService>();
@@ -112,6 +117,7 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
             var viewModel = new TaskEditViewModel(
                 taskService,
                 categoryRepository.Object,
+                contextRepository.Object,
                 checklistService.Object,
                 tagService.Object,
                 templateService.Object,

@@ -1,0 +1,68 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="600"
+        x:Class="DeskTodo.App.Views.JournalWindow"
+        x:DataType="vm:JournalViewModel"
+        Title="Journal"
+        Width="440" Height="600"
+        MinWidth="400" MinHeight="420"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 60 — a date-based personal/work journal, deliberately not another task list. -->
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Journal" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+            <Button Grid.Column="0" Content="◀" Command="{Binding GoToPreviousDayCommand}" Padding="8,4" />
+            <TextBlock Grid.Column="1" Text="{Binding SelectedDate, StringFormat='{}{0:dddd, MMM d, yyyy}'}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+            <Button Grid.Column="2" Content="▶" Command="{Binding GoToNextDayCommand}" Padding="8,4" />
+        </Grid>
+
+        <TextBox Grid.Row="2" PlaceholderText="Search all entries…" Text="{Binding SearchText}" Margin="0,0,0,12" />
+
+        <ScrollViewer Grid.Row="3">
+            <StackPanel Spacing="10">
+                <Expander Header="New entry">
+                    <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <TextBox PlaceholderText="Title" Text="{Binding NewTitle}" />
+                        <TextBox PlaceholderText="What's on your mind…" Text="{Binding NewContent}" AcceptsReturn="True" Height="100" TextWrapping="Wrap" />
+                        <TextBox PlaceholderText="Mood (optional)" Text="{Binding NewMood}" />
+                        <Button Content="Add Entry" Command="{Binding AddEntryCommand}" HorizontalAlignment="Right" Padding="12,6" />
+                    </StackPanel>
+                </Expander>
+
+                <ItemsControl ItemsSource="{Binding Entries}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:JournalEntryOption">
+                            <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                                <StackPanel Spacing="4">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap">
+                                            <Run Text="{Binding Title}" /><Run Text=" " /><Run Text="{Binding Mood}" />
+                                        </TextBlock>
+                                        <Button Grid.Column="1" Content="Delete" Command="{Binding $parent[ItemsControl].((vm:JournalViewModel)DataContext).DeleteEntryCommand}"
+                                                CommandParameter="{Binding Id}" FontSize="11" Padding="6,2"
+                                                Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding Content}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding DateDisplay}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="No entries" IsVisible="{Binding !Entries.Count}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="4" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

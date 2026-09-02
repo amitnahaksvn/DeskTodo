@@ -125,6 +125,11 @@ public sealed class TaskItem
 
     public Project? Project { get; set; }
 
+    /// <summary>Feature 63's Focus Context — a cross-cutting "which part of my life" label, distinct from <see cref="ProjectId"/>; see <see cref="Entities.FocusContext"/>'s own doc comment.</summary>
+    public Guid? ContextId { get; set; }
+
+    public FocusContext? Context { get; set; }
+
     /// <summary>Tasks that must be completed before this one can be — see <see cref="Entities.TaskDependency"/>.</summary>
     public ICollection<TaskDependency> BlockedByDependencies { get; set; } = [];
 

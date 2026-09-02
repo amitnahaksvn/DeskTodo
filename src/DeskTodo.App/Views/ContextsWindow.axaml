@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:entities="using:DeskTodo.Domain.Entities"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="480"
+        x:Class="DeskTodo.App.Views.ContextsWindow"
+        x:DataType="vm:ContextsViewModel"
+        Title="Focus Contexts"
+        Width="380" Height="480"
+        MinWidth="340" MinHeight="360"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 63 — a cross-cutting "which part of my life" label, distinct from Project. -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Focus Contexts" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,0,0,12">
+            <TextBox Grid.Column="0" PlaceholderText="New context name (e.g. Work)" Text="{Binding NewContextName}" />
+            <Button Grid.Column="1" Content="Add" Command="{Binding AddCommand}" Padding="12,6" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="2">
+            <ItemsControl ItemsSource="{Binding Contexts}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="entities:FocusContext">
+                        <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,6">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                <Ellipse Grid.Column="0" Width="12" Height="12" Fill="{Binding ColorHex}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="13" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <Button Grid.Column="2" Content="Delete"
+                                        Command="{Binding $parent[ItemsControl].((vm:ContextsViewModel)DataContext).DeleteCommand}"
+                                        CommandParameter="{Binding Id}" FontSize="11" Padding="6,2"
+                                        Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <Button Grid.Row="3" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

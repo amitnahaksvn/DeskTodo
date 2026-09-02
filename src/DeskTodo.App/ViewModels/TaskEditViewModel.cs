@@ -32,6 +32,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
 {
     private readonly ITaskService _taskService;
     private readonly ICategoryRepository _categoryRepository;
+    private readonly IFocusContextRepository _contextRepository;
     private readonly IChecklistService _checklistService;
     private readonly ITagService _tagService;
     private readonly ITaskTemplateService _templateService;
@@ -46,6 +47,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
     public TaskEditViewModel(
         ITaskService taskService,
         ICategoryRepository categoryRepository,
+        IFocusContextRepository contextRepository,
         IChecklistService checklistService,
         ITagService tagService,
         ITaskTemplateService templateService,
@@ -58,6 +60,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
     {
         _taskService = taskService;
         _categoryRepository = categoryRepository;
+        _contextRepository = contextRepository;
         _checklistService = checklistService;
         _tagService = tagService;
         _templateService = templateService;
@@ -70,6 +73,8 @@ public sealed partial class TaskEditViewModel : ViewModelBase
     }
 
     public ObservableCollection<CategoryOption> Categories { get; } = [CategoryOption.None];
+
+    public ObservableCollection<ContextOption> Contexts { get; } = [ContextOption.None];
 
     public IReadOnlyList<TaskPriority> Priorities { get; } = Enum.GetValues<TaskPriority>();
 
@@ -107,6 +112,9 @@ public sealed partial class TaskEditViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial CategoryOption SelectedCategory { get; set; } = CategoryOption.None;
+
+    [ObservableProperty]
+    public partial ContextOption SelectedContext { get; set; } = ContextOption.None;
 
     [ObservableProperty]
     public partial DateTimeOffset? DueDate { get; set; }
@@ -227,6 +235,14 @@ public sealed partial class TaskEditViewModel : ViewModelBase
             Categories.Add(new CategoryOption(category.Id, category.Name, category.ColorHex));
         }
 
+        var contexts = await _contextRepository.GetAllAsync(cancellationToken);
+        Contexts.Clear();
+        Contexts.Add(ContextOption.None);
+        foreach (var context in contexts)
+        {
+            Contexts.Add(new ContextOption(context.Id, context.Name));
+        }
+
         var task = await _taskService.GetTaskAsync(taskId, cancellationToken);
         if (task is null)
         {
@@ -242,6 +258,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         Priority = task.Priority;
         Type = task.Type;
         SelectedCategory = Categories.FirstOrDefault(c => c.Id == task.CategoryId) ?? CategoryOption.None;
+        SelectedContext = Contexts.FirstOrDefault(c => c.Id == task.ContextId) ?? ContextOption.None;
         DueDate = task.DueDate is { } due ? new DateTimeOffset(due) : null;
         EstimatedMinutes = task.EstimatedMinutes;
         ActualMinutes = task.ActualMinutes;
@@ -528,6 +545,7 @@ public sealed partial class TaskEditViewModel : ViewModelBase
             task.Priority = Priority;
             task.Type = Type;
             task.CategoryId = SelectedCategory.Id;
+            task.ContextId = SelectedContext.Id;
             task.DueDate = DueDate?.DateTime;
             task.EstimatedMinutes = EstimatedMinutes.HasValue ? (int)EstimatedMinutes.Value : null;
             task.ColorHex = string.IsNullOrEmpty(SelectedColorHex) ? null : SelectedColorHex;

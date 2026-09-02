@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:svc="using:DeskTodo.Application.Services"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="480"
+        x:Class="DeskTodo.App.Views.AchievementsWindow"
+        x:DataType="vm:AchievementsViewModel"
+        Title="Achievements"
+        Width="400" Height="480"
+        MinWidth="360" MinHeight="360"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 62 — progress markers, deliberately not a points/gamification system. -->
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Achievements" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <ScrollViewer Grid.Row="1">
+            <ItemsControl ItemsSource="{Binding Achievements}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="svc:Achievement">
+                        <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                            <StackPanel Spacing="2">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Grid.Column="1" Text="✓" IsVisible="{Binding IsUnlocked}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Bold" />
+                                </Grid>
+                                <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <TextBlock Text="{Binding ProgressDisplay}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <Button Grid.Row="2" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

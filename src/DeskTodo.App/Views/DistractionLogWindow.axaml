@@ -1,0 +1,55 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="560"
+        x:Class="DeskTodo.App.Views.DistractionLogWindow"
+        x:DataType="vm:DistractionLogViewModel"
+        Title="Distraction Log"
+        Width="420" Height="560"
+        MinWidth="380" MinHeight="420"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 64 — interruptions during focus sessions, logged as "this just happened." -->
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Distraction Log" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,0,0,8">
+            <ComboBox Grid.Column="0" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" HorizontalAlignment="Stretch" />
+            <NumericUpDown Grid.Column="1" Value="{Binding DurationMinutes}" Minimum="1" Maximum="480" Width="110" />
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,0,0,12">
+            <TextBox Grid.Column="0" PlaceholderText="Notes (optional)" Text="{Binding Notes}" />
+            <Button Grid.Column="1" Content="Log Distraction" Command="{Binding LogDistractionCommand}" Padding="12,6" />
+        </Grid>
+
+        <TextBlock Grid.Row="3" Text="{Binding SummaryDisplay}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" TextWrapping="Wrap" />
+
+        <ScrollViewer Grid.Row="4">
+            <ItemsControl ItemsSource="{Binding Distractions}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DistractionOption">
+                        <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="{Binding CategoryDisplay}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding StartedAtDisplay}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}">
+                                    <Run Text="{Binding DurationMinutes}" /><Run Text="m" />
+                                </TextBlock>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <Button Grid.Row="5" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

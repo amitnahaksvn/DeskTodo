@@ -42,7 +42,7 @@ The existing application already contains (Phases 1–38, see `IMPLEMENTATION.md
 
 The features below therefore intentionally focus on capabilities that are not already represented by those phases.
 
-**Status:** planning only, except where noted — nothing in this document was implemented as of when it was written. See `IMPLEMENTATION.md`'s roadmap table for a one-line link to this file and its live status. **Features 39 (Task Inbox), 41 (NL Quick Add), 42 (Task History), 43 (Undo/Redo), 44 (Task Versioning), 45 (Archive Vault), 46 (Trash), 47 (Smart Duplicate Detection), 50 (Milestone Tracking), 51 (Project Health Score), 52 (Deadline Risk Detection), 53 (Workload Heatmap), 54 (Capacity Planning), 55 (Time Estimation Accuracy), 56 (Task Cost Tracking), 61 (Activity Timeline), 65 (Work Session History), 67 (Local Backup Manager), 68 (Backup Restore Simulator), 69 (Database Maintenance Center) and 70 (Data Integrity Checker) have since been delivered, 40 (Command Palette) partially, and 49 (Goal → Project → Task Mapping) explicitly deferred — see each feature's own section below for what shipped or why.**
+**Status:** planning only, except where noted — nothing in this document was implemented as of when it was written. See `IMPLEMENTATION.md`'s roadmap table for a one-line link to this file and its live status. **Features 39, 41, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57, 60, 61, 62, 63, 64, 65, 67, 68, 69 and 70 have since been delivered (Task Inbox, NL Quick Add, Task History, Undo/Redo, Task Versioning, Archive Vault, Trash, Smart Duplicate Detection, Milestone Tracking, Project Health Score, Deadline Risk Detection, Workload Heatmap, Capacity Planning, Time Estimation Accuracy, Task Cost Tracking, Decision Log, Daily Journal, Activity Timeline, Achievement System, Focus Contexts, Distraction Log, Work Session History, Local Backup Manager, Backup Restore Simulator, Database Maintenance Center, Data Integrity Checker), 40 (Command Palette) partially, and 49 (Goal → Project → Task Mapping) explicitly deferred — see each feature's own section below for what shipped or why.**
 
 ---
 
@@ -1490,11 +1490,24 @@ Keep this optional because many users will not need monetary tracking.
 
 ---
 
-# Feature 57 — Decision Log
+# Feature 57 — Decision Log ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Record important decisions independently from ordinary tasks.
+
+**Delivered.** A new `Decision` entity (Title, Context, DecisionText, Alternatives, Reason,
+CreatedAt, optional `ProjectId`) plus `IDecisionService` (Record/Get/Delete). Reachable via a new
+`DecisionLogWindow` (a form to record one, a searchable list of every decision recorded), from
+the Command Palette.
+
+**Deliberately not built:** `RelatedTaskIds` — linking a decision to specific tasks needs a
+many-to-many join this pass didn't add; a decision can link to a project but not yet to
+individual tasks. Alternatives is a plain free-text field (one per line, typed by the user), not
+a structured list of options each with their own pros/cons.
+
+**Verified:** real EF Core/SQLite repository tests (ordering, the `SetNull` survival behavior
+when a linked project is deleted) plus service-level tests for trimming/blank-field handling.
 
 ## Entity
 
@@ -1626,11 +1639,26 @@ AI can be plugged in later.
 
 ---
 
-# Feature 60 — Daily Journal
+# Feature 60 — Daily Journal ✅ Delivered, scoped down (2026-09-01)
 
 ## Objective
 
 Provide a date-based personal/work journal.
+
+**Delivered.** A new `JournalEntry` entity (Date, Title, Content, optional free-text Mood) plus
+`IJournalService` (per-date list, full-text search across all entries, add, delete). Reachable
+via a new `JournalWindow` (prev/today/next day navigation, a search box, an entry form),
+from the Command Palette. Per the spec's own "do not turn the journal into another task list"
+instruction, an entry carries none of `TaskItem`'s fields — no priority, due date, or completion
+state.
+
+**Deliberately not built:** Markdown/rich text rendering (plain text only — this app's existing
+Markdown-lite renderer is specific to the task editor's Notes field and wasn't extended here),
+linking entries to tasks/projects, attachments, and a dedicated export (the app's existing
+CSV/JSON/Markdown export doesn't cover journal entries in this pass).
+
+**Verified:** real EF Core/SQLite repository tests (per-date filtering, date-descending
+ordering) plus service-level tests for trimming and case-insensitive title/content search.
 
 ## Entity
 
@@ -1709,11 +1737,28 @@ The Activity Timeline consumes application events.
 
 ---
 
-# Feature 62 — Achievement / Progress System
+# Feature 62 — Achievement / Progress System ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Provide optional productivity feedback.
+
+**Delivered, entirely computed from existing data, no new schema.** `IAchievementService`
+computes six fixed markers from tasks/focus sessions/projects/milestones: First Steps (1 task
+completed), Century (100 tasks), 50 Focus Hours, Project Finisher (a project with every task
+done), Milestone Maker (5 milestones completed), and Well Organized (no task currently overdue).
+Reachable via a new `AchievementsWindow` from the Command Palette. No points, streak counters, or
+progress bars driving dopamine loops — each marker is unlocked or not, per the spec's own "avoid
+aggressive gamification" instruction.
+
+**Scope note on ambiguous spec examples:** "Completed first project" and "Maintained task
+organization" have no literal equivalent in this single-user app's data model (no
+`Project.IsCompleted` flag, no multi-user "organization" signal) — see the implementation's own
+doc comments for the concrete interpretation each was given (a project with 100% task completion;
+zero currently-overdue tasks, respectively).
+
+**Verified:** mocked service-level tests for each achievement's unlock threshold, both sides
+(locked and unlocked).
 
 Examples:
 
@@ -1737,11 +1782,28 @@ rather than points and addictive mechanics.
 
 ---
 
-# Feature 63 — Focus Contexts
+# Feature 63 — Focus Contexts ✅ Delivered, scoped down (2026-09-01)
 
 ## Objective
 
 Allow users to switch the application's active context.
+
+**Delivered as assignment + management, not a live "switch context" filter (see below).** A new
+`FocusContext` entity (Name, ColorHex) plus a nullable `TaskItem.ContextId` — a task can carry
+both a Project and a Context at once, per the spec's own "Project: InElection, Context: Side
+Project" example. A new `ContextsWindow` manages contexts (add/delete); the task editor gained a
+"Context" picker alongside its existing Category picker.
+
+**Deliberately not built:** the widget's own context-switcher filter dropdown ("All/Work/
+Personal/Learning," filtering the visible task list) — the widget's search bar already carries
+four filters (status/category/tag/project), each with its own careful in-place-update logic to
+avoid a `ComboBox` binding desync bug documented on `WidgetViewModel.RefreshCategoriesAsync`;
+adding a fifth was deferred to keep this batch bounded, with the assignment/management half
+(the part with no working substitute) prioritized first. A future pass can add the filter
+following that exact same established pattern.
+
+**Verified:** real EF Core/SQLite repository tests (ordering, the `SetNull` survival behavior
+when a context is deleted while a task still references it).
 
 Examples:
 
@@ -1777,11 +1839,28 @@ Learning
 
 ---
 
-# Feature 64 — Distraction Log
+# Feature 64 — Distraction Log ✅ Delivered, scoped down (2026-09-01)
 
 ## Objective
 
 Record interruptions during focus sessions.
+
+**Delivered as "log what just happened," not a running start/stop timer.** A new `Distraction`
+entity (StartedAt/EndedAt/DurationMinutes/Category/Notes, optionally linked to a
+`FocusSession`) plus a `DistractionLogWindow`: pick a category, a duration in minutes, optional
+notes, "Log Distraction" — deliberately not a live stopwatch, since this app's existing Focus
+Timer already owns "is a session currently running," and a second independent timer here would
+be a confusing second source of truth for the same idea. The window's summary line covers the
+spec's own analytics list (count, total time, average duration, most common category); "by time
+of day" bucketing isn't broken out separately. Reachable from the Command Palette.
+
+**Deliberately not built:** wiring a distraction to the *specific* focus session active when it's
+logged — `FocusSessionId` exists on the entity but nothing currently sets it (the Distraction Log
+window is opened independently of the Focus Timer, so there's no "current session" in scope at
+log time in this pass).
+
+**Verified:** a domain-level test for the rounding/minimum-duration logic in `Distraction.End`,
+plus real EF Core/SQLite repository tests for ordering and persistence.
 
 > **Note:** builds on DeskTodo's existing `FocusSession` (Phase 23) — an interruption is naturally scoped to a running session.
 

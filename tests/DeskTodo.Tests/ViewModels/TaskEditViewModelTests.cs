@@ -12,6 +12,7 @@ public class TaskEditViewModelTests
 {
     private readonly Mock<ITaskService> _taskService = new();
     private readonly Mock<ICategoryRepository> _categoryRepository = new();
+    private readonly Mock<IFocusContextRepository> _contextRepository = new();
     private readonly Mock<IChecklistService> _checklistService = new();
     private readonly Mock<ITagService> _tagService = new();
     private readonly Mock<ITaskTemplateService> _templateService = new();
@@ -24,6 +25,7 @@ public class TaskEditViewModelTests
     public TaskEditViewModelTests()
     {
         _categoryRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        _contextRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _taskService.Setup(s => s.GetTasksForDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<TaskItem>());
         _attachmentService.Setup(s => s.GetAttachmentsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Attachment>());
         _milestoneService.Setup(s => s.GetMilestonesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Milestone>());
@@ -31,6 +33,7 @@ public class TaskEditViewModelTests
         _sut = new TaskEditViewModel(
             _taskService.Object,
             _categoryRepository.Object,
+            _contextRepository.Object,
             _checklistService.Object,
             _tagService.Object,
             _templateService.Object,

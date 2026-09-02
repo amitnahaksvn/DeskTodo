@@ -85,6 +85,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDatabaseMaintenanceService, DatabaseMaintenanceService>();
         services.AddSingleton<IQuickAddParser, RuleBasedQuickAddParser>();
         services.AddScoped<IPlanningAnalyticsService, PlanningAnalyticsService>();
+        services.AddScoped<IDecisionRepository, DecisionRepository>();
+        services.AddScoped<IDecisionService, DecisionService>();
+        services.AddScoped<IJournalRepository, JournalRepository>();
+        services.AddScoped<IJournalService, JournalService>();
+        services.AddScoped<IFocusContextRepository, FocusContextRepository>();
+        services.AddScoped<IDistractionRepository, DistractionRepository>();
+        services.AddScoped<IAchievementService, AchievementService>();
 
         // Singleton — the undo/redo stack is app-wide state that must survive across
         // WidgetViewModel's own DI lifetime the same way FocusTimerViewModel's timer does.

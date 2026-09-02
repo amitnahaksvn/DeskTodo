@@ -73,6 +73,11 @@ public partial class WidgetWindow : Window
             viewModel.DatabaseMaintenanceRequested += OnDatabaseMaintenanceRequested;
             viewModel.WorkSessionHistoryRequested += OnWorkSessionHistoryRequested;
             viewModel.PlanningInsightsRequested += OnPlanningInsightsRequested;
+            viewModel.DecisionLogRequested += OnDecisionLogRequested;
+            viewModel.JournalRequested += OnJournalRequested;
+            viewModel.AchievementsRequested += OnAchievementsRequested;
+            viewModel.DistractionLogRequested += OnDistractionLogRequested;
+            viewModel.ContextsRequested += OnContextsRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
@@ -274,6 +279,71 @@ public partial class WidgetWindow : Window
         await insightsWindow.ShowDialog(this);
     }
 
+    /// <summary>Feature 57, Roadmap-39-100.md.</summary>
+    private async void OnDecisionLogRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var decisionLogViewModel = App.Services.GetRequiredService<DecisionLogViewModel>();
+        var decisionLogWindow = new DecisionLogWindow { DataContext = decisionLogViewModel };
+        await decisionLogWindow.ShowDialog(this);
+    }
+
+    /// <summary>Feature 60, Roadmap-39-100.md.</summary>
+    private async void OnJournalRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var journalViewModel = App.Services.GetRequiredService<JournalViewModel>();
+        var journalWindow = new JournalWindow { DataContext = journalViewModel };
+        await journalWindow.ShowDialog(this);
+    }
+
+    /// <summary>Feature 62, Roadmap-39-100.md.</summary>
+    private async void OnAchievementsRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var achievementsViewModel = App.Services.GetRequiredService<AchievementsViewModel>();
+        var achievementsWindow = new AchievementsWindow { DataContext = achievementsViewModel };
+        await achievementsWindow.ShowDialog(this);
+    }
+
+    /// <summary>Feature 64, Roadmap-39-100.md.</summary>
+    private async void OnDistractionLogRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var distractionLogViewModel = App.Services.GetRequiredService<DistractionLogViewModel>();
+        var distractionLogWindow = new DistractionLogWindow { DataContext = distractionLogViewModel };
+        await distractionLogWindow.ShowDialog(this);
+    }
+
+    /// <summary>Feature 63, Roadmap-39-100.md.</summary>
+    private async void OnContextsRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var contextsViewModel = App.Services.GetRequiredService<ContextsViewModel>();
+        var contextsWindow = new ContextsWindow { DataContext = contextsViewModel };
+        await contextsWindow.ShowDialog(this);
+    }
+
     /// <summary>
     /// Phase 28's app-wide keyboard shortcuts, added programmatically rather than declared
     /// as static <c>KeyBinding</c>s in XAML — Avalonia's <c>KeyGesture</c> string parser has
@@ -378,6 +448,11 @@ public partial class WidgetWindow : Window
             viewModel.DatabaseMaintenanceRequested -= OnDatabaseMaintenanceRequested;
             viewModel.WorkSessionHistoryRequested -= OnWorkSessionHistoryRequested;
             viewModel.PlanningInsightsRequested -= OnPlanningInsightsRequested;
+            viewModel.DecisionLogRequested -= OnDecisionLogRequested;
+            viewModel.JournalRequested -= OnJournalRequested;
+            viewModel.AchievementsRequested -= OnAchievementsRequested;
+            viewModel.DistractionLogRequested -= OnDistractionLogRequested;
+            viewModel.ContextsRequested -= OnContextsRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -577,6 +652,11 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("Database Maintenance", viewModel.OpenDatabaseMaintenanceCommand),
             new CommandPaletteEntry("Work Session History", viewModel.OpenWorkSessionHistoryCommand),
             new CommandPaletteEntry("Planning Insights", viewModel.OpenPlanningInsightsCommand),
+            new CommandPaletteEntry("Decision Log", viewModel.OpenDecisionLogCommand),
+            new CommandPaletteEntry("Journal", viewModel.OpenJournalCommand),
+            new CommandPaletteEntry("Achievements", viewModel.OpenAchievementsCommand),
+            new CommandPaletteEntry("Distraction Log", viewModel.OpenDistractionLogCommand),
+            new CommandPaletteEntry("Focus Contexts", viewModel.OpenContextsCommand),
         ]);
 
         var paletteWindow = new CommandPaletteWindow { DataContext = paletteViewModel };

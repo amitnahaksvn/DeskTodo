@@ -55,6 +55,19 @@
                     </ComboBox>
                 </StackPanel>
 
+                <!-- Feature 63 (Roadmap-39-100.md) — a cross-cutting "which part of my life" label, distinct from Category/Project. -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Context" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <ComboBox ItemsSource="{Binding Contexts}" SelectedItem="{Binding SelectedContext}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ContextOption">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
                 <!--
                   DatePicker (month/day/year spinners) and NumericUpDown both need more
                   width than a half-column of a 360px-wide window can give them without

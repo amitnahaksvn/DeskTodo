@@ -998,6 +998,36 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenPlanningInsights() => PlanningInsightsRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised from the Command Palette (Feature 57, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? DecisionLogRequested;
+
+    [RelayCommand]
+    private void OpenDecisionLog() => DecisionLogRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised from the Command Palette (Feature 60, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? JournalRequested;
+
+    [RelayCommand]
+    private void OpenJournal() => JournalRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised from the Command Palette (Feature 62, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? AchievementsRequested;
+
+    [RelayCommand]
+    private void OpenAchievements() => AchievementsRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised from the Command Palette (Feature 64, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? DistractionLogRequested;
+
+    [RelayCommand]
+    private void OpenDistractionLog() => DistractionLogRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised from the Command Palette (Feature 63, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? ContextsRequested;
+
+    [RelayCommand]
+    private void OpenContexts() => ContextsRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try

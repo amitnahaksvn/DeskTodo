@@ -37,6 +37,14 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<InboxItem> InboxItems => Set<InboxItem>();
 
+    public DbSet<Decision> Decisions => Set<Decision>();
+
+    public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
+
+    public DbSet<FocusContext> FocusContexts => Set<FocusContext>();
+
+    public DbSet<Distraction> Distractions => Set<Distraction>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeskTodoDbContext).Assembly);

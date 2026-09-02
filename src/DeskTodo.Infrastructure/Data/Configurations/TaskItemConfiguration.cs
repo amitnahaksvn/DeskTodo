@@ -31,6 +31,11 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
             .HasForeignKey(t => t.ProjectId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(t => t.Context)
+            .WithMany(c => c.Tasks)
+            .HasForeignKey(t => t.ContextId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // Self-referencing one-level parent/child (Subtasks). Restrict rather than Cascade:
         // deletion is normally the IsDeleted soft flag, which never touches this FK at all.
         // Feature 46's Trash ("Delete Permanently"/"Empty Trash") is the one genuine hard-delete
