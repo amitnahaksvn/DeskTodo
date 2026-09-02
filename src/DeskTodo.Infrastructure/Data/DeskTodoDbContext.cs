@@ -21,6 +21,8 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<TaskDependency> TaskDependencies => Set<TaskDependency>();
 
+    public DbSet<TaskRelationship> TaskRelationships => Set<TaskRelationship>();
+
     public DbSet<Goal> Goals => Set<Goal>();
 
     public DbSet<GoalCompletion> GoalCompletions => Set<GoalCompletion>();

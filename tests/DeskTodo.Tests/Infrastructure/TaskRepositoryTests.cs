@@ -1,4 +1,5 @@
 using DeskTodo.Domain.Entities;
+using DeskTodo.Domain.Enums;
 using DeskTodo.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -251,6 +252,28 @@ public class TaskRepositoryTests : IDisposable
         Assert.Null(exception);
         await using var verifyContext = _fixture.ContextFactory.CreateDbContext();
         Assert.False(await verifyContext.TaskDependencies.AnyAsync(d => d.BlockedTaskId == blocked.Id));
+    }
+
+    [Fact]
+    public async Task RemoveAsync_OnATaskWithRelationships_RemovesTheRelationshipRowsTooInsteadOfThrowing()
+    {
+        var source = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Source task" };
+        source.SoftDelete();
+        await _sut.AddAsync(source);
+        var target = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Target task" };
+        await _sut.AddAsync(target);
+
+        await using (var context = _fixture.ContextFactory.CreateDbContext())
+        {
+            context.TaskRelationships.Add(new TaskRelationship { SourceTaskId = source.Id, TargetTaskId = target.Id, RelationshipType = TaskRelationshipType.Related });
+            await context.SaveChangesAsync();
+        }
+
+        var exception = await Record.ExceptionAsync(() => _sut.RemoveAsync(source.Id));
+
+        Assert.Null(exception);
+        await using var verifyContext = _fixture.ContextFactory.CreateDbContext();
+        Assert.False(await verifyContext.TaskRelationships.AnyAsync(r => r.SourceTaskId == source.Id));
     }
 
     [Fact]

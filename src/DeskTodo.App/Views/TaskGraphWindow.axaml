@@ -1,0 +1,127 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="760"
+        x:Class="DeskTodo.App.Views.TaskGraphWindow"
+        x:DataType="vm:TaskGraphViewModel"
+        Title="Task Relationships"
+        Width="720" Height="760"
+        MinWidth="560" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 48 — a 1-hop relationship graph centered on one task. -->
+    <Window.Styles>
+        <Style Selector="Button.centerNode">
+            <Setter Property="Background" Value="{DynamicResource IndigoBadgeBackgroundBrush}" />
+        </Style>
+        <Style Selector="Button.centerNode TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource IndigoBadgeForegroundBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" Margin="16">
+        <TextBlock Grid.Row="0" Text="{Binding CenterTaskTitle, StringFormat='Task Relationships — {0}'}"
+                   FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+        <StackPanel Grid.Row="1" Spacing="8" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Zoom" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                <Slider Minimum="0.5" Maximum="2" Value="{Binding ZoomLevel}" Width="140" VerticalAlignment="Center" />
+            </StackPanel>
+            <ItemsControl ItemsSource="{Binding TypeFilters}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RelationshipTypeFilterOption">
+                        <CheckBox Content="{Binding Label}" IsChecked="{Binding IsEnabled}" FontSize="11" Margin="0,0,10,4" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+
+        <Border Grid.Row="2" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <LayoutTransformControl>
+                    <LayoutTransformControl.LayoutTransform>
+                        <ScaleTransform ScaleX="{Binding ZoomLevel}" ScaleY="{Binding ZoomLevel}" />
+                    </LayoutTransformControl.LayoutTransform>
+                    <Grid Width="640" Height="640">
+                        <ItemsControl ItemsSource="{Binding Edges}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas Width="640" Height="640" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:GraphEdge">
+                                    <Line StartPoint="{Binding Start}" EndPoint="{Binding End}"
+                                          Stroke="{DynamicResource TextMutedBrush}" StrokeThickness="1.5" ToolTip.Tip="{Binding Label}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <ItemsControl ItemsSource="{Binding Nodes}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas Width="640" Height="640" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:GraphNode">
+                                    <Button Canvas.Left="{Binding X}" Canvas.Top="{Binding Y}"
+                                            Classes.centerNode="{Binding IsCenter}"
+                                            Command="{Binding $parent[ItemsControl].((vm:TaskGraphViewModel)DataContext).SelectNodeCommand}"
+                                            CommandParameter="{Binding}"
+                                            Padding="8,4" CornerRadius="12">
+                                        <TextBlock Text="{Binding Title}" FontSize="11" MaxWidth="120" TextWrapping="Wrap" />
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </LayoutTransformControl>
+            </ScrollViewer>
+        </Border>
+
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding SelectedNode, Converter={x:Static convCore:ObjectConverters.IsNotNull}}" Margin="0,8,0,0">
+            <TextBlock Grid.Column="0" Text="{Binding SelectedNode.Title}" FontSize="12" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap" />
+            <Button Grid.Column="1" Content="Recenter Here" Command="{Binding RecenterCommand}" CommandParameter="{Binding SelectedNode.TaskId}" Padding="8,4" Margin="0,0,6,0" />
+            <Button Grid.Column="2" Content="Open Task" Command="{Binding OpenTaskCommand}" CommandParameter="{Binding SelectedNode.TaskId}" Padding="8,4" />
+        </Grid>
+
+        <StackPanel Grid.Row="4" Spacing="6" Margin="0,10,0,0">
+            <TextBlock Text="Relationships" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+            <ItemsControl ItemsSource="{Binding Edges}" MaxHeight="110">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:GraphEdge">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,3">
+                            <TextBlock Grid.Column="0" Text="{Binding Description}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" />
+                            <Button Grid.Column="1" Content="✕"
+                                    Command="{Binding $parent[ItemsControl].((vm:TaskGraphViewModel)DataContext).RemoveRelationshipCommand}"
+                                    CommandParameter="{Binding RelationshipId}" FontSize="10" Padding="6,2" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{Binding StatusMessage}" IsVisible="{Binding StatusMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableTasks}" SelectedItem="{Binding TargetTaskToAdd}"
+                          PlaceholderText="Relate to task…" Margin="0,0,6,0" />
+                <ComboBox Grid.Column="1" ItemsSource="{Binding RelationshipTypeOptions}" SelectedItem="{Binding RelationshipTypeToAdd}" Width="120" Margin="0,0,6,0" />
+                <Button Grid.Column="2" Content="Add" Command="{Binding AddRelationshipCommand}" Padding="10,4" />
+            </Grid>
+        </StackPanel>
+
+        <Button Grid.Row="5" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

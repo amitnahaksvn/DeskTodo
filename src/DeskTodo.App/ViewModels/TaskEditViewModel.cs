@@ -223,6 +223,12 @@ public sealed partial class TaskEditViewModel : ViewModelBase
     [RelayCommand]
     private void ShowVersions() => VersionsRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised when "Relationships" is clicked (Feature 48, Roadmap-39-100.md) — same "TaskEditWindow resolves the DI-scoped ViewModel" split as <see cref="HistoryRequested"/>.</summary>
+    public event EventHandler? RelationshipsGraphRequested;
+
+    [RelayCommand]
+    private void ShowRelationshipsGraph() => RelationshipsGraphRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
         _taskId = taskId;

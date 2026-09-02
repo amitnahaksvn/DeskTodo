@@ -950,11 +950,42 @@ Status: In Progress
 
 ---
 
-# Feature 48 — Task Relationships Graph
+# Feature 48 — Task Relationships Graph ✅ Delivered, scoped down (2026-09-02)
 
 ## Objective
 
 Show relationships between tasks and projects visually.
+
+**Delivered for tasks; project relationships not included (see below).** A new `TaskRelationship`
+table (exactly the `Data Model` shape below) records all seven relationship types as edges between
+two tasks, reachable from the Task Editor's new "Relationships" button. `TaskGraphWindow` renders
+the centered task's direct (1-hop) relationships as a hub-and-spoke graph — the center task in the
+middle, its neighbors evenly spaced in a circle around it — with a checkbox row to filter which
+relationship types are shown, a zoom slider (`LayoutTransformControl` + `ScaleTransform`, so
+zooming also grows the scrollable extent, not just the visual size), scrollbar-based panning
+(rather than custom click-and-drag canvas panning — simpler, and reachable by keyboard/trackpad
+without any custom pointer-event handling), and a plain-text relationship list alongside the
+canvas for anyone who'd rather read than click nodes. Clicking a node selects it and offers
+"Recenter Here" (re-centers the graph on that task — how a user walks the graph outward one hop
+at a time) and "Open Task" (opens the full task editor via the same DI-resolved-child-window
+pattern every other cross-window flow in this app uses).
+
+**Deliberately kept separate from `TaskDependency` (Phase 19).** The note below is right that
+this is "an extension, not a replacement" of Phase 19's Blocks/Blocked By guard — but
+implementation-wise, `TaskRelationship` is a second, independent table, not a merge with
+`TaskDependency`. Every one of the seven types recorded here (Blocks/BlockedBy included) is
+purely informational: none of them enforce a completion guard. That stays exclusively
+`TaskDependency`'s job (still edited from the Task Editor's existing Blockers section, unchanged),
+so there is only ever one place in this app that can actually block a task from completing —
+merging the two tables would have created two parallel, potentially disagreeing enforcement paths
+for no real benefit, since the graph's job here is visualization, not gatekeeping.
+
+**Deliberately not built:** project-to-project or task-to-project relationships (the spec's own
+title says "between tasks and projects", but every example, the data model, and the UI diagram all
+describe task-to-task edges only — extending the same model to `Project` would need its own
+`ProjectRelationship` table or a nullable/polymorphic redesign of this one, a bigger decision than
+this pass makes unprompted); and "Avoid infinite graph loading" is satisfied structurally (the
+query is always exactly 1-hop, never recursive) rather than via a configurable depth limit.
 
 ## Relationship types
 
@@ -969,6 +1000,14 @@ Follow-up Of
 ```
 
 > **Note:** DeskTodo already has Blocks/Blocked By as a lightweight dependency guard (Phase 19's `TaskDependency`, with a completion guard). This entry describes the fuller relationship model plus a visual graph view — an extension, not a replacement.
+
+**Verified:** `TaskRelationshipRepositoryTests` (real SQLite — both-direction lookup, uniqueness,
+delete), `TaskRelationshipServiceTests` (self-relationship and duplicate guards), a
+`TaskRepositoryTests` case confirming a hard delete cleans up `TaskRelationship` rows the same way
+it already does for `TaskDependency` rows, and `TaskGraphViewModelTests` (graph construction,
+type-filter toggling without a repository round-trip, select/recenter/open-task, add/remove
+relationship). 789 total tests, 787 passing (2 pre-existing macOS-only failures, unrelated),
+zero-warning build.
 
 ## Data Model
 

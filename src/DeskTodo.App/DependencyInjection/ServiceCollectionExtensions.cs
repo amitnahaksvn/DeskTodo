@@ -49,6 +49,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ContextsViewModel>();
         services.AddTransient<KeyboardShortcutsViewModel>();
         services.AddTransient<MeetingSessionViewModel>();
+        services.AddTransient<TaskGraphViewModel>();
 
         // Singleton, not transient: a running timer is app-wide state that must keep
         // ticking (and stay reflected in the widget header's indicator) whether or not

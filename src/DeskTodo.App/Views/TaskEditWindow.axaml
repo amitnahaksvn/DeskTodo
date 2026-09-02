@@ -323,12 +323,14 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*" Margin="0,16,0,0">
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto,*" Margin="0,16,0,0">
             <!-- Feature 42 (Roadmap-39-100.md) — this task's audit timeline. -->
             <Button Grid.Column="0" Content="History" Command="{Binding ShowHistoryCommand}" Padding="16,8" />
             <!-- Feature 44 (Roadmap-39-100.md) — this task's restorable version snapshots. -->
             <Button Grid.Column="1" Content="Versions" Command="{Binding ShowVersionsCommand}" Padding="16,8" Margin="8,0,0,0" />
-            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <!-- Feature 48 (Roadmap-39-100.md) — this task's relationships graph. -->
+            <Button Grid.Column="2" Content="Relationships" Command="{Binding ShowRelationshipsGraphCommand}" Padding="16,8" Margin="8,0,0,0" />
+            <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                 <Button Content="Cancel" Command="{Binding CancelCommand}" Padding="16,8" />
                 <Button Content="Save" Command="{Binding SaveCommand}" Padding="16,8"
                         Background="#3B82F6" Foreground="White" />

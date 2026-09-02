@@ -26,6 +26,7 @@ public partial class TaskEditWindow : Window
             viewModel.StartTimerRequested += OnStartTimerRequested;
             viewModel.HistoryRequested += OnHistoryRequested;
             viewModel.VersionsRequested += OnVersionsRequested;
+            viewModel.RelationshipsGraphRequested += OnRelationshipsGraphRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             RefreshNotesPreview(viewModel);
         }
@@ -39,6 +40,7 @@ public partial class TaskEditWindow : Window
             viewModel.StartTimerRequested -= OnStartTimerRequested;
             viewModel.HistoryRequested -= OnHistoryRequested;
             viewModel.VersionsRequested -= OnVersionsRequested;
+            viewModel.RelationshipsGraphRequested -= OnRelationshipsGraphRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -84,6 +86,20 @@ public partial class TaskEditWindow : Window
         await versionViewModel.LoadAsync(viewModel.TaskId, viewModel.Title);
         await versionWindow.ShowDialog(this);
         await viewModel.LoadAsync(viewModel.TaskId);
+    }
+
+    /// <summary>Feature 48, Roadmap-39-100.md — same DI-resolved-child-window split as <see cref="OnHistoryRequested"/>.</summary>
+    private async void OnRelationshipsGraphRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not TaskEditViewModel viewModel)
+        {
+            return;
+        }
+
+        var graphViewModel = App.Services.GetRequiredService<TaskGraphViewModel>();
+        var graphWindow = new TaskGraphWindow { DataContext = graphViewModel };
+        await graphViewModel.LoadAsync(viewModel.TaskId);
+        await graphWindow.ShowDialog(this);
     }
 
     private void OnNewChecklistItemKeyDown(object? sender, KeyEventArgs e)

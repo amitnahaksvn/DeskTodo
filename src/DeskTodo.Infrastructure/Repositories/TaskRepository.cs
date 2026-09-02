@@ -148,6 +148,13 @@ public sealed class TaskRepository(IDbContextFactory<DeskTodoDbContext> contextF
             .ToListAsync(cancellationToken);
         context.TaskDependencies.RemoveRange(dependencies);
 
+        // Same reasoning as TaskDependencies above — TaskRelationshipConfiguration also uses
+        // Restrict on both FKs (Feature 48, Roadmap-39-100.md).
+        var relationships = await context.TaskRelationships
+            .Where(r => r.SourceTaskId == id || r.TargetTaskId == id)
+            .ToListAsync(cancellationToken);
+        context.TaskRelationships.RemoveRange(relationships);
+
         // ParentTaskId is also Restrict (see TaskItemConfiguration's comment on why — that
         // comment is now only true for every OTHER delete path in this app, not this one).
         // Orphaning rather than cascading: a subtask of a since-soft-deleted parent may still
