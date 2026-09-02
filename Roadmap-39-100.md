@@ -3097,11 +3097,22 @@ Example conceptual format:
 
 ---
 
-# Feature 85 — Workspace Templates
+# Feature 85 — Workspace Templates ⬜ Deferred (2026-09-02)
 
 ## Objective
 
 Create complete reusable workspace configurations.
+
+**Deferred — genuinely blocked, not skipped.** This entry's entire object list ("Projects, Lists,
+Tags, Task Types, Statuses, Workflows, Views, Custom Fields, Dashboards, Templates") is scoped to
+saving and restoring one of *several* isolated "Workspaces," a concept DeskTodo doesn't have —
+this is the same underlying gap Feature 71 (Multi-User/Team Support) and Feature 72 (Enterprise
+Deployment) were already deferred for. DeskTodo is a single-user, single-workspace desktop app: a
+"New Workspace → Choose Template → Create" flow has nowhere to create *into*. Feature 86 (Project
+Starter Kits, delivered below) implements the exact same "save a shape, instantiate it later"
+mechanic at the one level that already exists — a `Project`, not a whole workspace — which is as
+much of this feature's spirit as can be delivered without first building multi-workspace support
+itself.
 
 A template may contain:
 
@@ -3140,11 +3151,28 @@ Create
 
 ---
 
-# Feature 86 — Project Starter Kits
+# Feature 86 — Project Starter Kits ✅ Delivered (2026-09-02)
 
 ## Objective
 
 Create standard projects quickly.
+
+**Delivered as a new `ProjectTemplate` entity** — a name/description plus an ordered list of
+`ProjectTemplateTaskItem`s (Title/Priority/`DayOffsetStart`/`DurationDays`) and
+`ProjectTemplateMilestoneItem`s (Title/`DayOffset`), stored as JSON columns on the template row
+(the same manual `HasConversion` technique `TaskTemplateConfiguration.ChecklistItems` and
+`TaskGroup.TemplateIds` already use, extended from lists of strings to lists of small `record`
+value objects so the EF Core value comparer gets real content equality). `IProjectTemplateService.
+CreateProjectFromTemplateAsync` materializes a template on a chosen start date into a real
+`Project`, one `Milestone` per milestone item (`TargetDate = StartDate + DayOffset - 1`), and one
+`TaskItem` per task item (`PlanDate` from `DayOffsetStart`, `DueDate` from
+`DayOffsetStart + DurationDays - 1`) — exactly the "Requirements: Day 1 / Development: Day 2–7 /
+Release: Day 11" relative-date example this feature's own spec gives. A new "Project Templates"
+window (Command Palette) lets a user save a template (tasks/milestones entered as compact
+`Title | Priority | DayOffsetStart | DurationDays` / `Title | DayOffset` lines — parsed
+best-effort, one bad line doesn't block the rest, same "skip what's unusable rather than fail the
+whole operation" reasoning `TaskGroupService` uses for a deleted member template), delete one, and
+instantiate one into a new project by name/color/start date.
 
 Example:
 
@@ -3178,11 +3206,40 @@ Release: Day 11
 
 ---
 
-# Feature 87 — Recurring Project Templates
+# Feature 87 — Recurring Project Templates ✅ Delivered (2026-09-02)
 
 ## Objective
 
 Generate complete project structures repeatedly.
+
+**Delivered, built directly on Feature 86.** A new `RecurringProjectSchedule` entity
+(Name/`ProjectTemplateId`/`ColorHex`/`Frequency`/`StartDate`/`NextOccurrenceDate`/
+`GeneratedProjectNamePattern`/`IsActive`/`GeneratedProjectIds`) — the "Configuration: Frequency,
+Start Date, Template, Generated Project Name, Date Offset Strategy" this feature's own spec
+calls for, where "Date Offset Strategy" is Feature 86's own relative-day-offset math applied at
+whatever date the schedule computes next. `Frequency` is a new `ProjectRecurrenceFrequency` enum
+(Weekly/Monthly/Quarterly/Yearly) deliberately separate from `RecurrenceFrequency` (single-task
+recurrence, Phase 19) since this feature's own examples ("Quarterly Planning", "Annual Audit")
+need cadences task recurrence never has. `RecurringProjectGeneratorHostedService` — a
+`BackgroundService` on the same "resolve scoped services via `IServiceScopeFactory`, one scope per
+unit of work" pattern `WebhookDispatcher` and `LocalApiServer` (Features 96/97) already
+established for a long-lived singleton — runs once at startup and then hourly, calling
+`IRecurringProjectScheduleService.GenerateDueProjectsAsync` for every active schedule whose
+`NextOccurrenceDate` has arrived: each due schedule gets a real project via Feature 86's own
+`CreateProjectFromTemplateAsync`, its id appended to `GeneratedProjectIds` ("generated projects
+should retain a link to the originating template" — satisfied per-occurrence, not just once), and
+its `NextOccurrenceDate` advanced by its frequency. Surfaced in the same "Project Templates"
+window as Feature 86, in a "Recurring schedules" section: create a schedule against an existing
+template, pause/resume it, delete it, and see its next occurrence date and how many projects it's
+generated so far.
+
+**Verified (Features 86+87 together):** `ProjectTemplateRepositoryTests`/
+`RecurringProjectScheduleRepositoryTests` (real SQLite, including JSON round-trip of task/milestone
+items and `GetDueAsync`'s active/date filtering), `ProjectTemplateServiceTests`/
+`RecurringProjectScheduleServiceTests` (computed dates, not-found exceptions, per-frequency date
+advancement for all four cadences), and `ProjectTemplatesViewModelTests` (the compact task/milestone
+line-parser's happy path, blank-line skipping, and bad-priority fallback; form validation; the
+"defaults to the template's name" project-creation path).
 
 > **Note:** DeskTodo already has per-task recurrence (Phase 19, daily/weekly/monthly) and, separately, Task Groups (Phase 38 — a named list of `TaskTemplate`s applied to a chosen day in one click). This entry is recurrence applied at the *project* level, not the task level — a materially bigger scope than either existing feature, not a small extension of Task Groups.
 

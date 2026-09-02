@@ -7,6 +7,7 @@ using DeskTodo.Infrastructure.Api;
 using DeskTodo.Infrastructure.Data;
 using DeskTodo.Infrastructure.ImportExport;
 using DeskTodo.Infrastructure.Repositories;
+using DeskTodo.Infrastructure.Scheduling;
 using DeskTodo.Infrastructure.Storage;
 using DeskTodo.Infrastructure.Updates;
 using Microsoft.EntityFrameworkCore;
@@ -119,6 +120,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IWebhookDispatcher, WebhookDispatcher>();
         services.AddScoped<ILocalApiRequestHandler, LocalApiRequestHandler>();
         services.AddHostedService<LocalApiServer>();
+        services.AddScoped<IProjectTemplateRepository, ProjectTemplateRepository>();
+        services.AddScoped<IProjectTemplateService, ProjectTemplateService>();
+        services.AddScoped<IRecurringProjectScheduleRepository, RecurringProjectScheduleRepository>();
+        services.AddScoped<IRecurringProjectScheduleService, RecurringProjectScheduleService>();
+        services.AddHostedService<RecurringProjectGeneratorHostedService>();
 
         return services;
     }

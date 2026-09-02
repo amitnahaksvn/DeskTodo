@@ -1,0 +1,120 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="760"
+        x:Class="DeskTodo.App.Views.ProjectTemplatesWindow"
+        x:DataType="vm:ProjectTemplatesViewModel"
+        Title="Project Templates"
+        Width="540" Height="760"
+        MinWidth="460" MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 86 (Project Starter Kits) and Feature 87 (Recurring Project Templates). -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Project Templates" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <StackPanel Grid.Row="1" Spacing="2" Margin="0,0,0,8">
+            <TextBlock Text="{Binding StatusMessage}" IsVisible="{Binding StatusMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding ErrorMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                       FontSize="11" Foreground="{DynamicResource DangerTextBrush}" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="2">
+            <StackPanel Spacing="10">
+                <Expander Header="Save a new template">
+                    <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <TextBox PlaceholderText="Template name (e.g. Software Release Kit)" Text="{Binding NewTemplateName}" />
+                        <TextBox PlaceholderText="Description (optional)" Text="{Binding NewTemplateDescription}" />
+                        <TextBlock Text="Tasks — one per line: Title | Priority | DayOffsetStart | DurationDays" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBox Text="{Binding TaskItemsText}" AcceptsReturn="True" Height="90" TextWrapping="NoWrap" FontFamily="monospace" FontSize="11"
+                                 PlaceholderText="Requirements | High | 1 | 1&#10;Development | Medium | 2 | 6" />
+                        <TextBlock Text="Milestones — one per line: Title | DayOffset" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBox Text="{Binding MilestoneItemsText}" AcceptsReturn="True" Height="50" TextWrapping="NoWrap" FontFamily="monospace" FontSize="11"
+                                 PlaceholderText="Code Complete | 7" />
+                        <Button Content="Save Template" Command="{Binding CreateTemplateCommand}" HorizontalAlignment="Left" Padding="12,6" />
+                    </StackPanel>
+                </Expander>
+
+                <ItemsControl ItemsSource="{Binding Templates}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ProjectTemplateRow">
+                            <Border Background="{DynamicResource SurfaceBackgroundBrush}" CornerRadius="6" Padding="10" Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"
+                                                   IsVisible="{Binding Description, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}" />
+                                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}">
+                                            <Run Text="{Binding TaskCount}" /><Run Text=" tasks, " /><Run Text="{Binding MilestoneCount}" /><Run Text=" milestones" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Delete"
+                                            Command="{Binding $parent[ItemsControl].((vm:ProjectTemplatesViewModel)DataContext).DeleteTemplateCommand}"
+                                            CommandParameter="{Binding Id}" FontSize="10" Padding="8,4" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Expander Header="Create a project from a template">
+                    <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <ComboBox ItemsSource="{Binding TemplateOptions}" SelectedItem="{Binding SelectedTemplateForProject}" HorizontalAlignment="Stretch" />
+                        <TextBox PlaceholderText="Project name (defaults to the template's name)" Text="{Binding NewProjectName}" />
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Grid.Column="0" Text="Color:" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBox Grid.Column="1" Text="{Binding NewProjectColorHex}" />
+                        </Grid>
+                        <DatePicker SelectedDate="{Binding NewProjectStartDate}" />
+                        <Button Content="Create Project" Command="{Binding CreateProjectFromTemplateCommand}" HorizontalAlignment="Left" Padding="12,6" />
+                    </StackPanel>
+                </Expander>
+
+                <Expander Header="Recurring schedules">
+                    <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <TextBox PlaceholderText="Schedule name (e.g. Monthly Reporting)" Text="{Binding NewScheduleName}" />
+                        <ComboBox ItemsSource="{Binding TemplateOptions}" SelectedItem="{Binding SelectedTemplateForSchedule}" HorizontalAlignment="Stretch" />
+                        <ComboBox ItemsSource="{Binding FrequencyOptions}" SelectedItem="{Binding NewScheduleFrequency}" HorizontalAlignment="Stretch" />
+                        <DatePicker SelectedDate="{Binding NewScheduleStartDate}" />
+                        <TextBox PlaceholderText="Generated project name pattern (optional, {0} = date)" Text="{Binding NewScheduleNamePattern}" />
+                        <Button Content="Create Schedule" Command="{Binding CreateScheduleCommand}" HorizontalAlignment="Left" Padding="12,6" />
+
+                        <ItemsControl ItemsSource="{Binding Schedules}" Margin="0,8,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RecurringProjectScheduleRow">
+                                    <Border Background="{DynamicResource SurfaceBackgroundBrush}" CornerRadius="6" Padding="10" Margin="0,0,0,6">
+                                        <Grid ColumnDefinitions="*,Auto,Auto">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}">
+                                                    <Run Text="{Binding TemplateName}" /><Run Text=" — " /><Run Text="{Binding Frequency}" />
+                                                    <Run Text=", next: " /><Run Text="{Binding NextOccurrenceDate}" />
+                                                    <Run Text=", generated: " /><Run Text="{Binding GeneratedCount}" />
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="{Binding ToggleLabel}"
+                                                    Command="{Binding $parent[ItemsControl].((vm:ProjectTemplatesViewModel)DataContext).ToggleScheduleActiveCommand}"
+                                                    CommandParameter="{Binding}" FontSize="10" Padding="8,4" Margin="0,0,4,0" />
+                                            <Button Grid.Column="2" Content="Delete"
+                                                    Command="{Binding $parent[ItemsControl].((vm:ProjectTemplatesViewModel)DataContext).DeleteScheduleCommand}"
+                                                    CommandParameter="{Binding Id}" FontSize="10" Padding="8,4" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="3" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

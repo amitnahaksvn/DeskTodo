@@ -51,6 +51,10 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<WebhookDeliveryLog> WebhookDeliveryLogs => Set<WebhookDeliveryLog>();
 
+    public DbSet<ProjectTemplate> ProjectTemplates => Set<ProjectTemplate>();
+
+    public DbSet<RecurringProjectSchedule> RecurringProjectSchedules => Set<RecurringProjectSchedule>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeskTodoDbContext).Assembly);
