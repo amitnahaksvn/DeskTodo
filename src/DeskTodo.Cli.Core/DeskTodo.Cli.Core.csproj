@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>DeskTodo.Cli</RootNamespace>
+    <Description>The testable logic behind DeskTodo.Cli (Feature 99, Roadmap-39-100.md), split into its own library project so it can be referenced by DeskTodo.Tests — a test project can't reference two OutputType=Exe projects (DeskTodo.App and DeskTodo.Cli) at once without one silently dropping out of the build's reference closure, a real MSBuild limitation hit while wiring this up.</Description>
+  </PropertyGroup>
+
+</Project>

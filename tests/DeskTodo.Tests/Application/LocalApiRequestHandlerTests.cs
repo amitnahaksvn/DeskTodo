@@ -164,6 +164,36 @@ public class LocalApiRequestHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_PostTaskComplete_WhenFound_CompletesIt_AndReturnsTheUpdatedTask()
+    {
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 9, 2), Title = "Ship it" };
+        var completedTask = new TaskItem { Id = task.Id, PlanDate = task.PlanDate, Title = task.Title };
+        completedTask.Complete();
+        _taskService.SetupSequence(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(task)
+            .ReturnsAsync(completedTask);
+
+        var response = await _sut.HandleAsync(MakeRequest("POST", $"/api/v1/tasks/{task.Id}/complete"));
+
+        Assert.Equal(200, response.StatusCode);
+        var body = ParseBody(response);
+        Assert.True(body.GetProperty("isCompleted").GetBoolean());
+        _taskService.Verify(s => s.CompleteTaskAsync(task.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleAsync_PostTaskComplete_WhenMissing_Returns404()
+    {
+        var id = Guid.NewGuid();
+        _taskService.Setup(s => s.GetTaskAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((TaskItem?)null);
+
+        var response = await _sut.HandleAsync(MakeRequest("POST", $"/api/v1/tasks/{id}/complete"));
+
+        Assert.Equal(404, response.StatusCode);
+        _taskService.Verify(s => s.CompleteTaskAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task HandleAsync_GetProjects_ReturnsThem()
     {
         _projectService.Setup(s => s.GetProjectsAsync(It.IsAny<CancellationToken>()))

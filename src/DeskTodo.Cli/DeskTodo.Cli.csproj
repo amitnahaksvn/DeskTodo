@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>DeskTodo.Cli</RootNamespace>
+    <AssemblyName>desktodo</AssemblyName>
+    <Description>Feature 99 (Roadmap-39-100.md) — a thin terminal client for DeskTodo's Local REST API (Feature 97). Deliberately has no project reference to DeskTodo.Application/Infrastructure: "CLI → Local REST API → Application Layer" means the CLI only ever talks HTTP, so it behaves exactly like any other external tool using the same API, never a second, parallel way into the app's business logic.</Description>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DeskTodo.Cli.Core\DeskTodo.Cli.Core.csproj" />
+  </ItemGroup>
+
+</Project>

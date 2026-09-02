@@ -3676,11 +3676,14 @@ singleton needing scoped services.
   isn't re-evaluated live while running; this is a real, documented limitation, not an oversight.
 
 **Endpoints implemented:** `GET/POST /api/v1/tasks`, `GET/PUT/DELETE /api/v1/tasks/{id}`,
-`GET/POST /api/v1/projects` — the "Example endpoints" list's core set. `GET /api/v1/tasks`
-supports an optional `?date=YYYY-MM-DD` filter. `DELETE` calls the same soft-delete
-`ITaskService.DeleteTaskAsync` every other delete path in this app uses — a deleted task is still
-fetchable by `GET /tasks/{id}` afterward (recoverable via Trash, Feature 46), matching the rest of
-the app's convention rather than special-casing "gone" semantics just for this API.
+`POST /api/v1/tasks/{id}/complete`, `GET/POST /api/v1/projects` — the "Example endpoints" list's
+core set, plus one addition beyond it: `POST /tasks/{id}/complete`, added once Feature 99 (CLI
+Tool, same pass) needed a way to express "mark done" that a field-patching `PUT` genuinely can't.
+`GET /api/v1/tasks` supports an optional `?date=YYYY-MM-DD` filter. `DELETE` calls the same
+soft-delete `ITaskService.DeleteTaskAsync` every other delete path in this app uses — a deleted
+task is still fetchable by `GET /tasks/{id}` afterward (recoverable via Trash, Feature 46),
+matching the rest of the app's convention rather than special-casing "gone" semantics just for
+this API.
 
 **Deliberately not built:** the "Additional APIs" (`/search`, `/views`, `/goals`, `/milestones`,
 `/tags`, `/events`) — Tasks and Projects prove the pattern; extending it to the rest is
@@ -3823,11 +3826,50 @@ This dramatically reduces coupling.
 
 ---
 
-# Feature 99 — CLI Tool
+# Feature 99 — CLI Tool ✅ Delivered (2026-09-02)
 
 ## Objective
 
 Provide terminal-based access.
+
+**Delivered as `desktodo` (new `DeskTodo.Cli` console project) — a thin HTTP client, exactly
+matching this feature's own "CLI → Local REST API → Application Layer" architecture note. There is
+deliberately no project reference from the CLI to `DeskTodo.Application`/`DeskTodo.Infrastructure`
+— it only ever talks to the already-running desktop app over the Local REST API (Feature 97), the
+same surface any other external tool would use, "ensuring the CLI behaves exactly like the desktop
+application" by construction rather than by convention.
+
+**Auto-discovery.** The CLI reads the desktop app's own `settings.json` to find the API's port and
+bearer token automatically (`LocalSettingsLocator`) — no manual token-copying step for the common
+case of the CLI and the app running as the same user on the same machine. `--host`/`--port`/
+`--token` flags override this when needed (a different machine, a non-default port). Deliberately
+duplicates `AppStoragePaths`' tiny per-OS path resolution rather than referencing
+`DeskTodo.Infrastructure` for it — pulling EF Core/SQLite/ClosedXML/Serilog transitively into a
+CLI tool for one static method would be a poor trade.
+
+**Commands implemented:** `task add`, `task list` (`--date`, `--overdue`), `task complete`,
+`task search`, `project list`, `project show` — this feature's own example list, adapted where the
+literal example didn't map onto this app's real shapes: task/project ids are real GUIDs, not the
+examples' illustrative `123`; `task complete` needed a new `POST /api/v1/tasks/{id}/complete`
+endpoint added to Feature 97 (a plain `PUT` can't express "mark done" without resending every
+field); `task search` and `project show` have no dedicated API endpoints (Feature 97's own
+documented scope cuts), so both fetch the list and filter/find client-side rather than expanding
+that surface just for the CLI.
+
+**A late MSBuild discovery, and its fix:** a test project can't hold `ProjectReference`s to two
+`OutputType=Exe` projects (`DeskTodo.App` and `DeskTodo.Cli`) at once — one silently drops out of
+the compiled reference closure, breaking every existing App-layer test with "namespace not found"
+errors that have nothing to do with the CLI itself. Fixed by splitting the CLI's testable logic
+(`LocalSettingsLocator`, `ApiClient`) into a small separate library project, `DeskTodo.Cli.Core`,
+referenced by both `DeskTodo.Cli` (the Exe) and `DeskTodo.Tests` — the Exe project itself stays a
+thin `Program.cs` with no logic worth unit testing directly.
+
+**Verified:** `LocalSettingsLocatorTests` (real temp files — missing, valid, no-fields, malformed
+JSON) and `ApiClientTests` (a fake `HttpMessageHandler`, same pattern as
+`GitHubUpdateCheckServiceTests` — success/error/unreachable-server/token-header cases), plus a
+manual run of `dotnet run --project src/DeskTodo.Cli -- --help` and an unreachable-port case to
+confirm the executable itself builds and produces the right output. The full request/response
+pipeline the CLI depends on is already proven end-to-end by Feature 97's `LocalApiServerTests`.
 
 Examples:
 
@@ -3859,13 +3901,36 @@ This ensures the CLI behaves exactly like the desktop application.
 
 ---
 
-# Feature 100 — Developer API Explorer
+# Feature 100 — Developer API Explorer ✅ Delivered (2026-09-02)
 
 ## Objective
 
 Create an embedded API-development/testing interface.
 
 It should feel similar to a lightweight Postman/Swagger client.
+
+**Delivered.** A new `ApiExplorerWindow`, reachable from the Command Palette, sends real requests
+against the Local REST API (Feature 97) as a loopback call to
+`http://127.0.0.1:{LocalApiPort}` — this app talking to itself over the exact same surface the CLI
+(Feature 99) and any external tool would use. Covers this feature's own "Features" list: an
+endpoint list (`ApiEndpointOption.All`, the API's actual implemented routes) with search/filter,
+a method + path request editor, query parameters and headers as plain-text fields, a JSON body
+editor, Send, a response viewer showing status code and response timing together with the
+pretty-printed body, Copy Response (via `TopLevel.Clipboard`, the same "Window owns clipboard
+access, ViewModel doesn't" split every other clipboard feature in this app already uses), and
+named Save Request (persisted in `AppSettings.ApiExplorerSavedRequests`, reloadable). "Authentication
+testing" is the Authorization token field itself — pre-filled with the real token on open, freely
+editable to send a deliberately wrong one and see the resulting 401.
+
+**Deliberately not built:** a generated/discoverable OpenAPI schema (the endpoint list is a small
+hand-maintained static list matching Feature 97's actual routes, not introspected from the API
+itself — there's no OpenAPI document for it to introspect); and request history beyond named saves
+(no separate "recently sent" list distinct from what's explicitly saved).
+
+**Verified:** `ApiExplorerViewModelTests` — URL/query/header parsing and JSON pretty-printing as
+pure functions, plus the full Send flow against a fake `HttpMessageHandler` (success,
+API-not-enabled guard, and the token-override case actually changing which token is sent),
+endpoint selection, and the save/apply/delete saved-request flow.
 
 ## Sections
 

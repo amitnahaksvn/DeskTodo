@@ -1,0 +1,101 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:settings="using:DeskTodo.Application.Settings"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="760"
+        x:Class="DeskTodo.App.Views.ApiExplorerWindow"
+        x:DataType="vm:ApiExplorerViewModel"
+        Title="API Explorer"
+        Width="560" Height="760"
+        MinWidth="480" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 100 — a lightweight client against the Local REST API (Feature 97). -->
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="API Explorer" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="10">
+                <Expander Header="Endpoints">
+                    <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <TextBox PlaceholderText="Search endpoints…" Text="{Binding EndpointSearchText}" />
+                        <ItemsControl ItemsSource="{Binding FilteredEndpoints}" MaxHeight="160">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ApiEndpointOption">
+                                    <Button Content="{Binding DisplayText}" ToolTip.Tip="{Binding Description}"
+                                            Command="{Binding $parent[ItemsControl].((vm:ApiExplorerViewModel)DataContext).SelectEndpointCommand}"
+                                            CommandParameter="{Binding}"
+                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                            FontSize="11" Padding="8,4" Margin="0,0,0,3" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Expander>
+
+                <Grid ColumnDefinitions="Auto,*">
+                    <ComboBox Grid.Column="0" ItemsSource="{Binding MethodOptions}" SelectedItem="{Binding Method}" Width="100" Margin="0,0,6,0" />
+                    <TextBox Grid.Column="1" Text="{Binding Path}" PlaceholderText="/api/v1/tasks/{id}" />
+                </Grid>
+
+                <TextBlock Text="Query parameters (key=value&amp;key2=value2)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                <TextBox Text="{Binding QueryParametersText}" />
+
+                <TextBlock Text="Headers (one per line, Key: Value)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                <TextBox Text="{Binding HeadersText}" AcceptsReturn="True" Height="60" TextWrapping="Wrap" />
+
+                <TextBlock Text="Authorization token (defaults to the real one — edit to test a bad token)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                <TextBox Text="{Binding AuthorizationTokenOverride}" FontFamily="monospace" FontSize="11" />
+
+                <TextBlock Text="Body (JSON)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                <TextBox Text="{Binding BodyText}" AcceptsReturn="True" Height="90" TextWrapping="Wrap" FontFamily="monospace" />
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <Button Grid.Column="0" Content="Send" Command="{Binding SendCommand}" HorizontalAlignment="Left" Padding="16,8" />
+                </Grid>
+
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                    <TextBox Grid.Column="0" PlaceholderText="Name this request…" Text="{Binding NewRequestName}" Margin="0,0,6,0" />
+                    <Button Grid.Column="1" Content="Save Request" Command="{Binding SaveRequestCommand}" Padding="10,4" />
+                    <Button Grid.Column="2" Content="Copy Response" Click="OnCopyResponseClick" Margin="6,0,0,0" Padding="10,4" />
+                </Grid>
+
+                <ItemsControl ItemsSource="{Binding SavedRequests}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="settings:ApiExplorerSavedRequest">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,3">
+                                <Button Grid.Column="0" Content="{Binding Name}"
+                                        Command="{Binding $parent[ItemsControl].((vm:ApiExplorerViewModel)DataContext).ApplySavedRequestCommand}"
+                                        CommandParameter="{Binding}"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" FontSize="11" Padding="8,4" />
+                                <Button Grid.Column="1" Content="✕"
+                                        Command="{Binding $parent[ItemsControl].((vm:ApiExplorerViewModel)DataContext).DeleteSavedRequestCommand}"
+                                        CommandParameter="{Binding}" FontSize="10" Padding="6,2" Margin="4,0,0,0" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Grid ColumnDefinitions="Auto,Auto,Auto">
+                    <TextBlock Grid.Column="0" Text="Response" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock Grid.Column="1" Text="{Binding ResponseStatusCode, StringFormat=' — {0}'}"
+                               IsVisible="{Binding ResponseStatusCode, Converter={x:Static convCore:ObjectConverters.IsNotNull}}"
+                               FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Grid.Column="2" Text="{Binding ResponseTimeMs, StringFormat=' ({0} ms)'}"
+                               IsVisible="{Binding ResponseTimeMs, Converter={x:Static convCore:ObjectConverters.IsNotNull}}"
+                               FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                </Grid>
+                <TextBox Text="{Binding ResponseText}" IsReadOnly="True" AcceptsReturn="True" Height="180"
+                         TextWrapping="NoWrap" FontFamily="monospace" FontSize="11" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="2" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

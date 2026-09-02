@@ -212,4 +212,7 @@ public sealed class AppSettings
     /// is generated.
     /// </summary>
     public string? LocalApiToken { get; set; }
+
+    /// <summary>Feature 100's API Explorer — "Save request" from that feature's own spec.</summary>
+    public List<ApiExplorerSavedRequest> ApiExplorerSavedRequests { get; set; } = [];
 }

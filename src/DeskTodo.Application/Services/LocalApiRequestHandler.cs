@@ -29,6 +29,12 @@ public sealed partial class LocalApiRequestHandler(ITaskService taskService, IPr
             return await CreateTaskAsync(request, cancellationToken);
         }
 
+        var completeMatch = TaskCompleteIdRegex().Match(request.Path);
+        if (completeMatch.Success && method == "POST" && Guid.TryParse(completeMatch.Groups["id"].Value, out var completeId))
+        {
+            return await CompleteTaskAsync(completeId, cancellationToken);
+        }
+
         var taskIdMatch = TaskIdRegex().Match(request.Path);
         if (taskIdMatch.Success && Guid.TryParse(taskIdMatch.Groups["id"].Value, out var taskId))
         {
@@ -133,6 +139,20 @@ public sealed partial class LocalApiRequestHandler(ITaskService taskService, IPr
         return Json(200, ToDto(task));
     }
 
+    /// <summary>Backs the CLI's <c>task complete &lt;id&gt;</c> (Feature 99) — not in this feature's own "Example endpoints" list, but a plain PUT can't express "mark done" without the client re-sending every other field, and the CLI's own spec example needs exactly this action.</summary>
+    private async Task<LocalApiResponse> CompleteTaskAsync(Guid taskId, CancellationToken cancellationToken)
+    {
+        var task = await taskService.GetTaskAsync(taskId, cancellationToken);
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        await taskService.CompleteTaskAsync(taskId, cancellationToken);
+        var updated = await taskService.GetTaskAsync(taskId, cancellationToken);
+        return Json(200, ToDto(updated!));
+    }
+
     private async Task<LocalApiResponse> DeleteTaskAsync(Guid taskId, CancellationToken cancellationToken)
     {
         var task = await taskService.GetTaskAsync(taskId, cancellationToken);
@@ -188,6 +208,9 @@ public sealed partial class LocalApiRequestHandler(ITaskService taskService, IPr
 
     [GeneratedRegex(@"^/api/v1/tasks/(?<id>[0-9a-fA-F-]{36})$")]
     private static partial Regex TaskIdRegex();
+
+    [GeneratedRegex(@"^/api/v1/tasks/(?<id>[0-9a-fA-F-]{36})/complete$")]
+    private static partial Regex TaskCompleteIdRegex();
 
     private sealed record TaskResponseDto(Guid Id, string Title, string? Description, string Priority, DateOnly PlanDate, DateTime? DueDate, bool IsCompleted, Guid? CategoryId, Guid? ProjectId);
 

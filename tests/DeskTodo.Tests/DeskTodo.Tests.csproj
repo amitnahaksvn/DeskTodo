@@ -36,6 +36,7 @@
     <ProjectReference Include="..\..\src\DeskTodo.Application\DeskTodo.Application.csproj" />
     <ProjectReference Include="..\..\src\DeskTodo.Infrastructure\DeskTodo.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\DeskTodo.App\DeskTodo.App.csproj" />
+    <ProjectReference Include="..\..\src\DeskTodo.Cli.Core\DeskTodo.Cli.Core.csproj" />
   </ItemGroup>
 
 </Project>
