@@ -67,6 +67,11 @@ public partial class WidgetWindow : Window
             viewModel.TrashRequested += OnTrashRequested;
             viewModel.BackupRequested += OnBackupRequested;
             viewModel.IntegrityCheckRequested += OnIntegrityCheckRequested;
+            viewModel.InboxRequested += OnInboxRequested;
+            viewModel.ArchiveVaultRequested += OnArchiveVaultRequested;
+            viewModel.ActivityTimelineRequested += OnActivityTimelineRequested;
+            viewModel.DatabaseMaintenanceRequested += OnDatabaseMaintenanceRequested;
+            viewModel.WorkSessionHistoryRequested += OnWorkSessionHistoryRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
@@ -185,6 +190,76 @@ public partial class WidgetWindow : Window
         await integrityWindow.ShowDialog(this);
     }
 
+    /// <summary>Feature 39, Roadmap-39-100.md.</summary>
+    private async void OnInboxRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var inboxViewModel = App.Services.GetRequiredService<InboxViewModel>();
+        var inboxWindow = new InboxWindow { DataContext = inboxViewModel };
+        await inboxWindow.ShowDialog(this);
+
+        // A conversion may have just added a task to the day currently being viewed — same
+        // "reload after the dialog closes" pattern OnTrashRequested uses.
+        await viewModel.LoadTasksAsync();
+    }
+
+    /// <summary>Feature 45, Roadmap-39-100.md.</summary>
+    private async void OnArchiveVaultRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var archiveViewModel = App.Services.GetRequiredService<ArchiveViewModel>();
+        var archiveWindow = new ArchiveWindow { DataContext = archiveViewModel };
+        await archiveWindow.ShowDialog(this);
+        await viewModel.LoadTasksAsync();
+    }
+
+    /// <summary>Feature 61, Roadmap-39-100.md.</summary>
+    private async void OnActivityTimelineRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var timelineViewModel = App.Services.GetRequiredService<ActivityTimelineViewModel>();
+        var timelineWindow = new ActivityTimelineWindow { DataContext = timelineViewModel };
+        await timelineWindow.ShowDialog(this);
+    }
+
+    /// <summary>Feature 69, Roadmap-39-100.md.</summary>
+    private async void OnDatabaseMaintenanceRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var maintenanceViewModel = App.Services.GetRequiredService<DatabaseMaintenanceViewModel>();
+        var maintenanceWindow = new DatabaseMaintenanceWindow { DataContext = maintenanceViewModel };
+        await maintenanceWindow.ShowDialog(this);
+    }
+
+    /// <summary>Feature 65, Roadmap-39-100.md.</summary>
+    private async void OnWorkSessionHistoryRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var sessionHistoryViewModel = App.Services.GetRequiredService<WorkSessionHistoryViewModel>();
+        var sessionHistoryWindow = new WorkSessionHistoryWindow { DataContext = sessionHistoryViewModel };
+        await sessionHistoryWindow.ShowDialog(this);
+    }
+
     /// <summary>
     /// Phase 28's app-wide keyboard shortcuts, added programmatically rather than declared
     /// as static <c>KeyBinding</c>s in XAML — Avalonia's <c>KeyGesture</c> string parser has
@@ -283,6 +358,11 @@ public partial class WidgetWindow : Window
             viewModel.TrashRequested -= OnTrashRequested;
             viewModel.BackupRequested -= OnBackupRequested;
             viewModel.IntegrityCheckRequested -= OnIntegrityCheckRequested;
+            viewModel.InboxRequested -= OnInboxRequested;
+            viewModel.ArchiveVaultRequested -= OnArchiveVaultRequested;
+            viewModel.ActivityTimelineRequested -= OnActivityTimelineRequested;
+            viewModel.DatabaseMaintenanceRequested -= OnDatabaseMaintenanceRequested;
+            viewModel.WorkSessionHistoryRequested -= OnWorkSessionHistoryRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -472,6 +552,11 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("Data Integrity Check", viewModel.OpenIntegrityCheckCommand),
             new CommandPaletteEntry("Undo", viewModel.UndoCommand),
             new CommandPaletteEntry("Redo", viewModel.RedoCommand),
+            new CommandPaletteEntry("Inbox", viewModel.OpenInboxCommand),
+            new CommandPaletteEntry("Archive Vault", viewModel.OpenArchiveVaultCommand),
+            new CommandPaletteEntry("Activity Timeline", viewModel.OpenActivityTimelineCommand),
+            new CommandPaletteEntry("Database Maintenance", viewModel.OpenDatabaseMaintenanceCommand),
+            new CommandPaletteEntry("Work Session History", viewModel.OpenWorkSessionHistoryCommand),
         ]);
 
         var paletteWindow = new CommandPaletteWindow { DataContext = paletteViewModel };

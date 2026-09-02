@@ -69,6 +69,9 @@ public interface ITaskService
     /// <summary>Feature 46's Trash view — every soft-deleted task, most recently deleted first.</summary>
     Task<IReadOnlyList<TaskItem>> GetDeletedTasksAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Feature 45's Archive Vault — every archived (but not deleted) task.</summary>
+    Task<IReadOnlyList<TaskItem>> GetArchivedTasksAsync(CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Hard delete — permanently and irreversibly removes the task (and its checklist items,
     /// attachments, tag links, dependency links; any subtasks are orphaned, not deleted — see

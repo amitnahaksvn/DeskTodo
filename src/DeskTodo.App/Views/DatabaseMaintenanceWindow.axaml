@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="440"
+        x:Class="DeskTodo.App.Views.DatabaseMaintenanceWindow"
+        x:DataType="vm:DatabaseMaintenanceViewModel"
+        Title="Database Maintenance"
+        Width="380" Height="440"
+        MinWidth="340" MinHeight="380"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 69 — diagnostic dashboard plus Vacuum/Rebuild Indexes. Backup and Integrity Check are their own windows (Features 67, 70). -->
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Database Maintenance" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <StackPanel Grid.Row="1" Spacing="8">
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Text="Database size" Foreground="{DynamicResource TextSecondaryBrush}" /><TextBlock Grid.Column="1" Text="{Binding DatabaseSizeDisplay}" Foreground="{DynamicResource TextPrimaryBrush}" /></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Text="Tasks" Foreground="{DynamicResource TextSecondaryBrush}" /><TextBlock Grid.Column="1" Text="{Binding TaskCount}" Foreground="{DynamicResource TextPrimaryBrush}" /></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Text="Projects" Foreground="{DynamicResource TextSecondaryBrush}" /><TextBlock Grid.Column="1" Text="{Binding ProjectCount}" Foreground="{DynamicResource TextPrimaryBrush}" /></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Text="Tags" Foreground="{DynamicResource TextSecondaryBrush}" /><TextBlock Grid.Column="1" Text="{Binding TagCount}" Foreground="{DynamicResource TextPrimaryBrush}" /></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Text="History records" Foreground="{DynamicResource TextSecondaryBrush}" /><TextBlock Grid.Column="1" Text="{Binding HistoryRecordCount}" Foreground="{DynamicResource TextPrimaryBrush}" /></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Text="Versions" Foreground="{DynamicResource TextSecondaryBrush}" /><TextBlock Grid.Column="1" Text="{Binding VersionCount}" Foreground="{DynamicResource TextPrimaryBrush}" /></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Text="Attachments" Foreground="{DynamicResource TextSecondaryBrush}" /><TextBlock Grid.Column="1" Text="{Binding AttachmentCount}" Foreground="{DynamicResource TextPrimaryBrush}" /></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Grid.Column="0" Text="Migration version" Foreground="{DynamicResource TextSecondaryBrush}" /><TextBlock Grid.Column="1" Text="{Binding MigrationVersion}" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" MaxWidth="200" TextAlignment="Right" /></Grid>
+
+            <TextBlock Text="{Binding StatusMessage}" IsVisible="{Binding StatusMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+            <Button Content="Vacuum" Command="{Binding VacuumCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,6" />
+            <Button Content="Rebuild Indexes" Command="{Binding RebuildIndexesCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,6" />
+        </StackPanel>
+
+        <Button Grid.Row="3" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

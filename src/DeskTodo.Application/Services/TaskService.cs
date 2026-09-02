@@ -176,6 +176,9 @@ public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepo
     public Task<IReadOnlyList<TaskItem>> GetDeletedTasksAsync(CancellationToken cancellationToken = default) =>
         taskRepository.GetDeletedAsync(cancellationToken);
 
+    public Task<IReadOnlyList<TaskItem>> GetArchivedTasksAsync(CancellationToken cancellationToken = default) =>
+        taskRepository.GetArchivedAsync(cancellationToken);
+
     public Task PermanentlyDeleteTaskAsync(Guid taskId, CancellationToken cancellationToken = default) =>
         taskRepository.RemoveAsync(taskId, cancellationToken);
 

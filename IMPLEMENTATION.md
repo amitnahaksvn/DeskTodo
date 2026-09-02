@@ -81,7 +81,7 @@ originally named — see each phase's own section below for the full detail.
 | 36 | [Developer Mode dashboards](#36-developer-mode-dashboards) | Developer Mode | ⬜ (deferred — blocked on Phase 33) |
 | 37 | [Companion apps & extensions](#37-companion-apps--extensions) | Future Ideas | ⬜ |
 | 38 | [Task Groups](#38-task-groups) | (raw idea, not sourced from Later.Implementation.md) | ✅ |
-| 39–100 | [Features 39–100](Roadmap-39-100.md) — a large pasted specification (Task Inbox, Undo/Redo Engine, Goals/Milestones/Project Health, Backup/Restore, Custom Fields/Workflows, Event Bus, Local REST API, Plugin SDK, and more) | Separate document, not yet reconciled against Phases 1–38 | 🟡 In progress — Stage 1 (Core Reliability): 46 (Trash) ✅ 2026-08-26, 42 (Task History) ✅ 2026-08-27, 43 (Undo/Redo), 44 (Task Versioning), 67 (Local Backup Manager), 68 (Backup Restore Simulator), 70 (Data Integrity Checker) all ✅ 2026-09-01 — only 69 (Database Maintenance Center) left in Stage 1; see that file |
+| 39–100 | [Features 39–100](Roadmap-39-100.md) — a large pasted specification (Task Inbox, Undo/Redo Engine, Goals/Milestones/Project Health, Backup/Restore, Custom Fields/Workflows, Event Bus, Local REST API, Plugin SDK, and more) | Separate document, not yet reconciled against Phases 1–38 | 🟡 In progress — Stage 1 (Core Reliability) fully delivered: 42, 43, 44, 46, 67, 68, 69, 70 (46 ✅ 2026-08-26, 42 ✅ 2026-08-27, rest ✅ 2026-09-01). Also delivered 2026-09-01: 39 (Task Inbox), 45 (Archive Vault), 47 (Smart Duplicate Detection), 61 (Activity Timeline), 65 (Work Session History). 13 of 62 features done; see that file |
 ---
 
 ## 1. Solution scaffold ✅

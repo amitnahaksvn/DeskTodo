@@ -1,0 +1,52 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="520"
+        x:Class="DeskTodo.App.Views.ActivityTimelineWindow"
+        x:DataType="vm:ActivityTimelineViewModel"
+        Title="Activity Timeline"
+        Width="420" Height="520"
+        MinWidth="380" MinHeight="360"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 61 — what happened over time, aggregated from task history, focus sessions and goal completions. -->
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Activity Timeline" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <Panel Grid.Row="1">
+            <ScrollViewer IsVisible="{Binding Entries.Count}">
+                <ItemsControl ItemsSource="{Binding Entries}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ActivityTimelineEntryOption">
+                            <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                                <StackPanel Spacing="2">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <Border Grid.Column="0" Background="{DynamicResource AppBorderBrush}" CornerRadius="3" Padding="6,1" Margin="0,0,6,0">
+                                            <TextBlock Text="{Binding Category}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="13" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding TimestampDisplay}" FontSize="11"
+                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <TextBlock Text="No activity yet" IsVisible="{Binding !Entries.Count}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextMutedBrush}" FontSize="13" />
+        </Panel>
+
+        <Button Grid.Row="2" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

@@ -9,4 +9,7 @@ public interface ITaskHistoryRepository
 
     /// <summary>A task's history entries, most recent first.</summary>
     Task<IReadOnlyList<TaskHistory>> GetForTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
+
+    /// <summary>Every history entry ever recorded, most recent first — raw material for Feature 61's Activity Timeline.</summary>
+    Task<IReadOnlyList<TaskHistory>> GetAllAsync(CancellationToken cancellationToken = default);
 }

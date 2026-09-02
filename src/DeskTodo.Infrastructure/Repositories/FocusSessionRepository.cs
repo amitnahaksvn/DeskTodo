@@ -31,6 +31,7 @@ public sealed class FocusSessionRepository(IDbContextFactory<DeskTodoDbContext> 
 
         return await context.FocusSessions
             .AsNoTracking()
+            .Include(s => s.Task)
             .OrderByDescending(s => s.StartedAt)
             .ToListAsync(cancellationToken);
     }

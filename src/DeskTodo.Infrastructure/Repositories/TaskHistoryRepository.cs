@@ -24,4 +24,15 @@ public sealed class TaskHistoryRepository(IDbContextFactory<DeskTodoDbContext> c
             .OrderByDescending(h => h.Timestamp)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<TaskHistory>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await context.TaskHistories
+            .AsNoTracking()
+            .Include(h => h.Task)
+            .OrderByDescending(h => h.Timestamp)
+            .ToListAsync(cancellationToken);
+    }
 }

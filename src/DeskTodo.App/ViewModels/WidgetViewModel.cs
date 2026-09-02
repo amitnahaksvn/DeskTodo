@@ -35,6 +35,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     private readonly ILogger<WidgetViewModel> _logger;
     private readonly ILogger<TaskItemViewModel> _taskItemLogger;
     private readonly IUndoRedoService _undoRedoService;
+    private readonly IDuplicateDetectionService _duplicateDetectionService;
     private readonly DispatcherTimer _dayRolloverTimer;
 
     // Tracks what "today" was as of the last check, separately from PlanDate (the day
@@ -78,7 +79,8 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         TimeProvider timeProvider,
         ILogger<WidgetViewModel> logger,
         ILogger<TaskItemViewModel> taskItemLogger,
-        IUndoRedoService undoRedoService)
+        IUndoRedoService undoRedoService,
+        IDuplicateDetectionService duplicateDetectionService)
     {
         _taskService = taskService;
         _categoryRepository = categoryRepository;
@@ -91,6 +93,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         _logger = logger;
         _taskItemLogger = taskItemLogger;
         _undoRedoService = undoRedoService;
+        _duplicateDetectionService = duplicateDetectionService;
         _undoRedoService.StateChanged += (_, _) =>
         {
             UndoCommand.NotifyCanExecuteChanged();
@@ -339,6 +342,18 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     public partial string NewTaskTitle { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Feature 47's Smart Duplicate Detection — set right after a task is added if a likely
+    /// duplicate was found among that day's existing tasks, cleared on the next add. A
+    /// non-blocking notice, not the spec's own "Use Existing / Create Anyway" modal: the task
+    /// is always created (Enter-to-add is this app's fastest, most-used path, and gating it
+    /// behind a dialog on every merely-similar title would slow down the common case far more
+    /// than the occasional true duplicate costs), and this message just flags what to go clean
+    /// up if it *was* one.
+    /// </summary>
+    [ObservableProperty]
+    public partial string? DuplicateWarningMessage { get; set; }
+
     /// <summary>Bound to the "add task" row's Enter key. A blank title is a no-op rather than an error.</summary>
     [RelayCommand]
     private async Task AddTaskAsync()
@@ -349,11 +364,21 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        DuplicateWarningMessage = null;
+
         try
         {
+            var existingTasks = await _taskService.GetTasksForDateAsync(PlanDate);
+            var duplicates = _duplicateDetectionService.FindPossibleDuplicates(title, PlanDate, categoryId: null, existingTasks.Where(t => !t.IsCompleted));
+
             await _taskService.CreateTaskAsync(PlanDate, title);
             NewTaskTitle = string.Empty;
             await LoadTasksAsync();
+
+            if (duplicates.Count > 0)
+            {
+                DuplicateWarningMessage = $"Possible duplicate of \"{duplicates[0].Task.Title}\"";
+            }
         }
         catch (Exception ex)
         {
@@ -936,6 +961,36 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     }
 
     private bool CanRedo() => _undoRedoService.CanRedo;
+
+    /// <summary>Raised from the tray menu's "Inbox…" item and the Command Palette (Feature 39, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? InboxRequested;
+
+    [RelayCommand]
+    private void OpenInbox() => InboxRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised from the tray menu's "Archive Vault…" item and the Command Palette (Feature 45, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? ArchiveVaultRequested;
+
+    [RelayCommand]
+    private void OpenArchiveVault() => ArchiveVaultRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised from the Command Palette (Feature 61, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? ActivityTimelineRequested;
+
+    [RelayCommand]
+    private void OpenActivityTimeline() => ActivityTimelineRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised from the tray menu's "Database Maintenance…" item and the Command Palette (Feature 69, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? DatabaseMaintenanceRequested;
+
+    [RelayCommand]
+    private void OpenDatabaseMaintenance() => DatabaseMaintenanceRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Raised from the Command Palette (Feature 65, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? WorkSessionHistoryRequested;
+
+    [RelayCommand]
+    private void OpenWorkSessionHistory() => WorkSessionHistoryRequested?.Invoke(this, EventArgs.Empty);
 
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {

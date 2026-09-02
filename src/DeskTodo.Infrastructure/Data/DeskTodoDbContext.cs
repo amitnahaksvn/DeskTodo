@@ -35,6 +35,8 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<TaskVersion> TaskVersions => Set<TaskVersion>();
 
+    public DbSet<InboxItem> InboxItems => Set<InboxItem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeskTodoDbContext).Assembly);

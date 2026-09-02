@@ -1,0 +1,64 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="520"
+        x:Class="DeskTodo.App.Views.InboxWindow"
+        x:DataType="vm:InboxViewModel"
+        Title="Inbox"
+        Width="420" Height="520"
+        MinWidth="380" MinHeight="360"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 39 — capture now, organize later. -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Inbox" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+            <TextBox Grid.Column="0" PlaceholderText="Capture a thought…" Text="{Binding NewItemContent}" KeyDown="OnCaptureKeyDown" />
+            <Button Grid.Column="1" Content="Add" Command="{Binding CaptureCommand}" Padding="12,6" Margin="6,0,0,0" />
+        </Grid>
+
+        <Panel Grid.Row="2">
+            <ScrollViewer IsVisible="{Binding Items.Count}">
+                <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:InboxItemOption">
+                            <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="{Binding Content}" FontSize="13" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding CreatedAtDisplay}" FontSize="11"
+                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Button Content="Convert to Task"
+                                                Command="{Binding $parent[ItemsControl].((vm:InboxViewModel)DataContext).ConvertToTaskCommand}"
+                                                CommandParameter="{Binding Id}" FontSize="11" Padding="8,3" />
+                                        <Button Content="Archive"
+                                                Command="{Binding $parent[ItemsControl].((vm:InboxViewModel)DataContext).ArchiveCommand}"
+                                                CommandParameter="{Binding Id}" FontSize="11" Padding="8,3" />
+                                        <Button Content="Delete"
+                                                Command="{Binding $parent[ItemsControl].((vm:InboxViewModel)DataContext).DeleteCommand}"
+                                                CommandParameter="{Binding Id}" FontSize="11" Padding="8,3"
+                                                Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <TextBlock Text="Inbox is empty" IsVisible="{Binding !Items.Count}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextMutedBrush}" FontSize="13" />
+        </Panel>
+
+        <Button Grid.Row="3" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

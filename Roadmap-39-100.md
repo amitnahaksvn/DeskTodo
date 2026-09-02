@@ -42,7 +42,7 @@ The existing application already contains (Phases 1–38, see `IMPLEMENTATION.md
 
 The features below therefore intentionally focus on capabilities that are not already represented by those phases.
 
-**Status:** planning only, except where noted — nothing in this document was implemented as of when it was written. See `IMPLEMENTATION.md`'s roadmap table for a one-line link to this file and its live status. **Features 46 (Trash), 42 (Task History), 43 (Undo/Redo), 44 (Task Versioning), 67 (Local Backup Manager), 68 (Backup Restore Simulator) and 70 (Data Integrity Checker) have since been delivered — see each feature's own section below for what shipped.**
+**Status:** planning only, except where noted — nothing in this document was implemented as of when it was written. See `IMPLEMENTATION.md`'s roadmap table for a one-line link to this file and its live status. **Features 39 (Task Inbox), 42 (Task History), 43 (Undo/Redo), 44 (Task Versioning), 45 (Archive Vault), 46 (Trash), 47 (Smart Duplicate Detection), 61 (Activity Timeline), 65 (Work Session History), 67 (Local Backup Manager), 68 (Backup Restore Simulator), 69 (Database Maintenance Center) and 70 (Data Integrity Checker) have since been delivered — see each feature's own section below for what shipped.**
 
 ---
 
@@ -173,11 +173,28 @@ These shared foundations will reduce duplication across later features.
 
 ---
 
-# Feature 39 — Task Inbox / Capture Queue
+# Feature 39 — Task Inbox / Capture Queue ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Provide a temporary place for thoughts, ideas, tasks, reminders, links, or notes that have not yet been organized.
+
+**Delivered.** A new `InboxItem` entity (`Content`, `Status` — Unprocessed/Converted/Archived —
+`CreatedAt`/`ProcessedAt`, `ConvertedTaskId`) plus `IInboxService` (Capture/GetUnprocessed/
+ConvertToTask/Archive/Delete). "Convert to Task" creates a plain task on a given day and marks
+the item Converted; add due date/priority/tags/project happen afterward through the normal
+full-field editor rather than being duplicated in the Inbox itself. Reachable via a new
+`InboxWindow` (capture box + queue, each item's Convert/Archive/Delete), from the tray menu
+("Inbox…") and Command Palette.
+
+**Deliberately not built:** URL/voice capture detection, Merge, Move to List, and a `Source`/
+`Metadata` field — this pass is plain-text capture only, matching the spec's own "Plain text"
+as the one universally-needed capture type; the richer capture kinds can layer on later without
+changing `InboxItem`'s shape.
+
+**Verified:** real EF Core/SQLite repository tests (unprocessed-queue ordering, status
+transitions, the `SetNull` FK to a hard-deleted task) plus mocked service-level tests for
+capture/convert/archive/delete.
 
 The Inbox is intentionally different from a normal task list.
 
@@ -709,11 +726,31 @@ Restoring should create a new version rather than deleting history.
 
 ---
 
-# Feature 45 — Archive Vault
+# Feature 45 — Archive Vault ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Provide long-term storage for completed or inactive content.
+
+**Delivered.** A new `ArchiveWindow` unifies the two archive flags this app already had
+(`TaskItem.IsArchived` since Phase 8/25, `Project.IsArchived` since Phase 25) into one searchable
+view with Restore per row — closing the same "nothing could ever look at what's archived again"
+gap Feature 46 closed for Trash. `ITaskService.GetArchivedTasksAsync` is the one new method
+(a thin delegate to the already-existing `ITaskRepository.GetArchivedAsync`); Projects needed no
+new repository method since `IProjectService.GetProjectsAsync` already returns every project and
+`SetArchivedAsync` already handles unarchiving. Reachable from the tray menu ("Archive Vault…")
+and Command Palette.
+
+**Deliberately not built:** "Archive workspace content" (no workspace concept exists in this
+app), bulk archive (single-item Restore only — archiving itself is already single-item via the
+existing per-task/per-project actions), and `ArchiveReason`/`ArchivedBy` fields (single-user
+desktop app, same reasoning `TaskHistory` and `TaskVersion` both already documented for skipping
+"who"/"why" fields). Search is a client-side substring filter over title/name, not a persisted
+index.
+
+**Verified:** covered by the same `TaskService`/`ProjectService` tests already exercising
+`GetArchivedAsync`/`SetArchivedAsync`; the window's filtering logic is plain LINQ with no new
+service-level branching to test in isolation.
 
 Archive should not behave like Trash.
 
@@ -806,11 +843,30 @@ Permanent deletion should require confirmation.
 
 ---
 
-# Feature 47 — Smart Duplicate Detection
+# Feature 47 — Smart Duplicate Detection ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Prevent users from accidentally creating duplicate tasks.
+
+**Delivered, as a non-blocking notice rather than the spec's own modal (see below).**
+`IDuplicateDetectionService.FindPossibleDuplicates` implements Level 1 (exact normalized-title
+match, score 1.0) and Level 2 (Jaccard token-similarity over normalized word sets) against a
+caller-supplied candidate pool, plus a same-day/same-category score boost standing in for Level
+3's fuller context weighting. Wired into `WidgetViewModel.AddTaskAsync`: the task is still always
+created (Enter-to-add is this app's fastest, most-used path), but if a candidate scores ≥ 0.6
+among that day's incomplete tasks, `DuplicateWarningMessage` shows a small "Possible duplicate
+of…" note under the add-task row.
+
+**Deliberately not built:** the "Possible duplicate detected — [Use Existing] [Create Anyway]"
+blocking modal — gating the fastest path in the app behind a dialog on every merely-similar
+title would cost more than the occasional true duplicate does; Level 3's full context (existing
+status) and Level 4's semantic embeddings are both out of scope for this pass, as the spec's own
+"Future" note already anticipated for the embeddings tier.
+
+**Verified:** pure unit tests (`DuplicateDetectionServiceTests`) covering exact match, no match,
+partial-similarity scoring, the context boost, normalization (punctuation/case), and result
+ordering — no database involved, since this is a stateless text/context comparison.
 
 ## Detection layers
 
@@ -1445,11 +1501,30 @@ Do not turn the journal into another task list.
 
 ---
 
-# Feature 61 — Activity Timeline
+# Feature 61 — Activity Timeline ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Show what happened over time.
+
+**Delivered, as a query-time aggregation rather than an Event-Bus consumer (see below).**
+`IActivityTimelineService.GetRecentActivityAsync` merges three already-persisted sources —
+`TaskHistory` (Feature 42) via a new `ITaskHistoryRepository.GetAllAsync`, completed
+`FocusSession`s (Phase 23), and `GoalCompletion`s (Phase 21) — into one chronological feed,
+newest first. Reachable via a new `ActivityTimelineWindow` from the Command Palette.
+
+**Deliberately not built exactly as specified:** this feature explicitly calls for reusing an
+Event Bus (Feature 98), which doesn't exist yet. Building a full pub/sub platform just to feed
+one read-only feed would be backwards — this aggregates directly from each feature's own history
+instead, the same "no new persistence, read what already exists" approach Phase 21's Agenda/
+Timeline views already use. Project-created and Milestone-completed events aren't included:
+`Project`/`Milestone` have no creation/completion timestamp suited to a timeline entry (Milestone
+tracks `IsCompleted` as a plain boolean with no completion time — see docs on `Milestone` — so
+"when" isn't knowable). Once Feature 98 lands, this is the service that should be rewritten to
+consume it instead of polling three sources at query time.
+
+**Verified:** mocked service-level tests (`ActivityTimelineServiceTests`) confirming each source
+maps to an entry, timestamp-descending ordering across sources, and the `limit` parameter.
 
 Events can include:
 
@@ -1591,11 +1666,29 @@ Show:
 
 ---
 
-# Feature 65 — Work Session History
+# Feature 65 — Work Session History ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Provide permanent history of focus/work sessions.
+
+**Delivered as a reporting layer, per the spec's own note — no parallel `WorkSession` entity was
+added.** `FocusSession` (Phase 23) already had everything needed except a task title for display,
+which `FocusSessionRepository.GetAllAsync` now `Include`s. A new `WorkSessionHistoryWindow` shows
+the full session list plus Today/This week totals, computed client-side in
+`WorkSessionHistoryViewModel` from that same list — no new service method needed. Reachable from
+the Command Palette.
+
+**Deliberately not built:** `SessionType` beyond the existing `FocusSessionType` (Pomodoro/
+Stopwatch/CountdownTimer already cover this — see that enum's own doc comment on why "Deep Work"/
+"Planning"/"Meeting"/"Research" don't need to be separate members), `Interruptions`/`ProjectId`
+fields, and the per-project report line — `FocusSession` links to a `TaskItem`, not directly to a
+`Project`, and adding a project rollup would need a join this pass didn't need for the headline
+Today/This week numbers.
+
+**Verified:** no new backend logic beyond the `Include` — covered by the existing
+`FocusSessionRepositoryTests`/`FocusSessionServiceTests`; the totals are plain LINQ sums over
+already-tested data.
 
 > **Note:** DeskTodo's `FocusSession` entity (Phase 23) already persists every session with start/end/duration. This entry is mostly a reporting/UI layer over existing data, plus a `SessionType` field the current model may not have yet — check before adding a parallel entity.
 
@@ -1819,11 +1912,29 @@ Migration: PASS
 
 ---
 
-# Feature 69 — Database Maintenance Center
+# Feature 69 — Database Maintenance Center ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Provide diagnostic tools for the application's SQLite database.
+
+**Delivered.** `IDatabaseMaintenanceService.GetStatsAsync` reports database file size and
+task/project/tag/history/version/attachment counts plus the latest applied migration; `VacuumAsync`/
+`RebuildIndexesAsync` run SQLite's own `VACUUM`/`REINDEX`. Backup and Integrity Check — two of
+this feature's five listed operations — are deliberately **not** duplicated here: Features 67
+and 70 already own those, each with its own window, so `DatabaseMaintenanceWindow` only exposes
+the two operations neither of those covers, plus the stats dashboard. Reachable from the tray
+menu ("Database Maintenance…") and Command Palette.
+
+**Verified:** real SQLite file-on-disk tests — real migrations applied (so the reported migration
+version is genuine, not "(none)" the way `EnsureCreated` would leave it), real row counts, and
+both `VACUUM`/`REINDEX` actually run against a real file without corrupting it (confirmed by
+re-querying afterward).
+
+---
+
+**Stage 1 (Core Reliability and Data Infrastructure) is now fully delivered**: 42, 43, 44, 46,
+67, 68, 69, 70 — every item this file's own "Recommended Implementation Order" section listed.
 
 ## Dashboard
 
@@ -3409,7 +3520,9 @@ Implement:
 
 These reduce the risk of adding many features on top of unstable data behavior.
 
-**Progress: 46 (Trash) delivered 2026-08-26; 42 (Task History) delivered 2026-08-27; 43 (Undo/Redo), 44 (Task Versioning), 67 (Local Backup Manager), 68 (Backup Restore Simulator) and 70 (Data Integrity Checker) delivered 2026-09-01 — Stage 1 is now fully delivered except 69 (Database Maintenance Center), the one item in this stage not yet built. See each feature's section above.**
+**Progress: 46 (Trash) delivered 2026-08-26; 42 (Task History) delivered 2026-08-27; 43 (Undo/Redo), 44 (Task Versioning), 67 (Local Backup Manager), 68 (Backup Restore Simulator), 69 (Database Maintenance Center) and 70 (Data Integrity Checker) delivered 2026-09-01 — Stage 1 (Core Reliability and Data Infrastructure) is now fully delivered.**
+
+**Also delivered 2026-09-01, outside Stage 1's own list: 39 (Task Inbox), 45 (Archive Vault), 47 (Smart Duplicate Detection), 61 (Activity Timeline), 65 (Work Session History) — see each feature's section above.**
 
 ---
 

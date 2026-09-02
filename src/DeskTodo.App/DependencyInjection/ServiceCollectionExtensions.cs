@@ -36,6 +36,11 @@ public static class ServiceCollectionExtensions
         services.AddTransient<TaskVersionViewModel>();
         services.AddTransient<BackupViewModel>();
         services.AddTransient<IntegrityCheckViewModel>();
+        services.AddTransient<InboxViewModel>();
+        services.AddTransient<ArchiveViewModel>();
+        services.AddTransient<ActivityTimelineViewModel>();
+        services.AddTransient<DatabaseMaintenanceViewModel>();
+        services.AddTransient<WorkSessionHistoryViewModel>();
 
         // Singleton, not transient: a running timer is app-wide state that must keep
         // ticking (and stay reflected in the widget header's indicator) whether or not

@@ -155,7 +155,13 @@
                    IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}">
                 <Grid IsVisible="{Binding IsSelectMode, Converter={x:Static convCore:BoolConverters.Not}}"
                       ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-                    <TextBox Grid.Column="0" PlaceholderText="Add a task…" Text="{Binding NewTaskTitle}" KeyDown="OnAddTaskKeyDown" />
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBox PlaceholderText="Add a task…" Text="{Binding NewTaskTitle}" KeyDown="OnAddTaskKeyDown" />
+                        <!-- Feature 47 (Roadmap-39-100.md) — a non-blocking notice, not a modal; see WidgetViewModel.DuplicateWarningMessage's doc comment. -->
+                        <TextBlock Text="{Binding DuplicateWarningMessage}"
+                                   IsVisible="{Binding DuplicateWarningMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                    </StackPanel>
                     <ComboBox Grid.Column="1" ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplateToApply}"
                               PlaceholderText="From template…" Width="130" ToolTip.Tip="Create a task from a saved template" />
                     <Button Grid.Column="2" Content="Groups" Command="{Binding OpenTaskGroupsCommand}"
