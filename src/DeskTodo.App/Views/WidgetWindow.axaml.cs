@@ -81,6 +81,7 @@ public partial class WidgetWindow : Window
             viewModel.DistractionLogRequested += OnDistractionLogRequested;
             viewModel.ContextsRequested += OnContextsRequested;
             viewModel.KeyboardShortcutsRequested += OnKeyboardShortcutsRequested;
+            viewModel.MeetingModeRequested += OnMeetingModeRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
@@ -363,6 +364,19 @@ public partial class WidgetWindow : Window
         await RegisterKeyboardShortcutsAsync(viewModel);
     }
 
+    /// <summary>Feature 58, Roadmap-39-100.md. A fresh <see cref="MeetingSessionViewModel"/> per summon (it's registered transient) — Meeting Mode is a scratch workspace, not something with state to reload.</summary>
+    private async void OnMeetingModeRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var meetingViewModel = App.Services.GetRequiredService<MeetingSessionViewModel>();
+        var meetingWindow = new MeetingModeWindow { DataContext = meetingViewModel };
+        await meetingWindow.ShowDialog(this);
+    }
+
     /// <summary>Feature 83, Roadmap-39-100.md — same "sync the flyout's list on open" pattern as <c>GridWindow.OnViewsFlyoutOpened</c>.</summary>
     private async void OnViewsFlyoutOpened(object? sender, EventArgs e)
     {
@@ -541,6 +555,7 @@ public partial class WidgetWindow : Window
             viewModel.DistractionLogRequested -= OnDistractionLogRequested;
             viewModel.ContextsRequested -= OnContextsRequested;
             viewModel.KeyboardShortcutsRequested -= OnKeyboardShortcutsRequested;
+            viewModel.MeetingModeRequested -= OnMeetingModeRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -746,6 +761,7 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("Distraction Log", viewModel.OpenDistractionLogCommand),
             new CommandPaletteEntry("Focus Contexts", viewModel.OpenContextsCommand),
             new CommandPaletteEntry("Keyboard Shortcuts", viewModel.OpenKeyboardShortcutsCommand),
+            new CommandPaletteEntry("Meeting Mode", viewModel.OpenMeetingModeCommand),
         ]);
 
         var paletteWindow = new CommandPaletteWindow { DataContext = paletteViewModel };

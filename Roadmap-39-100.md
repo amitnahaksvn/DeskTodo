@@ -1546,11 +1546,39 @@ Decisions should be searchable and linked to projects/tasks.
 
 ---
 
-# Feature 58 — Meeting Mode
+# Feature 58 — Meeting Mode ✅ Delivered, scoped down (2026-09-02)
 
 ## Objective
 
 Create a temporary workspace optimized for meetings.
+
+**Delivered as a write-through scratch pad, not a new persisted "Meeting" entity/table.**
+`MeetingSessionViewModel` holds Title/Participants/Agenda/Notes plus in-memory Action Item,
+Decision, and Follow-up lists for the duration of one meeting; nothing is written to the database
+until "End Meeting" is clicked. At that point it fans out into three *existing* features rather
+than a fourth new concept: each included action item and follow-up becomes a real task
+(`ITaskService.CreateTaskAsync`, owner encoded as `"Owner: {name}"` in the task's description —
+this is a single-user app with no assignee/user entity to link to), each decision is recorded to
+the Decision Log (Feature 57, `IDecisionService.RecordDecisionAsync`, tagged
+`"From meeting: {title}"` in its Context field), and the raw notes (plus participants/agenda, if
+present) are saved to the Daily Journal (Feature 60, `IJournalService.AddEntryAsync`, titled
+`"Meeting: {title}"`) — skipped entirely if no notes were typed. "Create Tasks"/"Save
+Decisions"/"Schedule Follow-ups" from the spec's own End Meeting list are all one "End Meeting"
+action here rather than four separate buttons, since a partial end-of-meeting save (tasks created
+but decisions never recorded) has no real use case in a single "wrap up this meeting" flow; the
+action is guarded against double-firing (e.g. an accidental double-click) so nothing is created
+twice.
+
+**Deliberately not built:** meeting history (no way to reopen or list past meetings — once ended,
+its content lives on as ordinary tasks/decisions/a journal entry, indistinguishable from
+anything created outside Meeting Mode) and a `Date` picker separate from "today" (a meeting is
+run live, so its date is always the day it's ending on).
+
+**Verified:** `MeetingSessionViewModelTests` — action item add/remove/extract, the
+included-vs-excluded task-creation split, owner encoding, decision recording, follow-up task
+creation, notes-to-journal (and no-notes-means-no-journal-write), and the double-end guard — all
+against mocked `ITaskService`/`IJournalService`/`IDecisionService`/`IMeetingActionExtractor`.
+767 total tests, 765 passing (2 pre-existing macOS-only failures, unrelated), zero-warning build.
 
 ## Layout
 
@@ -1596,11 +1624,36 @@ Schedule Follow-ups
 
 ---
 
-# Feature 59 — Meeting Action Extractor
+# Feature 59 — Meeting Action Extractor ✅ Delivered (2026-09-02)
 
 ## Objective
 
 Turn meeting notes into structured action candidates.
+
+**Delivered.** `IMeetingActionExtractor`/`RuleBasedMeetingActionExtractor` — deterministic
+parsing first, exactly as the spec's own "Architecture" note below asks, matching the same
+reasoning `IQuickAddParser`/`RuleBasedQuickAddParser` (Feature 41) already established: a future
+AI-backed implementation can replace this one without Meeting Mode changing at all. Recognizes
+one candidate per line, requiring an explicit `"<Name> will/needs to/should/is going to/has
+to/..." <action>` clause (deliberately conservative — a line with no named owner produces no
+candidate rather than a guess). A trailing `by <weekday|date>`/`on <weekday|date>`/bare `next
+week`/`next month` phrase is captured as `DeadlineText` and, where it resolves to an actual
+calendar date (a weekday name, "tomorrow", "today", or an explicit `YYYY-MM-DD`), also parsed
+into a real `DueDate` — by reusing Feature 41's own `IQuickAddParser` on the captured phrase
+rather than re-implementing weekday/date resolution a second time. A phrase like "next week" that
+parser doesn't resolve to a specific date still comes through as readable `DeadlineText`, just
+with `DueDate` left null.
+
+**Deliberately not built:** sentence-level splitting within a line (a line with two clauses —
+"John will review the API. He'll also check the logs." — is parsed as a single, over-long
+candidate) and questions/imperatives with no named owner ("Can someone check the logs?"). Both
+are the natural next layer once real usage shows they're needed; the spec's own three-example
+input/output pair is handled exactly as specified without them.
+
+**Verified:** `RuleBasedMeetingActionExtractorTests` — the exact three-line example from this
+feature's own spec, plus no-deadline, unresolvable-deadline, explicit-date, multi-line,
+unrecognized-line, and blank-input cases. Fully offline, no mocks beyond the real
+`RuleBasedQuickAddParser` it composes with.
 
 Input:
 

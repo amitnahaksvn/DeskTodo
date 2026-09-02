@@ -1,0 +1,134 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="720"
+        x:Class="DeskTodo.App.Views.MeetingModeWindow"
+        x:DataType="vm:MeetingSessionViewModel"
+        Title="Meeting Mode"
+        Width="520" Height="720"
+        MinWidth="440" MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 58 — a temporary workspace optimized for meetings. -->
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Meeting Mode" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="6">
+                    <TextBox PlaceholderText="Meeting title" Text="{Binding Title}" FontWeight="SemiBold" IsEnabled="{Binding !HasEnded}" />
+                    <TextBox PlaceholderText="Participants (comma-separated)" Text="{Binding Participants}" IsEnabled="{Binding !HasEnded}" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Agenda" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBox PlaceholderText="1. Release status&#10;2. API migration" Text="{Binding Agenda}"
+                             AcceptsReturn="True" TextWrapping="Wrap" Height="70" IsEnabled="{Binding !HasEnded}" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Notes" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBox PlaceholderText="John will review the API by Friday.&#10;Amit needs to prepare the release notes."
+                             Text="{Binding Notes}" AcceptsReturn="True" TextWrapping="Wrap" Height="120" IsEnabled="{Binding !HasEnded}" />
+                    <Button Content="Extract Action Items" Command="{Binding ExtractActionItemsCommand}"
+                            IsEnabled="{Binding !HasEnded}" HorizontalAlignment="Left" Padding="10,4" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Action Items" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <ItemsControl ItemsSource="{Binding ActionItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MeetingActionItemRow">
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
+                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsIncluded}" />
+                                    <StackPanel Grid.Column="1" Margin="4,0">
+                                        <TextBlock Text="{Binding Title}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Text="{Binding Owner, StringFormat='Owner: {0}'}"
+                                                   IsVisible="{Binding Owner, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                        <TextBlock Text="{Binding DeadlineText, StringFormat='Due: {0}'}"
+                                                   IsVisible="{Binding DeadlineText, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="✕"
+                                            Command="{Binding $parent[ItemsControl].((vm:MeetingSessionViewModel)DataContext).RemoveActionItemCommand}"
+                                            CommandParameter="{Binding}"
+                                            FontSize="11" Padding="6,2" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="No action items yet — type notes above and click Extract, or add one below." IsVisible="{Binding !ActionItems.Count}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                    <Grid ColumnDefinitions="*,Auto,Auto" IsEnabled="{Binding !HasEnded}">
+                        <TextBox Grid.Column="0" PlaceholderText="Add action item…" Text="{Binding NewActionItemTitle}" Margin="0,0,4,0" />
+                        <TextBox Grid.Column="1" PlaceholderText="Owner" Text="{Binding NewActionItemOwner}" Width="90" Margin="0,0,4,0" />
+                        <Button Grid.Column="2" Content="Add" Command="{Binding AddActionItemCommand}" Padding="10,4" />
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Decisions" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <ItemsControl ItemsSource="{Binding Decisions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MeetingDecisionRow">
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Text="{Binding DecisionText}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="✕"
+                                            Command="{Binding $parent[ItemsControl].((vm:MeetingSessionViewModel)DataContext).RemoveDecisionCommand}"
+                                            CommandParameter="{Binding}"
+                                            FontSize="11" Padding="6,2" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Grid RowDefinitions="Auto,Auto" IsEnabled="{Binding !HasEnded}">
+                        <TextBox Grid.Row="0" PlaceholderText="Decision title" Text="{Binding NewDecisionTitle}" Margin="0,0,0,4" />
+                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" PlaceholderText="What was decided" Text="{Binding NewDecisionText}" Margin="0,0,4,0" />
+                            <Button Grid.Column="1" Content="Add" Command="{Binding AddDecisionCommand}" Padding="10,4" />
+                        </Grid>
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Follow-ups" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <ItemsControl ItemsSource="{Binding FollowUps}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MeetingFollowUpRow">
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                                    <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <Button Grid.Column="1" Content="✕"
+                                            Command="{Binding $parent[ItemsControl].((vm:MeetingSessionViewModel)DataContext).RemoveFollowUpCommand}"
+                                            CommandParameter="{Binding}"
+                                            FontSize="11" Padding="6,2" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding !HasEnded}">
+                        <TextBox Grid.Column="0" PlaceholderText="Schedule a follow-up…" Text="{Binding NewFollowUpTitle}" Margin="0,0,4,0" />
+                        <Button Grid.Column="1" Content="Add" Command="{Binding AddFollowUpCommand}" Padding="10,4" />
+                    </Grid>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" IsVisible="{Binding StatusMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,10,0,0" />
+
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Margin="0,12,0,0">
+            <Button Grid.Column="1" Content="End Meeting" Command="{Binding EndMeetingCommand}"
+                    IsEnabled="{Binding !HasEnded}" Padding="16,8" Margin="0,0,8,0" />
+            <Button Grid.Column="2" Content="Close" Click="OnCloseClick" Padding="16,8" />
+        </Grid>
+    </Grid>
+
+</Window>

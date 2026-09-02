@@ -1111,6 +1111,12 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>Raised from the tray menu and Command Palette (Feature 58, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? MeetingModeRequested;
+
+    [RelayCommand]
+    private void OpenMeetingMode() => MeetingModeRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try
