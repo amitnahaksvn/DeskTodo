@@ -1,4 +1,6 @@
+using System.Text.Json;
 using DeskTodo.Application.Abstractions;
+using DeskTodo.Application.Events;
 using DeskTodo.Domain.Entities;
 using DeskTodo.Domain.Enums;
 using DeskTodo.Domain.Exceptions;
@@ -6,8 +8,28 @@ using DeskTodo.Domain.Exceptions;
 namespace DeskTodo.Application.Services;
 
 /// <inheritdoc cref="ITaskService"/>
-public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepository taskHistoryRepository, ITaskVersionRepository taskVersionRepository) : ITaskService
+/// <remarks>
+/// <paramref name="eventBus"/> is optional (defaults to null, meaning "publish nothing") purely
+/// to avoid a mechanical ripple across every existing <c>new TaskService(...)</c> call site in
+/// this codebase's large test suite — production code always passes the real DI-registered
+/// <see cref="IEventBus"/> explicitly by name. Feature 98 (Roadmap-39-100.md): only
+/// Created/Updated/Completed/Deleted/Restored are published this pass — see that feature's
+/// Roadmap entry for which events are deliberately not wired up yet.
+/// </remarks>
+public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepository taskHistoryRepository, ITaskVersionRepository taskVersionRepository, IEventBus? eventBus = null) : ITaskService
 {
+    private void PublishEvent(string eventType, TaskItem task) =>
+        eventBus?.Publish(new ApplicationEvent(eventType, task.Id, DateTime.UtcNow, nameof(TaskService), BuildPayload(task)));
+
+    private static string BuildPayload(TaskItem task) => JsonSerializer.Serialize(new
+    {
+        task.Id,
+        task.Title,
+        task.PlanDate,
+        task.Priority,
+        task.IsCompleted,
+    });
+
     public Task<IReadOnlyList<TaskItem>> GetTasksForDateAsync(DateOnly planDate, CancellationToken cancellationToken = default) =>
         taskRepository.GetByDateAsync(planDate, cancellationToken);
 
@@ -43,6 +65,7 @@ public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepo
 
         await taskRepository.AddAsync(task, cancellationToken);
         await RecordHistoryAsync(task.Id, TaskHistoryAction.Created, cancellationToken: cancellationToken);
+        PublishEvent(ApplicationEventTypes.TaskCreated, task);
         return task;
     }
 
@@ -57,6 +80,7 @@ public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepo
 
         task.Touch();
         await taskRepository.UpdateAsync(task, cancellationToken);
+        PublishEvent(ApplicationEventTypes.TaskUpdated, task);
 
         if (before is not null)
         {
@@ -109,6 +133,7 @@ public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepo
         task.Complete();
         await taskRepository.UpdateAsync(task, cancellationToken);
         await RecordHistoryAsync(taskId, TaskHistoryAction.Completed, cancellationToken: cancellationToken);
+        PublishEvent(ApplicationEventTypes.TaskCompleted, task);
 
         if (task.GetNextOccurrencePlanDate() is not { } nextPlanDate)
         {
@@ -163,14 +188,16 @@ public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepo
 
     public async Task RestoreTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
-        await MutateAsync(taskId, task => task.Restore(), cancellationToken);
+        var task = await MutateAsync(taskId, task => task.Restore(), cancellationToken);
         await RecordHistoryAsync(taskId, TaskHistoryAction.Restored, cancellationToken: cancellationToken);
+        PublishEvent(ApplicationEventTypes.TaskRestored, task);
     }
 
     public async Task DeleteTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
-        await MutateAsync(taskId, task => task.SoftDelete(), cancellationToken);
+        var task = await MutateAsync(taskId, task => task.SoftDelete(), cancellationToken);
         await RecordHistoryAsync(taskId, TaskHistoryAction.Deleted, cancellationToken: cancellationToken);
+        PublishEvent(ApplicationEventTypes.TaskDeleted, task);
     }
 
     public Task<IReadOnlyList<TaskItem>> GetDeletedTasksAsync(CancellationToken cancellationToken = default) =>
@@ -267,11 +294,12 @@ public sealed class TaskService(ITaskRepository taskRepository, ITaskHistoryRepo
             cancellationToken);
     }
 
-    private async Task MutateAsync(Guid taskId, Action<TaskItem> mutate, CancellationToken cancellationToken)
+    private async Task<TaskItem> MutateAsync(Guid taskId, Action<TaskItem> mutate, CancellationToken cancellationToken)
     {
         var task = await GetRequiredAsync(taskId, cancellationToken);
         mutate(task);
         await taskRepository.UpdateAsync(task, cancellationToken);
+        return task;
     }
 
     private async Task<TaskItem> GetRequiredAsync(Guid taskId, CancellationToken cancellationToken) =>

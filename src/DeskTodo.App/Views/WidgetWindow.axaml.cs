@@ -82,6 +82,7 @@ public partial class WidgetWindow : Window
             viewModel.ContextsRequested += OnContextsRequested;
             viewModel.KeyboardShortcutsRequested += OnKeyboardShortcutsRequested;
             viewModel.MeetingModeRequested += OnMeetingModeRequested;
+            viewModel.WebhooksRequested += OnWebhooksRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
@@ -377,6 +378,19 @@ public partial class WidgetWindow : Window
         await meetingWindow.ShowDialog(this);
     }
 
+    /// <summary>Feature 96, Roadmap-39-100.md.</summary>
+    private async void OnWebhooksRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var webhooksViewModel = App.Services.GetRequiredService<WebhooksViewModel>();
+        var webhooksWindow = new WebhooksWindow { DataContext = webhooksViewModel };
+        await webhooksWindow.ShowDialog(this);
+    }
+
     /// <summary>Feature 83, Roadmap-39-100.md — same "sync the flyout's list on open" pattern as <c>GridWindow.OnViewsFlyoutOpened</c>.</summary>
     private async void OnViewsFlyoutOpened(object? sender, EventArgs e)
     {
@@ -557,6 +571,7 @@ public partial class WidgetWindow : Window
             viewModel.ContextsRequested -= OnContextsRequested;
             viewModel.KeyboardShortcutsRequested -= OnKeyboardShortcutsRequested;
             viewModel.MeetingModeRequested -= OnMeetingModeRequested;
+            viewModel.WebhooksRequested -= OnWebhooksRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -763,6 +778,7 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("Focus Contexts", viewModel.OpenContextsCommand),
             new CommandPaletteEntry("Keyboard Shortcuts", viewModel.OpenKeyboardShortcutsCommand),
             new CommandPaletteEntry("Meeting Mode", viewModel.OpenMeetingModeCommand),
+            new CommandPaletteEntry("Webhooks", viewModel.OpenWebhooksCommand),
             new CommandPaletteEntry("Toggle Privacy Mode", viewModel.TogglePrivacyModeCommand),
             new CommandPaletteEntry("Enter Presentation Mode", viewModel.EnterPresentationModeCommand),
             new CommandPaletteEntry("Exit Presentation Mode", viewModel.ExitPresentationModeCommand),

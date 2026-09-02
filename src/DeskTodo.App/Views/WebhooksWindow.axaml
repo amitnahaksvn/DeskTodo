@@ -1,0 +1,96 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="680"
+        x:Class="DeskTodo.App.Views.WebhooksWindow"
+        x:DataType="vm:WebhooksViewModel"
+        Title="Webhooks"
+        Width="480" Height="680"
+        MinWidth="420" MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 96 — outbound webhooks fired from the app's event bus. -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Webhooks" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <TextBlock Grid.Row="1" Text="{Binding StatusMessage}" IsVisible="{Binding StatusMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+        <ScrollViewer Grid.Row="2">
+            <StackPanel Spacing="10">
+                <Expander Header="Add a webhook">
+                    <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <TextBox PlaceholderText="Name (e.g. Slack Notifier)" Text="{Binding NewWebhookName}" />
+                        <TextBox PlaceholderText="https://example.com/webhook" Text="{Binding NewWebhookUrl}" />
+                        <TextBox PlaceholderText="Signing secret (optional)" Text="{Binding NewWebhookSecret}" />
+                        <TextBlock Text="Fires on:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <ItemsControl ItemsSource="{Binding NewWebhookEventTypeOptions}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:WebhookEventTypeOption">
+                                    <CheckBox Content="{Binding EventType}" IsChecked="{Binding IsSelected}" FontSize="11" Margin="0,0,10,4" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Content="Add Webhook" Command="{Binding AddWebhookCommand}" HorizontalAlignment="Right" Padding="12,6" />
+                    </StackPanel>
+                </Expander>
+
+                <ItemsControl ItemsSource="{Binding Webhooks}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:WebhookRow">
+                            <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8"
+                                    PointerPressed="OnWebhookRowPointerPressed">
+                                <StackPanel Spacing="4">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                        <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding Enabled}"
+                                                  Command="{Binding $parent[ItemsControl].((vm:WebhooksViewModel)DataContext).ToggleEnabledCommand}"
+                                                  CommandParameter="{Binding}" FontSize="11" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding Url}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" />
+                                    <TextBlock Text="{Binding EventTypesDisplay}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    <TextBlock Text="{Binding StatusDisplay}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Button Content="Send Test"
+                                                Command="{Binding $parent[ItemsControl].((vm:WebhooksViewModel)DataContext).SendTestCommand}"
+                                                CommandParameter="{Binding}" FontSize="11" Padding="8,4" />
+                                        <Button Content="Delete"
+                                                Command="{Binding $parent[ItemsControl].((vm:WebhooksViewModel)DataContext).DeleteWebhookCommand}"
+                                                CommandParameter="{Binding}" FontSize="11" Padding="8,4"
+                                                Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="No webhooks configured yet" IsVisible="{Binding !Webhooks.Count}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+
+                <StackPanel Spacing="4" IsVisible="{Binding SelectedWebhook, Converter={x:Static convCore:ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="Delivery History" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <ItemsControl ItemsSource="{Binding SelectedWebhookDeliveryHistory}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock Text="{Binding}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="No deliveries yet" IsVisible="{Binding !SelectedWebhookDeliveryHistory.Count}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="3" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

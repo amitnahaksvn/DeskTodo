@@ -3565,11 +3565,43 @@ Use least privilege.
 
 ---
 
-# Feature 96 — Webhook Engine
+# Feature 96 — Webhook Engine ✅ Delivered (2026-09-02)
 
 ## Objective
 
 Allow external systems to react to application events.
+
+**Delivered, built on Feature 98's Event Bus (delivered in the same pass — see that entry for
+which events actually fire).** A new `WebhookSubscription` table stores Name/Url/EventTypes
+(which event-type strings this webhook fires for)/Headers/Secret/Enabled plus delivery bookkeeping
+(`ConsecutiveFailureCount`/`LastAttemptAt`/`LastSuccessAt`/`LastFailureReason`).
+`WebhookDispatcher` — a singleton, since it must stay subscribed for the app's whole lifetime —
+subscribes to `IEventBus` at startup (`App.axaml.cs`) and, for each event, fans it out to every
+enabled webhook subscribed to that event type; the actual delivery work is handed to the thread
+pool (`_ = HandleAsync(...)`, never awaited inline) so a slow or unreachable endpoint can never
+stall whatever just completed a task, since `IEventBus.Publish` calls its subscribers
+synchronously. `WebhookDeliveryClient` does the actual HTTP POST — a JSON envelope
+(`eventType`/`entityId`/`timestamp`/`payload`), signed with `X-DeskTodo-Signature: sha256=<HMAC>`
+when a secret is set, up to 3 retries with exponential backoff (1s/2s/4s) and a 10s timeout per
+attempt, auto-disabling the webhook after 10 consecutive failures ("Disable after repeated
+failures" from this feature's own spec) — and is shared between the background dispatcher and a
+manual "Send Test" action, so delivery and bookkeeping logic exists in exactly one place. Every
+attempt is logged to a new `WebhookDeliveryLog` table (status/error/attempt count), shown in a new
+`WebhooksWindow` (add/enable-disable/delete a webhook, Send Test, and a per-webhook delivery
+history), reachable from the Command Palette.
+
+**Deliberately not built:** a durable, app-restart-surviving retry queue (retries are in-process
+and per-delivery only — if the app closes mid-backoff, that delivery attempt is simply lost, not
+resumed on next launch); and permission scopes on webhook payloads (every event's full snapshot
+payload goes to every webhook subscribed to that event type, with no per-webhook field filtering).
+
+**Verified:** `WebhookRepositoryTests`/`WebhookDeliveryLogRepositoryTests` (real SQLite, including
+FK cascade-delete of logs when their webhook is deleted), `WebhookDeliveryClientTests` (against a
+fake `HttpMessageHandler`, same pattern as `GitHubUpdateCheckServiceTests` — signing, custom
+headers, and one real-timed test genuinely sleeping through the backoff delays to confirm retry
+counts and the auto-disable threshold), `WebhookServiceTests`, `WebhookDispatcherTests` (a real
+`IServiceScopeFactory`-backed `ServiceProvider`, not a mocked scope, proving the singleton
+dispatcher correctly resolves its scoped dependencies per event), and `WebhooksViewModelTests`.
 
 ## Example
 
@@ -3656,11 +3688,41 @@ Do not expose the API publicly by default.
 
 ---
 
-# Feature 98 — Event Bus / Extension Events
+# Feature 98 — Event Bus / Extension Events ✅ Delivered, scoped down (2026-09-02)
 
 ## Objective
 
 Create a central event-driven architecture.
+
+**Delivered as a live in-process pub/sub, not a persisted event store.** `IEventBus`/
+`InMemoryEventBus` match the "Event model" below almost exactly (`EventType`/`Timestamp`/
+`EntityId`/`Payload` — `EventId` wasn't needed since nothing keys off a stable event identity, and
+`Source` is a plain string rather than a structured field). A subscriber that throws is caught and
+logged, never allowed to break delivery to the other subscribers or bubble into the publisher's
+own call stack — this is the property that makes it safe for `TaskService` to publish unconditionally
+without knowing or caring what (if anything) is listening.
+
+**Only `TaskService` publishes this pass** — `TaskCreated`/`TaskUpdated`/`TaskCompleted`/
+`TaskDeleted`/`TaskRestored` from the "Example events" list below, wired via a new *optional*
+`IEventBus?` constructor parameter (defaulting to `null`, meaning "publish nothing") specifically
+to avoid a mechanical ripple through every one of this test suite's many existing
+`new TaskService(...)` call sites — production DI always passes the real bus explicitly. Project/
+Milestone/FocusSession/Backup events from this feature's own list are deliberately not published
+yet; any of those services can add one following the exact same one-line pattern
+(`eventBus?.Publish(new ApplicationEvent(...))`) the moment that's picked up.
+
+**Consumers:** Webhooks (Feature 96, delivered in this same pass) is the one real subscriber built
+so far — proof this is an architecture actually in use, not an abstraction sitting idle. Activity
+Timeline/Analytics/Notifications/Plugins/Automation/Audit from this feature's own "Consumers" list
+are all still their own existing, separate code paths (Activity Timeline in particular already has
+its own dedicated `ActivityTimelineService` from Feature 61) — migrating them onto this bus instead
+is real, valuable follow-up work, deliberately not done in the same pass as introducing the bus
+itself.
+
+**Verified:** `InMemoryEventBusTests` (delivery, per-type filtering, unsubscribe-via-Dispose,
+subscriber-exception isolation, multiple simultaneous subscribers) plus `TaskServiceTests`
+covering each of the five publish call sites and confirming the existing no-event-bus call sites
+still work unchanged.
 
 ## Example events
 

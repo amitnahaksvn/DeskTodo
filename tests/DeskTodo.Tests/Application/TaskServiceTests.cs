@@ -1,4 +1,5 @@
 using DeskTodo.Application.Abstractions;
+using DeskTodo.Application.Events;
 using DeskTodo.Application.Services;
 using DeskTodo.Domain.Entities;
 using DeskTodo.Domain.Enums;
@@ -548,5 +549,80 @@ public class TaskServiceTests
         var results = await _sut.GetTaskVersionsAsync(taskId);
 
         Assert.Equal([version], results);
+    }
+
+    [Fact]
+    public async Task CreateTaskAsync_WithAnEventBus_PublishesTaskCreated()
+    {
+        var eventBus = new Mock<IEventBus>();
+        var sut = new TaskService(_taskRepository.Object, _taskHistoryRepository.Object, _taskVersionRepository.Object, eventBus.Object);
+        _taskRepository.Setup(r => r.GetMaxDayOrderAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync(-1);
+
+        var task = await sut.CreateTaskAsync(new DateOnly(2026, 7, 27), "New task");
+
+        eventBus.Verify(b => b.Publish(It.Is<ApplicationEvent>(e => e.EventType == ApplicationEventTypes.TaskCreated && e.EntityId == task.Id)), Times.Once);
+    }
+
+    [Fact]
+    public async Task CompleteTaskAsync_WithAnEventBus_PublishesTaskCompleted()
+    {
+        var eventBus = new Mock<IEventBus>();
+        var sut = new TaskService(_taskRepository.Object, _taskHistoryRepository.Object, _taskVersionRepository.Object, eventBus.Object);
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Read System Design" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await sut.CompleteTaskAsync(task.Id);
+
+        eventBus.Verify(b => b.Publish(It.Is<ApplicationEvent>(e => e.EventType == ApplicationEventTypes.TaskCompleted && e.EntityId == task.Id)), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteTaskAsync_WithAnEventBus_PublishesTaskDeleted()
+    {
+        var eventBus = new Mock<IEventBus>();
+        var sut = new TaskService(_taskRepository.Object, _taskHistoryRepository.Object, _taskVersionRepository.Object, eventBus.Object);
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Read System Design" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await sut.DeleteTaskAsync(task.Id);
+
+        eventBus.Verify(b => b.Publish(It.Is<ApplicationEvent>(e => e.EventType == ApplicationEventTypes.TaskDeleted && e.EntityId == task.Id)), Times.Once);
+    }
+
+    [Fact]
+    public async Task RestoreTaskAsync_WithAnEventBus_PublishesTaskRestored()
+    {
+        var eventBus = new Mock<IEventBus>();
+        var sut = new TaskService(_taskRepository.Object, _taskHistoryRepository.Object, _taskVersionRepository.Object, eventBus.Object);
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Read System Design" };
+        task.SoftDelete();
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+
+        await sut.RestoreTaskAsync(task.Id);
+
+        eventBus.Verify(b => b.Publish(It.Is<ApplicationEvent>(e => e.EventType == ApplicationEventTypes.TaskRestored && e.EntityId == task.Id)), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_WithAnEventBus_PublishesTaskUpdated()
+    {
+        var eventBus = new Mock<IEventBus>();
+        var sut = new TaskService(_taskRepository.Object, _taskHistoryRepository.Object, _taskVersionRepository.Object, eventBus.Object);
+        var task = new TaskItem { PlanDate = new DateOnly(2026, 7, 27), Title = "Read System Design" };
+        _taskRepository.Setup(r => r.GetByIdAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync((TaskItem?)null);
+
+        await sut.UpdateTaskAsync(task);
+
+        eventBus.Verify(b => b.Publish(It.Is<ApplicationEvent>(e => e.EventType == ApplicationEventTypes.TaskUpdated && e.EntityId == task.Id)), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateTaskAsync_WithNoEventBus_DoesNotThrow()
+    {
+        _taskRepository.Setup(r => r.GetMaxDayOrderAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>())).ReturnsAsync(-1);
+
+        var task = await _sut.CreateTaskAsync(new DateOnly(2026, 7, 27), "New task");
+
+        Assert.NotNull(task);
     }
 }

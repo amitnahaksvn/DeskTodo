@@ -1164,6 +1164,12 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenMeetingMode() => MeetingModeRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised from the Command Palette (Feature 96, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? WebhooksRequested;
+
+    [RelayCommand]
+    private void OpenWebhooks() => WebhooksRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try

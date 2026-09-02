@@ -1,4 +1,5 @@
 using DeskTodo.Application.Abstractions;
+using DeskTodo.Application.Events;
 using DeskTodo.Application.Options;
 using DeskTodo.Application.Services;
 using DeskTodo.Application.Updates;
@@ -109,6 +110,12 @@ public static class ServiceCollectionExtensions
         // from repeated ad-hoc HttpClient construction.
         services.AddSingleton<HttpClient>();
         services.AddSingleton<IUpdateCheckService, GitHubUpdateCheckService>();
+        services.AddSingleton<IEventBus, InMemoryEventBus>();
+        services.AddScoped<IWebhookRepository, WebhookRepository>();
+        services.AddScoped<IWebhookDeliveryLogRepository, WebhookDeliveryLogRepository>();
+        services.AddScoped<IWebhookDeliveryClient, WebhookDeliveryClient>();
+        services.AddScoped<IWebhookService, WebhookService>();
+        services.AddSingleton<IWebhookDispatcher, WebhookDispatcher>();
 
         return services;
     }

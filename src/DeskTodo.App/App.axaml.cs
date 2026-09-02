@@ -123,6 +123,7 @@ public partial class App : global::Avalonia.Application
             // widget itself is fully built either way, just not yet visible.
             SetupTrayIcon(desktop, widgetWindow, widgetViewModel);
             SetupGlobalHotkey(desktop, widgetWindow, widgetViewModel);
+            Services?.GetRequiredService<IWebhookDispatcher>().Start();
 
             desktop.MainWindow = (Window?)TrySetupLockScreen(widgetWindow) ?? widgetWindow;
         }
