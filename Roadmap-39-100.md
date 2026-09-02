@@ -42,7 +42,7 @@ The existing application already contains (Phases 1–38, see `IMPLEMENTATION.md
 
 The features below therefore intentionally focus on capabilities that are not already represented by those phases.
 
-**Status:** planning only, except where noted — nothing in this document was implemented as of when it was written. See `IMPLEMENTATION.md`'s roadmap table for a one-line link to this file and its live status. **Features 39 (Task Inbox), 42 (Task History), 43 (Undo/Redo), 44 (Task Versioning), 45 (Archive Vault), 46 (Trash), 47 (Smart Duplicate Detection), 61 (Activity Timeline), 65 (Work Session History), 67 (Local Backup Manager), 68 (Backup Restore Simulator), 69 (Database Maintenance Center) and 70 (Data Integrity Checker) have since been delivered — see each feature's own section below for what shipped.**
+**Status:** planning only, except where noted — nothing in this document was implemented as of when it was written. See `IMPLEMENTATION.md`'s roadmap table for a one-line link to this file and its live status. **Features 39 (Task Inbox), 41 (NL Quick Add), 42 (Task History), 43 (Undo/Redo), 44 (Task Versioning), 45 (Archive Vault), 46 (Trash), 47 (Smart Duplicate Detection), 61 (Activity Timeline), 65 (Work Session History), 67 (Local Backup Manager), 68 (Backup Restore Simulator), 69 (Database Maintenance Center) and 70 (Data Integrity Checker) have since been delivered, and 40 (Command Palette) partially — see each feature's own section below for what shipped.**
 
 ---
 
@@ -294,7 +294,7 @@ Delete
 
 ---
 
-# Feature 40 — Command Palette
+# Feature 40 — Command Palette 🟡 Partially delivered (2026-09-01)
 
 ## Objective
 
@@ -308,6 +308,23 @@ macOS: Cmd + K
 ```
 
 > **Note:** DeskTodo already has a Command Palette (Phase 28, Cmd/Ctrl+K), wrapping `WidgetViewModel`'s own commands. This entry describes a more general, registry-based version — see "Architecture" below for the gap between what exists today and what this describes.
+
+**Partially delivered (2026-09-01) — closes the search/recency gap, not the registry.**
+`CommandPaletteViewModel` now falls back to fuzzy subsequence matching (VS Code/Sublime-style —
+every character of the query must appear in order, not contiguously) when a plain substring
+search finds nothing, and tracks the last 5 executed commands, shown first on the next summon
+with an empty search box. The ViewModel is now resolved as a DI singleton (previously `new`'d
+fresh every summon) specifically so that recency state survives across separate Cmd/Ctrl+K
+presses within a session.
+
+**Deliberately not built:** the `IAppCommand` registry (Name/Description/Shortcut/Category/
+CanExecute/Execute) each module would register into — `WidgetWindow` still builds the entry list
+directly from `WidgetViewModel`'s own commands each time, which has scaled fine past 40 entries
+without it. Category grouping, on-row shortcut display, and "disabled — here's why" explanations
+are all deliberately not built either; every current entry is always enabled.
+
+**Verified:** new `CommandPaletteViewModelTests` cases for the fuzzy fallback, substring-ranked-
+above-fuzzy ordering, and recent-command-first ordering after execution.
 
 ## Commands
 
@@ -384,11 +401,33 @@ Verify Latest Backup
 
 ---
 
-# Feature 41 — Natural Language Quick Add
+# Feature 41 — Natural Language Quick Add ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Allow users to create tasks using natural text.
+
+**Delivered, exactly the "Initial implementation" the spec itself calls for** — deterministic,
+rule-based parsing, no AI. `IQuickAddParser`/`RuleBasedQuickAddParser` parse a `TaskDraft`
+(Title with every recognized token stripped, DueDate, Priority, ProjectName, Tags,
+EstimatedMinutes) from free text: today/tomorrow/yesterday/weekday names, explicit ISO dates,
+times (`4pm`, `at 4:30pm`, `at 16:00`), duration (`for 30 minutes`, `for 1 hour`), priority
+keywords (`!high`/`!critical`/etc.), `#tag` and `@Project` syntax — the spec's own example,
+`Prepare release notes tomorrow 5pm #release @ProjectA`, is a passing test case verbatim. Wired
+into Phase 22's Quick Add window: typing into the existing title box live-parses as you type (a
+small preview line shows what was recognized), and creating the task applies the parsed due
+date/priority/estimated minutes on top of (or instead of) the picker's own values.
+
+**Deliberately not built:** the `AIQuickAddParser` alternative implementation (the interface is
+shaped so one could be added later without callers changing) and applying parsed Tags/ProjectName
+to the created task — Quick Add's existing Category field already covers "which bucket," and
+wiring Tags/Project would mean a second lookup-or-create decision (create a new project if the
+typed name doesn't match one?) this pass didn't need to make; both are still parsed and available
+on `TaskDraft` for a future pass to use.
+
+**Verified:** `RuleBasedQuickAddParserTests` covers every token type individually, in
+combination (date + time, tomorrow + time), and the spec's own example. `QuickAddViewModelTests`
+continues to pass unchanged with a real (not mocked) parser instance.
 
 Example:
 

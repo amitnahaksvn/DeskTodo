@@ -52,6 +52,11 @@ public static class ServiceCollectionExtensions
         // open — see ClipboardHistoryViewModel's own doc comment.
         services.AddSingleton<ClipboardHistoryViewModel>();
 
+        // Singleton — Feature 40's "recent commands" list (Roadmap-39-100.md) needs to survive
+        // across separate Cmd/Ctrl+K summons within the same session; a fresh instance per
+        // summon would reset it every time. See CommandPaletteViewModel's own doc comment.
+        services.AddSingleton<CommandPaletteViewModel>();
+
         return services;
     }
 }

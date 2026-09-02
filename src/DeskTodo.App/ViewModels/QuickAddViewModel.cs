@@ -19,13 +19,15 @@ public sealed partial class QuickAddViewModel : ViewModelBase
 {
     private readonly ITaskService _taskService;
     private readonly ICategoryRepository _categoryRepository;
+    private readonly IQuickAddParser _quickAddParser;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<QuickAddViewModel> _logger;
 
-    public QuickAddViewModel(ITaskService taskService, ICategoryRepository categoryRepository, TimeProvider timeProvider, ILogger<QuickAddViewModel> logger)
+    public QuickAddViewModel(ITaskService taskService, ICategoryRepository categoryRepository, IQuickAddParser quickAddParser, TimeProvider timeProvider, ILogger<QuickAddViewModel> logger)
     {
         _taskService = taskService;
         _categoryRepository = categoryRepository;
+        _quickAddParser = quickAddParser;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -69,6 +71,39 @@ public sealed partial class QuickAddViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Feature 41's Natural Language Quick Add — the last-parsed preview of <see cref="Title"/>,
+    /// shown under the input so a "tomorrow 5pm !high" typed title doesn't silently vanish into
+    /// due date/priority with no feedback. Recomputed on every keystroke (see
+    /// <c>OnTitleChanged</c>) — parsing is pure, synchronous regex work, cheap enough to run
+    /// live rather than debounced.
+    /// </summary>
+    [ObservableProperty]
+    public partial string? ParsePreview { get; set; }
+
+    partial void OnTitleChanged(string value)
+    {
+        var today = DateOnly.FromDateTime(_timeProvider.GetLocalNow().DateTime);
+        var draft = _quickAddParser.Parse(value, today);
+        var parts = new List<string>();
+        if (draft.DueDate is { } due)
+        {
+            parts.Add(due.ToString("MMM d 'at' h:mm tt", System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (draft.Priority is { } priority)
+        {
+            parts.Add($"{priority} priority");
+        }
+
+        if (draft.EstimatedMinutes is { } minutes)
+        {
+            parts.Add($"{minutes}m");
+        }
+
+        ParsePreview = parts.Count > 0 && !string.IsNullOrWhiteSpace(draft.Title) ? string.Join(" · ", parts) : null;
+    }
+
     [RelayCommand]
     private async Task AddAsync()
     {
@@ -81,7 +116,22 @@ public sealed partial class QuickAddViewModel : ViewModelBase
         try
         {
             var today = DateOnly.FromDateTime(_timeProvider.GetLocalNow().DateTime);
-            await _taskService.CreateTaskAsync(today, title, priority: Priority, categoryId: SelectedCategory.Id);
+            var draft = _quickAddParser.Parse(title, today);
+            var effectiveTitle = string.IsNullOrWhiteSpace(draft.Title) ? title : draft.Title;
+
+            var task = await _taskService.CreateTaskAsync(
+                today,
+                effectiveTitle,
+                priority: draft.Priority ?? Priority,
+                categoryId: SelectedCategory.Id,
+                dueDate: draft.DueDate);
+
+            if (draft.EstimatedMinutes is { } minutes)
+            {
+                task.EstimatedMinutes = minutes;
+                await _taskService.UpdateTaskAsync(task);
+            }
+
             Closed?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)

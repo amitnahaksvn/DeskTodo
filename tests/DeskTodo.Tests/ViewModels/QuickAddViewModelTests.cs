@@ -20,6 +20,7 @@ public class QuickAddViewModelTests
         _sut = new QuickAddViewModel(
             _taskService.Object,
             _categoryRepository.Object,
+            new RuleBasedQuickAddParser(),
             TimeProvider.System,
             NullLogger<QuickAddViewModel>.Instance);
     }

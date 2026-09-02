@@ -526,12 +526,16 @@ public partial class WidgetWindow : Window
     /// <summary>Phase 28's Command Palette — built fresh on every summon (not cached) from this window's own live <c>WidgetViewModel</c>'s commands, so a state change (e.g. Mini Widget mode) is reflected the next time it's opened without extra bookkeeping.</summary>
     private async void OnCommandPaletteRequested(object? sender, EventArgs e)
     {
-        if (DataContext is not WidgetViewModel viewModel)
+        if (App.Services is null || DataContext is not WidgetViewModel viewModel)
         {
             return;
         }
 
-        var paletteViewModel = new CommandPaletteViewModel();
+        // Resolved as a DI singleton (see ServiceCollectionExtensions), not "new"'d here —
+        // the palette is rebuilt fresh from this window's live commands on every summon (see
+        // this method's own doc comment), but its "recent commands" list needs to survive
+        // across separate summons within the same session, which a fresh instance wouldn't.
+        var paletteViewModel = App.Services.GetRequiredService<CommandPaletteViewModel>();
         paletteViewModel.SetEntries([
             new CommandPaletteEntry("Go to Today", viewModel.GoToTodayCommand),
             new CommandPaletteEntry("Previous Day", viewModel.GoToPreviousDayCommand),

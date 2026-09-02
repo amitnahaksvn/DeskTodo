@@ -6,8 +6,8 @@ public sealed record ActivityEntry(DateTime Timestamp, string Category, string D
 /// <summary>
 /// Feature 61 (Roadmap-39-100.md) — Activity Timeline. The spec calls for this to consume an
 /// Event Bus (Feature 98), not yet built; until then this aggregates directly from each
-/// feature's own already-persisted history (<see cref="TaskHistory"/> via
-/// <see cref="ITaskHistoryRepository"/>, completed <see cref="Domain.Entities.FocusSession"/>s,
+/// feature's own already-persisted history (<see cref="Domain.Entities.TaskHistory"/> via
+/// <see cref="Abstractions.ITaskHistoryRepository"/>, completed <see cref="Domain.Entities.FocusSession"/>s,
 /// and <see cref="Domain.Entities.GoalCompletion"/>s) — a read-only query-time merge, the same
 /// "no new persistence" approach Phase 21's Agenda/Timeline views already use. Revisit once
 /// Feature 98 lands: a real-time event-driven feed would replace this polling aggregation.

@@ -2,7 +2,7 @@ using DeskTodo.Domain.Entities;
 
 namespace DeskTodo.Application.Services;
 
-/// <summary>One candidate match from <see cref="IDuplicateDetectionService.FindPossibleDuplicatesAsync"/> — Feature 47.</summary>
+/// <summary>One candidate match from <see cref="IDuplicateDetectionService.FindPossibleDuplicates"/> — Feature 47.</summary>
 public sealed record DuplicateCandidate(TaskItem Task, double SimilarityScore);
 
 /// <summary>
