@@ -59,6 +59,8 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<MigrationRun> MigrationRuns => Set<MigrationRun>();
 
+    public DbSet<ExportProfile> ExportProfiles => Set<ExportProfile>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeskTodoDbContext).Assembly);

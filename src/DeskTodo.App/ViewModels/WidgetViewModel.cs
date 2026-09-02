@@ -1194,6 +1194,12 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenMassImport() => MassImportRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised from the Command Palette (Feature 91, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? ExportProfilesRequested;
+
+    [RelayCommand]
+    private void OpenExportProfiles() => ExportProfilesRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try

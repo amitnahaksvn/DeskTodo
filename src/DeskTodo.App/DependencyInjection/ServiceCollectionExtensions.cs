@@ -55,6 +55,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ProjectTemplatesViewModel>();
         services.AddTransient<BulkEditRulesViewModel>();
         services.AddTransient<MassImportViewModel>();
+        services.AddTransient<ExportProfilesViewModel>();
 
         // Singleton, not transient: a running timer is app-wide state that must keep
         // ticking (and stay reflected in the widget header's indicator) whether or not

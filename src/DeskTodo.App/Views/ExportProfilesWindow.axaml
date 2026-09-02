@@ -1,0 +1,66 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="640"
+        x:Class="DeskTodo.App.Views.ExportProfilesWindow"
+        x:DataType="vm:ExportProfilesViewModel"
+        Title="Export Profiles"
+        Width="480" Height="640"
+        MinWidth="420" MinHeight="440"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 91 — saved, reusable export configurations. -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Export Profiles" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <StackPanel Grid.Row="1" Spacing="2" Margin="0,0,0,8">
+            <TextBlock Text="{Binding StatusMessage}" IsVisible="{Binding StatusMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding ErrorMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                       FontSize="11" Foreground="{DynamicResource DangerTextBrush}" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="2">
+            <StackPanel Spacing="10">
+                <Expander Header="Save a new profile">
+                    <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <TextBox PlaceholderText="Profile name (e.g. Weekly Project Report)" Text="{Binding NewProfileName}" />
+                        <ComboBox ItemsSource="{Binding FormatOptions}" SelectedItem="{Binding NewProfileFormat}" HorizontalAlignment="Stretch" />
+                        <ComboBox ItemsSource="{Binding ProjectOptions}" SelectedItem="{Binding NewProfileProject}" HorizontalAlignment="Stretch" />
+                        <ComboBox ItemsSource="{Binding DateRangeOptions}" SelectedItem="{Binding NewProfileDateRange}" HorizontalAlignment="Stretch" />
+                        <Button Content="Save Profile" Command="{Binding CreateProfileCommand}" HorizontalAlignment="Left" Padding="12,6" />
+                    </StackPanel>
+                </Expander>
+
+                <ItemsControl ItemsSource="{Binding Profiles}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ExportProfileRow">
+                            <Border Background="{DynamicResource SurfaceBackgroundBrush}" CornerRadius="6" Padding="10" Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="*,Auto,Auto">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}">
+                                            <Run Text="{Binding Format}" /><Run Text=" — " /><Run Text="{Binding ProjectName}" /><Run Text=" — " /><Run Text="{Binding DateRange}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Run…" Click="OnRunProfileClick" Tag="{Binding}" FontSize="10" Padding="8,4" Margin="0,0,4,0" />
+                                    <Button Grid.Column="2" Content="Delete"
+                                            Command="{Binding $parent[ItemsControl].((vm:ExportProfilesViewModel)DataContext).DeleteProfileCommand}"
+                                            CommandParameter="{Binding Id}" FontSize="10" Padding="8,4" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="3" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

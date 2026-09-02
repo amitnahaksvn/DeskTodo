@@ -3494,13 +3494,46 @@ Each migration should have an ID and log.
 
 ---
 
-# Feature 91 — Export Profiles
+# Feature 91 — Export Profiles ✅ Delivered, scoped to Format/Project/Date Range (2026-09-02)
 
 ## Objective
 
 Save frequently used export configurations.
 
 > **Note:** DeskTodo already has CSV/JSON/Markdown/Excel export (Phase 14, `ITaskExportService`). This entry is a saved-configuration layer on top (which format + which filters + which fields, named and reusable) — no new export format needed, just a preset system.
+
+**Delivered as a new `ExportProfile` entity** (Name/Format/`ProjectId`/`DateRange`) applied
+against Phase 14's existing export pipeline (`ITaskExportService`) rather than a new export
+format — running a profile filters `GetAllTasksAsync`'s tasks by project and by a
+`DateRange` (`Today`/`ThisWeek`/`ThisMonth`/`All`, re-resolved relative to "today" on every run
+rather than frozen to the profile's creation date, same reasoning as Feature 88's `DueDate <
+Today`), converts the survivors to `TaskExportRecord`s, and writes them through the same
+CSV/JSON/Markdown/Excel writers the plain Import/Export window already uses. A new "Export
+Profiles" window (Command Palette) saves a profile from Format/Project/Date Range dropdowns and
+runs one on demand (choosing a save location, same as the plain export flow) — exactly this
+feature's own "Weekly Project Report: CSV, Project = Current, Date Range = This Week" example.
+
+**Scoping decisions, documented rather than silently dropped:**
+- **"Project: Current" is a specific project chosen once when the profile is saved**, not a
+  live "whatever project I currently have open" reference — DeskTodo's Projects tab has no
+  single persistent "current project" concept for a saved profile to point at, and a project
+  picked explicitly is unambiguous and immediately useful; "All Projects" (no filter) is the
+  default when none is picked.
+- **"Fields" column subsetting was not built.** Every format writer (`TaskExportService`) always
+  emits its full fixed column set — modifying all four writers to support an arbitrary subset of
+  columns per run is materially bigger than "save a configuration," and wasn't attempted this
+  pass; a run always exports every field, same as the plain Import/Export window today.
+- **PDF format (the "Executive Report" example) was not built** — Phase 29 already deferred a
+  PDF exporter for the same reason (no PDF library dependency exists in this project); a profile
+  can only pick from the four formats Phase 14 already supports.
+- **"Group: Project" / "Include: Milestones + Progress" (report-shaping, not just filtering)**
+  were not built — out of scope for a "saved configuration" layer over an existing flat
+  task-record export.
+
+**Verified:** `ExportProfileRepositoryTests` (real SQLite round-trip) and
+`ExportProfileServiceTests` (project filtering, all four date ranges including the
+month/week/day boundary exclusions, and the Domain→Application format translation) plus
+`ExportProfilesViewModelTests`.
 
 Example:
 

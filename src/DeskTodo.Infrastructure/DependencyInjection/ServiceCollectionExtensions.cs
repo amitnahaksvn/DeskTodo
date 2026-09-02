@@ -129,6 +129,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBulkEditRuleService, BulkEditRuleService>();
         services.AddScoped<IMigrationRunRepository, MigrationRunRepository>();
         services.AddScoped<IMassImportService, MassImportService>();
+        services.AddScoped<IExportProfileRepository, ExportProfileRepository>();
+        services.AddScoped<IExportProfileService, ExportProfileService>();
 
         return services;
     }
