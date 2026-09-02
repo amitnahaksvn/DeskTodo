@@ -127,6 +127,8 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<RecurringProjectGeneratorHostedService>();
         services.AddScoped<IBulkEditRuleRepository, BulkEditRuleRepository>();
         services.AddScoped<IBulkEditRuleService, BulkEditRuleService>();
+        services.AddScoped<IMigrationRunRepository, MigrationRunRepository>();
+        services.AddScoped<IMassImportService, MassImportService>();
 
         return services;
     }

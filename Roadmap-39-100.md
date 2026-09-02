@@ -3348,11 +3348,46 @@ For destructive operations, require additional confirmation.
 
 ---
 
-# Feature 89 — Mass Import Wizard
+# Feature 89 — Mass Import Wizard ✅ Delivered, scoped to CSV (2026-09-02)
 
 ## Objective
 
 Import arbitrary CSV/JSON files.
+
+**Delivered as a new `IMassImportService`, built directly on Phase 14's existing CSV parser**
+(the RFC 4180 tokenizer was extracted out of `TaskImportService` into a shared
+`CsvParsing.Parse` so both importers parse the same way without one depending on the other).
+Field mapping is a `Dictionary<string, string>` (source CSV column name → one of
+`TaskExportRecord`'s fields — Title/Description/PlanDate/DueDate/Priority/Category/Notes/
+IsCompleted/IsPinned/EstimatedMinutes), exactly this feature's own "CSV 'Task Name' → Title"
+example. The full pipeline runs as two calls: `PreviewAsync` (maps, validates, and flags likely
+duplicates — via the existing Feature 47 `IDuplicateDetectionService`, reused rather than
+reimplemented — without creating anything) and `ImportAsync` (re-runs the same pipeline and only
+then creates tasks). **Rollback, matching this feature's own spec:** "if validation fails, no
+partial import should remain" is honored by validating every row *before* creating any task at
+all — if even one row is missing a mapped/populated Title, the whole import is refused
+(`MigrationStatus.Failed`, zero tasks created) rather than committing the valid rows and leaving
+the batch half-done; a duplicate is a separate, non-fatal outcome (skipped, not rejected). A new
+"Mass Import Wizard" window (Command Palette) walks Select File → (headers auto-populate the
+mapping form, auto-matching same-named columns) → Map Fields → Preview (row count + duplicate
+count + per-row validation errors) → Import → Report.
+
+**Deliberately scoped to CSV, not JSON.** JSON import already round-trips losslessly through
+`TaskExportRecord`'s fixed shape (Phase 14) — there is no "arbitrary column" ambiguity for a
+format that already deserializes directly into the target shape, so field mapping has nothing to
+map. JSON files continue to use the existing `ImportExportWindow`'s importer unchanged; this
+wizard is CSV-only, where mapping is actually needed. **Also deliberately not built:** a true
+per-batch database transaction (SQLite via EF Core here still creates each task with its own
+`SaveChangesAsync`, the same as every other multi-step operation in this app) and saved/reusable
+mapping profiles (each wizard run builds its mapping fresh) — see this file's Feature 91 (Export
+Profiles) for the export-side equivalent of "save a reusable configuration," which this pass
+didn't extend to imports.
+
+**Verified:** `MassImportServiceTests` (mapping, the "Title required" validation gate, the
+all-or-nothing abort-on-any-invalid-row behavior, and duplicate skipping using a *real*
+`DuplicateDetectionService`, not a mock, since that's the exact behavior being verified) and
+`MassImportViewModelTests` (auto-mapping on file load, mapping-dictionary construction, and
+status-message formatting for both outcomes).
 
 > **Note:** DeskTodo already has CSV/JSON import (Phase 14, `ITaskImportService`) with a fixed `TaskExportRecord` shape. This entry adds field mapping (arbitrary source columns → DeskTodo fields) and a preview/validate/dedupe pipeline the existing importer doesn't have.
 
@@ -3394,11 +3429,36 @@ If validation fails, no partial import should remain.
 
 ---
 
-# Feature 90 — Data Migration Center
+# Feature 90 — Data Migration Center ✅ Delivered, as Feature 89's pipeline generalized (2026-09-02)
 
 ## Objective
 
 Provide a central framework for moving data from other systems.
+
+**Delivered together with Feature 89, not as a separate framework.** This entry's own pipeline
+diagram — Source → Reader → Normalizer → Mapper → Validator → Duplicate Resolver → Importer →
+Migration Report — is exactly the shape `IMassImportService` already implements for CSV: Reader
+(`CsvParsing`) → Mapper (the column-to-field dictionary) → Validator (per-row errors) → Duplicate
+Resolver (`IDuplicateDetectionService`) → Importer (`ITaskService`) → Report. Building a second,
+parallel "migration framework" alongside Feature 89's pipeline rather than as the same pipeline
+would have meant two independent implementations of the same seven steps to keep in sync — this
+delivers Feature 90's own "central framework" requirement by making that pipeline the center,
+rather than duplicating it. The "each migration should have an ID and log" requirement is a new
+`MigrationRun` entity (Id/SourceDescription/Status/TotalRecords/ImportedCount/SkippedCount/
+LogEntries/StartedAt/CompletedAt), persisted by every `ImportAsync` call (success or validation
+failure alike) and shown as run history in the same Mass Import Wizard window.
+
+**Deliberately not built (this pass):** the "Potential sources later" list's non-CSV/JSON entries
+— a generic API source and other task/PM applications' importers — since none of them were named
+as required now, and each would need its own Reader implementation against a real external
+system this environment has no credentials or fixture to build against; the pipeline's own
+Reader/Normalizer/Mapper stage boundaries are exactly where a future source would plug in without
+touching the Validator/Duplicate Resolver/Importer/Report stages already built. JSON import
+remains the existing Phase 14 fixed-shape path, per Feature 89's own note above.
+
+**Verified:** covered by Feature 89's test suite above (`MigrationRunRepositoryTests` for the
+run's persistence — real SQLite, JSON round-trip of `LogEntries` — plus `MassImportServiceTests`
+for the run's Status/counts on both the success and validation-failure paths).
 
 Potential sources later:
 

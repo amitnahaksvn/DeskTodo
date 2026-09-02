@@ -1,0 +1,80 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="740"
+        x:Class="DeskTodo.App.Views.MassImportWindow"
+        x:DataType="vm:MassImportViewModel"
+        Title="Mass Import Wizard"
+        Width="520" Height="740"
+        MinWidth="460" MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 89 (Mass Import Wizard) and Feature 90 (Data Migration Center). -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Mass Import Wizard" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <StackPanel Grid.Row="1" Spacing="2" Margin="0,0,0,8">
+            <TextBlock Text="{Binding StatusMessage}" IsVisible="{Binding StatusMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding ErrorMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                       FontSize="11" Foreground="{DynamicResource DangerTextBrush}" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="2">
+            <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Button Grid.Column="0" Content="Choose CSV File…" Click="OnChooseFileClick" Padding="12,6" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="1" Text="{Binding SelectedFileName}" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <Button Grid.Column="2" Content="Reset" Command="{Binding ResetCommand}" Padding="8,4" FontSize="10" />
+                </Grid>
+
+                <TextBlock Text="Field mapping — pick which CSV column supplies each task field" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                <ItemsControl ItemsSource="{Binding FieldMappings}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:MassImportFieldMappingRow">
+                            <Grid ColumnDefinitions="140,*" Margin="0,0,0,4">
+                                <TextBlock Grid.Column="0" Text="{Binding FieldName}" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding HeaderOptions}" SelectedItem="{Binding SelectedHeader}" HorizontalAlignment="Stretch" PlaceholderText="(not mapped)" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Grid ColumnDefinitions="Auto,Auto">
+                    <Button Grid.Column="0" Content="Preview" Click="OnPreviewClick" Padding="12,6" Margin="0,0,6,0" />
+                    <Button Grid.Column="1" Content="Import" Click="OnImportClick" Padding="12,6" />
+                </Grid>
+
+                <StackPanel IsVisible="{Binding PreviewTotalRows, Converter={x:Static convCore:ObjectConverters.IsNotNull}}" Spacing="4">
+                    <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}">
+                        <Run Text="{Binding PreviewTotalRows}" /><Run Text=" row(s) total, " /><Run Text="{Binding PreviewDuplicateCount}" /><Run Text=" likely duplicate(s)" />
+                    </TextBlock>
+                    <ItemsControl ItemsSource="{Binding PreviewErrorLines}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource DangerTextBrush}" TextWrapping="Wrap" Margin="0,0,0,2" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <TextBlock Text="Migration history" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0" />
+                <ItemsControl ItemsSource="{Binding MigrationRunSummaries}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="3" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

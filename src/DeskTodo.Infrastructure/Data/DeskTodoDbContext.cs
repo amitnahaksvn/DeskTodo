@@ -57,6 +57,8 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<BulkEditRule> BulkEditRules => Set<BulkEditRule>();
 
+    public DbSet<MigrationRun> MigrationRuns => Set<MigrationRun>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeskTodoDbContext).Assembly);

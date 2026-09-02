@@ -21,7 +21,7 @@ public sealed class TaskImportService : ITaskImportService
     {
         using var reader = new StreamReader(source, Encoding.UTF8, leaveOpen: true);
         var text = await reader.ReadToEndAsync(cancellationToken);
-        var rows = ParseCsv(text);
+        var rows = CsvParsing.Parse(text);
         if (rows.Count == 0)
         {
             return [];
@@ -76,82 +76,5 @@ public sealed class TaskImportService : ITaskImportService
     {
         var records = await JsonSerializer.DeserializeAsync<List<TaskExportRecord>>(source, cancellationToken: cancellationToken);
         return records ?? [];
-    }
-
-    /// <summary>
-    /// A small hand-rolled RFC 4180 parser (quoted fields, doubled-quote escaping, commas
-    /// and newlines inside quotes) rather than a naive <c>Split(',')</c>, which would
-    /// silently corrupt any exported field that itself contained a comma or newline (e.g. a
-    /// multi-line Notes field) — exactly the fields <see cref="TaskExportService"/> quotes
-    /// for that reason.
-    /// </summary>
-    private static List<List<string>> ParseCsv(string text)
-    {
-        var records = new List<List<string>>();
-        var fields = new List<string>();
-        var field = new StringBuilder();
-        var inQuotes = false;
-        var i = 0;
-
-        while (i < text.Length)
-        {
-            var c = text[i];
-
-            if (inQuotes)
-            {
-                if (c == '"')
-                {
-                    if (i + 1 < text.Length && text[i + 1] == '"')
-                    {
-                        field.Append('"');
-                        i += 2;
-                        continue;
-                    }
-
-                    inQuotes = false;
-                    i++;
-                    continue;
-                }
-
-                field.Append(c);
-                i++;
-                continue;
-            }
-
-            switch (c)
-            {
-                case '"':
-                    inQuotes = true;
-                    i++;
-                    break;
-                case ',':
-                    fields.Add(field.ToString());
-                    field.Clear();
-                    i++;
-                    break;
-                case '\r':
-                    i++;
-                    break;
-                case '\n':
-                    fields.Add(field.ToString());
-                    field.Clear();
-                    records.Add(fields);
-                    fields = [];
-                    i++;
-                    break;
-                default:
-                    field.Append(c);
-                    i++;
-                    break;
-            }
-        }
-
-        if (field.Length > 0 || fields.Count > 0)
-        {
-            fields.Add(field.ToString());
-            records.Add(fields);
-        }
-
-        return records;
     }
 }

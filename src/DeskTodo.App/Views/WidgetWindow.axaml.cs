@@ -86,6 +86,7 @@ public partial class WidgetWindow : Window
             viewModel.ApiExplorerRequested += OnApiExplorerRequested;
             viewModel.ProjectTemplatesRequested += OnProjectTemplatesRequested;
             viewModel.BulkEditRulesRequested += OnBulkEditRulesRequested;
+            viewModel.MassImportRequested += OnMassImportRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
@@ -433,6 +434,19 @@ public partial class WidgetWindow : Window
         await bulkEditRulesWindow.ShowDialog(this);
     }
 
+    /// <summary>Features 89/90, Roadmap-39-100.md.</summary>
+    private async void OnMassImportRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var massImportViewModel = App.Services.GetRequiredService<MassImportViewModel>();
+        var massImportWindow = new MassImportWindow { DataContext = massImportViewModel };
+        await massImportWindow.ShowDialog(this);
+    }
+
     /// <summary>Feature 83, Roadmap-39-100.md — same "sync the flyout's list on open" pattern as <c>GridWindow.OnViewsFlyoutOpened</c>.</summary>
     private async void OnViewsFlyoutOpened(object? sender, EventArgs e)
     {
@@ -617,6 +631,7 @@ public partial class WidgetWindow : Window
             viewModel.ApiExplorerRequested -= OnApiExplorerRequested;
             viewModel.ProjectTemplatesRequested -= OnProjectTemplatesRequested;
             viewModel.BulkEditRulesRequested -= OnBulkEditRulesRequested;
+            viewModel.MassImportRequested -= OnMassImportRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -827,6 +842,7 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("API Explorer", viewModel.OpenApiExplorerCommand),
             new CommandPaletteEntry("Project Templates", viewModel.OpenProjectTemplatesCommand),
             new CommandPaletteEntry("Bulk Edit Rules", viewModel.OpenBulkEditRulesCommand),
+            new CommandPaletteEntry("Mass Import Wizard", viewModel.OpenMassImportCommand),
             new CommandPaletteEntry("Toggle Privacy Mode", viewModel.TogglePrivacyModeCommand),
             new CommandPaletteEntry("Enter Presentation Mode", viewModel.EnterPresentationModeCommand),
             new CommandPaletteEntry("Exit Presentation Mode", viewModel.ExitPresentationModeCommand),
