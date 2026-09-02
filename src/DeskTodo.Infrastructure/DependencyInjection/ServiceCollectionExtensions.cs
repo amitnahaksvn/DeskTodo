@@ -87,6 +87,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMeetingActionExtractor, RuleBasedMeetingActionExtractor>();
         services.AddScoped<ITaskRelationshipRepository, TaskRelationshipRepository>();
         services.AddScoped<ITaskRelationshipService, TaskRelationshipService>();
+        services.AddSingleton<ISensitiveDataDetector, RegexSensitiveDataDetector>();
         services.AddScoped<IPlanningAnalyticsService, PlanningAnalyticsService>();
         services.AddScoped<IDecisionRepository, DecisionRepository>();
         services.AddScoped<IDecisionService, DecisionService>();

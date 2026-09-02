@@ -21,6 +21,7 @@ public sealed record KeyboardShortcutDefinition(string CommandId, string Display
         new("Settings", "Open Settings", "Mod+OemComma", "Application"),
         new("Undo", "Undo", "Mod+Z", "Application"),
         new("Redo", "Redo", "Mod+Shift+Z", "Application"),
+        new("TogglePrivacyMode", "Toggle Privacy Mode", "Mod+Shift+P", "Application"),
     ];
 
     /// <summary>Parses a combo string (e.g. <c>"Mod+Shift+Z"</c>) into a real <see cref="KeyGesture"/>, resolving "Mod" to the platform's own primary modifier. Returns null for a malformed combo rather than throwing — a corrupt/hand-edited settings file shouldn't crash shortcut registration.</summary>

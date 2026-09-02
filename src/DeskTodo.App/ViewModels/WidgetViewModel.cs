@@ -198,6 +198,17 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     public partial bool IsSelectMode { get; set; }
 
+    /// <summary>Feature 75 (Roadmap-39-100.md) — masks task titles in the list. Runtime-only (not persisted to <see cref="Application.Settings.AppSettings"/>), so it's always off at the next app launch rather than silently staying on.</summary>
+    [ObservableProperty]
+    public partial bool IsPrivacyModeEnabled { get; set; }
+
+    /// <summary>Feature 73 (Roadmap-39-100.md) — locks the task list to one project and hides the rest of the filter bar (which would otherwise list every other project/category/tag by name).</summary>
+    [ObservableProperty]
+    public partial bool IsPresentationModeEnabled { get; set; }
+
+    [ObservableProperty]
+    public partial string PresentationModeStatusMessage { get; set; } = string.Empty;
+
     [ObservableProperty]
     public partial string SearchText { get; set; } = string.Empty;
 
@@ -412,6 +423,7 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
                 var itemViewModel = new TaskItemViewModel(task, _taskService, _taskItemLogger, () => _ = LoadTasksAsync(), id => RequestTaskEdit(id, task.Title), _undoRedoService)
                 {
                     IsSelectModeActive = IsSelectMode,
+                    IsPrivacyModeEnabled = IsPrivacyModeEnabled,
                 };
                 itemViewModel.PropertyChanged += OnTaskItemPropertyChanged;
                 Tasks.Add(itemViewModel);
@@ -728,6 +740,41 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
             }
         }
     }
+
+    [RelayCommand]
+    private void TogglePrivacyMode()
+    {
+        IsPrivacyModeEnabled = !IsPrivacyModeEnabled;
+        foreach (var task in Tasks)
+        {
+            task.IsPrivacyModeEnabled = IsPrivacyModeEnabled;
+        }
+    }
+
+    /// <summary>
+    /// Locks the filter bar to whatever project is currently selected, then hides the whole
+    /// filter bar (including the Category/Project/Tag dropdowns, which would otherwise list
+    /// every other project/category/tag by name even with no tasks shown for them). A no-op
+    /// with a status message if no specific project is selected — presenting "All Projects"
+    /// would defeat the point. Nothing else can change <see cref="SelectedProjectFilter"/> while
+    /// this is active (the control that would is hidden), so exiting needs no restore step —
+    /// the selection is exactly what it was.
+    /// </summary>
+    [RelayCommand]
+    private void EnterPresentationMode()
+    {
+        if (SelectedProjectFilter.Id is null)
+        {
+            PresentationModeStatusMessage = "Pick a project to filter by first, then enter Presentation Mode.";
+            return;
+        }
+
+        PresentationModeStatusMessage = string.Empty;
+        IsPresentationModeEnabled = true;
+    }
+
+    [RelayCommand]
+    private void ExitPresentationMode() => IsPresentationModeEnabled = false;
 
     [RelayCommand]
     private void SelectAllVisible()

@@ -115,7 +115,18 @@
             </Grid>
 
             <Panel Grid.Row="2" IsVisible="{Binding IsMiniWidgetMode, Converter={x:Static convCore:BoolConverters.Not}}">
-            <StackPanel Margin="20,0,20,8" Spacing="6" IsVisible="{Binding IsSearchBarVisible}">
+            <!-- Feature 73 (Roadmap-39-100.md) — while presenting, the filter bar (which would list every other project/category/tag by name) is replaced with this banner. -->
+            <Border IsVisible="{Binding IsPresentationModeEnabled}" Margin="20,0,20,8" Padding="10,8" CornerRadius="4"
+                    Background="{DynamicResource IndigoBadgeBackgroundBrush}">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource IndigoBadgeForegroundBrush}">
+                        <Run Text="Presentation Mode — showing only " /><Run Text="{Binding SelectedProjectFilter.Name}" FontWeight="SemiBold" />
+                    </TextBlock>
+                    <Button Grid.Column="1" Content="Exit" Command="{Binding ExitPresentationModeCommand}" FontSize="11" Padding="8,4" />
+                </Grid>
+            </Border>
+            <StackPanel Margin="20,0,20,8" Spacing="6" IsVisible="{Binding !IsPresentationModeEnabled}">
+            <StackPanel Spacing="6" IsVisible="{Binding IsSearchBarVisible}">
                 <ItemsControl ItemsSource="{Binding RecentlyViewed}" IsVisible="{Binding RecentlyViewed.Count, Converter={x:Static conv:IntGreaterThanZeroConverter.Instance}}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -171,6 +182,13 @@
                           HorizontalAlignment="Stretch" ToolTip.Tip="Filter by project" />
                 <ComboBox x:Name="TagFilterComboBox" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTagFilter}"
                           HorizontalAlignment="Stretch" ToolTip.Tip="Filter by tag" />
+                <!-- Feature 73 (Roadmap-39-100.md) — locks the list above to whichever project is picked. -->
+                <Button Content="Enter Presentation Mode" Command="{Binding EnterPresentationModeCommand}"
+                        HorizontalAlignment="Right" FontSize="11" Padding="8,4" />
+                <TextBlock Text="{Binding PresentationModeStatusMessage}"
+                           IsVisible="{Binding PresentationModeStatusMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                           FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+            </StackPanel>
             </StackPanel>
             </Panel>
 
@@ -242,7 +260,7 @@
                                     <Ellipse Grid.Column="2" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,10,0"
                                              Fill="{Binding DisplayColorHex, Converter={x:Static conv:HexColorToBrushConverter.Instance}}" />
 
-                                    <TextBlock Grid.Column="3" Text="{Binding Title}" VerticalAlignment="Center"
+                                    <TextBlock Grid.Column="3" Text="{Binding DisplayTitle}" VerticalAlignment="Center"
                                                TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}"
                                                IsVisible="{Binding IsEditing, Converter={x:Static convCore:BoolConverters.Not}}"
                                                DoubleTapped="OnTitleDoubleTapped"

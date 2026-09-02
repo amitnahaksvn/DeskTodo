@@ -1239,6 +1239,75 @@ public class WidgetViewModelTests
         Assert.Equal("unchanged", sut.SearchText);
     }
 
+    [Fact]
+    public async Task TogglePrivacyModeCommand_TogglesTheFlag_AndPropagatesToEveryRow()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var taskRepository = CreateRepositoryWithTasks(today, [CreateTask(today, 0, "Confidential launch plan")]);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>(), Mock.Of<ITaskVersionRepository>()), CreateEmptyCategoryRepository(), CreateEmptyProjectService(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance, Mock.Of<IUndoRedoService>(), Mock.Of<IDuplicateDetectionService>());
+        await sut.LoadTasksAsync();
+
+        sut.TogglePrivacyModeCommand.Execute(null);
+
+        Assert.True(sut.IsPrivacyModeEnabled);
+        Assert.NotEqual("Confidential launch plan", sut.Tasks[0].DisplayTitle);
+
+        sut.TogglePrivacyModeCommand.Execute(null);
+
+        Assert.False(sut.IsPrivacyModeEnabled);
+        Assert.Equal("Confidential launch plan", sut.Tasks[0].DisplayTitle);
+    }
+
+    [Fact]
+    public async Task TogglePrivacyModeCommand_AppliesToRowsLoadedAfterItWasEnabled()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var taskRepository = CreateRepositoryWithTasks(today, [CreateTask(today, 0, "Confidential launch plan")]);
+        using var sut = new WidgetViewModel(new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>(), Mock.Of<ITaskVersionRepository>()), CreateEmptyCategoryRepository(), CreateEmptyProjectService(), CreateEmptyTagService(), CreateEmptyTemplateService(), CreateDefaultSettingsService(), CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance, Mock.Of<IUndoRedoService>(), Mock.Of<IDuplicateDetectionService>());
+        sut.TogglePrivacyModeCommand.Execute(null);
+
+        await sut.LoadTasksAsync();
+
+        Assert.NotEqual("Confidential launch plan", sut.Tasks[0].DisplayTitle);
+    }
+
+    [Fact]
+    public void EnterPresentationModeCommand_WithNoProjectSelected_IsANoOp_AndSetsAStatusMessage()
+    {
+        using var sut = CreateSut(CreateDefaultSettingsService());
+
+        sut.EnterPresentationModeCommand.Execute(null);
+
+        Assert.False(sut.IsPresentationModeEnabled);
+        Assert.NotEmpty(sut.PresentationModeStatusMessage);
+    }
+
+    [Fact]
+    public void EnterPresentationModeCommand_WithAProjectSelected_EntersPresentationMode()
+    {
+        using var sut = CreateSut(CreateDefaultSettingsService());
+        sut.SelectedProjectFilter = new ProjectFilterOption(Guid.NewGuid(), "Website Redesign");
+
+        sut.EnterPresentationModeCommand.Execute(null);
+
+        Assert.True(sut.IsPresentationModeEnabled);
+        Assert.Empty(sut.PresentationModeStatusMessage);
+    }
+
+    [Fact]
+    public void ExitPresentationModeCommand_ClearsTheFlag_AndKeepsTheProjectFilter()
+    {
+        using var sut = CreateSut(CreateDefaultSettingsService());
+        var project = new ProjectFilterOption(Guid.NewGuid(), "Website Redesign");
+        sut.SelectedProjectFilter = project;
+        sut.EnterPresentationModeCommand.Execute(null);
+
+        sut.ExitPresentationModeCommand.Execute(null);
+
+        Assert.False(sut.IsPresentationModeEnabled);
+        Assert.Equal(project, sut.SelectedProjectFilter);
+    }
+
     // Pins LocalTimeZone to UTC so GetLocalNow() == GetUtcNow() exactly — otherwise these
     // tests' chosen date/time literals could land on a different calendar date depending on
     // the machine's local timezone (WidgetViewModel.Today() calls GetLocalNow(), matching

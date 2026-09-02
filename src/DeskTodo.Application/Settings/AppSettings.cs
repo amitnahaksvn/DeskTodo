@@ -190,4 +190,7 @@ public sealed class AppSettings
     /// Empty means "every shortcut is at its built-in default" — no entry needed for that case.
     /// </summary>
     public Dictionary<string, string> KeyboardShortcutOverrides { get; set; } = [];
+
+    /// <summary>Feature 76's Sensitive Data Detector — set to false by the warning dialog's "Don't Warn Again", global rather than per-task since task content differs every time there'd be nothing stable to key a per-task suppression on.</summary>
+    public bool SensitiveDataWarningsEnabled { get; set; } = true;
 }

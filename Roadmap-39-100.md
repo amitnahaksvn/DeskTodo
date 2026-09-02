@@ -2063,13 +2063,24 @@ Project X: 11h 15m
 
 ---
 
-# Feature 66 — Offline-first Conflict Resolver
+# Feature 66 — Offline-first Conflict Resolver ⬜ Deferred (2026-09-02)
 
 ## Objective
 
 Prepare for cloud sync while keeping local-first behavior.
 
 > **Note:** directly overlaps with DeskTodo's Phase 31 (Cloud sync & multi-device, deferred to last). The approach discussion already had for Phase 31 (see `IMPLEMENTATION.md`) picked a lighter "sync via an existing cloud folder" path with per-record last-write-wins merging via `TaskItem.ModifiedAt` — this entry's field-level/device-vector model is more ambitious than that decision. Reconcile with Phase 31's recorded approach before building either.
+
+**Deferred, not built — the note above is the reason.** There is no cloud sync in this app at all
+(Phase 31 is itself deferred), so there is nothing for a conflict resolver to resolve conflicts
+*from*: building `Revision`/`UpdatedBy`/`DeviceId` record-versioning and a Keep Local/Keep
+Remote/Merge UI now would mean guessing at a sync protocol Phase 31 hasn't picked yet, and quite
+possibly guessing wrong — this entry's field-level/device-vector model is a materially different,
+more ambitious design than the "last-write-wins via `ModifiedAt`" approach Phase 31's own recorded
+decision already leans toward. Building the conflict resolver first, backwards from an
+unimplemented sync layer, risks a rework the moment Phase 31 actually gets built. Left for
+whenever Phase 31 is picked up, at which point this entry's approach can be reconciled with (or
+superseded by) whatever sync design that pass settles on.
 
 This phase is especially important because Phase 31 is cloud sync.
 
@@ -2356,11 +2367,25 @@ Repairs should be explicit and logged.
 
 ---
 
-# Feature 71 — Portable Workspace
+# Feature 71 — Portable Workspace ⬜ Deferred (2026-09-02)
 
 ## Objective
 
 Allow users to place workspace data in a selectable location.
+
+**Deferred, not built.** `AppStorageOptions.RootDirectory` is resolved once, at DI-container
+build time (`ServiceCollectionExtensions.cs`'s `AddOptions<AppStorageOptions>().PostConfigure`),
+and used to construct the SQLite connection string `IDbContextFactory<DeskTodoDbContext>` is
+registered with — there is no live path to swap it at runtime without rebuilding the whole DI
+container. A responsible "Select/Move workspace" needs either (a) a small pointer file at a fixed,
+pre-configuration-system location that `AppStoragePaths.ResolveDefaultRootDirectory()` checks
+*before* the host's configuration is even loaded, plus a restart-to-apply flow, or (b) genuine
+runtime DI-container reconstruction. Both are real, load-bearing changes to how this app boots —
+get the bootstrap-time file resolution wrong and the app could fail to start at all, and this
+environment's own established practice (see Feature 46/Task Groups' live-testing notes in
+`IMPLEMENTATION.md`) is that interactive smoke-testing of exactly this kind of "does the app still
+launch correctly" concern isn't reliably possible here. Left for a pass that can be interactively
+verified against a real launch.
 
 Example:
 
@@ -2392,11 +2417,20 @@ Workspace/
 
 ---
 
-# Feature 72 — Multiple Profiles
+# Feature 72 — Multiple Profiles ⬜ Deferred (2026-09-02)
 
 ## Objective
 
 Support completely independent environments.
+
+**Deferred, not built — blocked on Feature 71.** A profile is, structurally, a named Portable
+Workspace: switching profiles means switching `AppStorageOptions.RootDirectory` to a different
+directory, which is exactly the bootstrap-time change Feature 71 above is deferred over. Building
+profile-switching on top of an unimplemented workspace-relocation primitive would mean guessing at
+that primitive's shape twice; and this feature's own "must not accidentally expose data from
+another profile" requirement raises the stakes on getting the switch mechanism right the first
+time (a bug here doesn't just misbehave, it leaks one profile's private data into another's UI).
+Left for the same pass that picks up Feature 71.
 
 Example:
 
@@ -2424,11 +2458,33 @@ Switching profiles must not accidentally expose data from another profile.
 
 ---
 
-# Feature 73 — Guest / Presentation Mode
+# Feature 73 — Guest / Presentation Mode ✅ Delivered, scoped to project-level (2026-09-02)
 
 ## Objective
 
 Provide a safe presentation view.
+
+**Delivered, project-scoped rather than workspace-scoped.** The spec's own flow below
+("Select Workspace/Project") ties this to Feature 71/72 (Portable Workspace/Multiple Profiles),
+both deferred this pass (see their entries above) — but "Select ... Project" doesn't need either
+of those, since `Project` already exists (Phase 25). `WidgetViewModel.EnterPresentationModeCommand`
+locks the widget's already-selected project filter in place and hides the entire search/filter bar
+(search box, Category/Project/Tag/Status/Sort dropdowns, Views flyout) behind a banner reading
+"Presentation Mode — showing only *Project Name*" with an Exit button — the dropdowns matter
+because, unlike the task list itself, they'd otherwise list every other project/category/tag by
+name even with no tasks visible for them, which is exactly the kind of leak this feature exists to
+prevent. Entering is a no-op with a status message if no specific project is selected (presenting
+"All Projects" would defeat the point). "Select visible fields" is satisfied by the widget's own
+existing minimalism — its row template already shows only title/priority-color/completion state,
+no Notes or financial data at all, so there was nothing further to hide there.
+
+**Deliberately not built:** workspace-level (not just project-level) presentation, blocked on
+Feature 71/72 for the same reason those are deferred; and a configurable per-field visibility
+picker (the widget's fixed row template has nothing more to toggle).
+
+**Verified:** `WidgetViewModelTests` covering the no-project-selected guard, entering with a
+project selected, and exiting leaving the project filter untouched (nothing else can change it
+while the filter bar is hidden, so there's no state to restore).
 
 Example:
 
@@ -2455,13 +2511,26 @@ Exit returns to the normal application.
 
 ---
 
-# Feature 74 — Lock Specific Workspace
+# Feature 74 — Lock Specific Workspace ⬜ Deferred (2026-09-02)
 
 ## Objective
 
 Protect sensitive workspace data.
 
 > **Note:** DeskTodo already has app-wide PIN Lock (Phase 29, PBKDF2-hashed, off by default, opt-in only — see that phase's notes on why it must never be silently required). This entry describes locking a specific workspace/profile rather than the whole app; reuse the existing `PinHasher`/lock-screen pattern rather than building a second one.
+
+**Deferred, not built — blocked on Feature 72, and largely already covered for the single
+workspace DeskTodo actually has.** There is only one workspace today (Feature 72 above is
+deferred), so "lock a *specific* workspace" has nothing to distinguish itself from the app-wide
+PIN Lock Phase 29 already shipped — that lock already covers three of this feature's five
+requirements outright: Lock manually (the Settings toggle), Lock when application starts
+(`LockScreenWindow` shown instead of the widget), and Unlock. The remaining two — **Auto-lock
+after inactivity** and **Lock on system sleep** — are exactly the items Phase 29 itself already
+deferred, and for the same reason that still holds: both need real OS-level signals (idle-time
+detection, sleep/resume notifications) that differ per platform and can't be exercised in this
+Linux sandbox, the same class of limitation already on record for this session's
+`MacGlobalHotkeyServiceTests` failures. Nothing new to defer here beyond what Phase 29 already
+recorded — this entry is folded into that decision rather than duplicating it.
 
 ## Requirements
 
@@ -2477,7 +2546,7 @@ Passwords should never be stored as plaintext.
 
 ---
 
-# Feature 75 — Privacy Mode
+# Feature 75 — Privacy Mode ✅ Delivered, scoped to the widget list (2026-09-02)
 
 ## Objective
 
@@ -2489,29 +2558,70 @@ Shortcut:
 Ctrl/Cmd + Shift + P
 ```
 
-Possible behavior:
+**Delivered for the widget's task list; not extended app-wide (see below).** `TogglePrivacyMode`
+joined `KeyboardShortcutDefinition.All` (default `Mod+Shift+P`, matching the shortcut above
+exactly) and is also reachable from the tray/Command Palette. `WidgetViewModel.IsPrivacyModeEnabled`
+is runtime-only — never persisted to `AppSettings` — so it's always off again the next time the
+app launches rather than silently staying on from a forgotten previous session.
+`TaskItemViewModel.DisplayTitle` (what the row's `TextBlock` actually binds to, not `Title`
+itself) renders as block characters, one per character of the real title, whenever privacy mode
+is on; the inline rename `TextBox` (bound to `EditingTitle`, a separate property) is deliberately
+unaffected, so double-clicking to rename a task still shows what's actually being typed.
 
-```text
-Project names → ▓▓▓▓▓▓▓
-Task titles → ▓▓▓▓▓▓▓▓▓
-Notes → Hidden
-```
+**Deliberately not built:** everything past the widget's own task list — Notifications, tray
+previews, Dashboard/Analytics, search suggestions, and presentation surfaces (Feature 73, itself
+delivered this same pass) all still show real content. Each of those is its own surface with its
+own call sites that would need the privacy flag threaded through independently (a notification's
+body text is built long before it reaches any widget-level state, for instance) — a genuinely
+larger, cross-cutting change than toggling one binding in one row template. The widget's own list
+is this feature's primary, highest-value surface ("quickly hide sensitive information" — the
+thing someone's actually looking at right now) and is what got built this pass.
 
-Privacy mode should also affect:
-
-- Notifications
-- Tray previews
-- Dashboard
-- Search suggestions
-- Presentation surfaces
+**Verified:** `TaskItemViewModelTests` (masked/unmasked/toggle-back) and `WidgetViewModelTests`
+(toggling propagates to every already-loaded row, and to rows loaded afterward while the flag is
+already on).
 
 ---
 
-# Feature 76 — Sensitive Data Detector
+# Feature 76 — Sensitive Data Detector ✅ Delivered (2026-09-02)
 
 ## Objective
 
 Warn users if they accidentally save secrets in task content.
+
+**Delivered.** `ISensitiveDataDetector`/`RegexSensitiveDataDetector` — exactly the interface name
+this feature's own "Architecture" section asks for, deterministic regex rules covering every
+pattern in "Potential patterns" below (AWS/Google/GitHub/Slack/Stripe key formats, JWTs, PEM
+private key blocks, and a generic password/secret/api-key/access-token keyword-plus-value
+heuristic that also catches connection strings, since `Password=...` inside one matches that same
+pattern). Entirely local pattern matching — nothing is or could be transmitted anywhere to perform
+detection, satisfying this feature's own explicit requirement trivially.
+
+**Wired into the Task Editor's save flow.** `TaskEditViewModel.SaveAsync` scans Title/Description/
+Notes before persisting; if `AppSettings.SensitiveDataWarningsEnabled` (default on) and matches are
+found, the save pauses and `SensitiveDataDetected` fires — `TaskEditWindow` shows a new
+`SensitiveDataWarningWindow` with each match's field/pattern/matched-text, a "Don't warn me again"
+checkbox, and **Remove**/**Keep Anyway**/**Cancel** buttons (the spec's three-choice UX below,
+Cancel added as the safe default for "closed without choosing," matching every other confirmation
+dialog in this app). Remove splices each flagged span out of whichever field it was found in
+(working backwards by index so earlier matches stay valid as later ones are removed) and re-saves;
+Keep Anyway re-saves the text unchanged; "Don't warn me again" persists
+`SensitiveDataWarningsEnabled = false` globally — global rather than per-task, since task content
+is different every time, so there is nothing stable to key a per-task suppression on.
+
+**Deliberately not built:** a rules-editing UI ("Rules can be updated independently" is satisfied
+at the code level — swapping `RegexSensitiveDataDetector` for another `ISensitiveDataDetector`
+implementation needs no ViewModel changes — but no in-app UI to add/edit patterns without a code
+change); and extending the same check to Meeting Mode's notes or the Quick Add bar — the Task
+Editor's Title/Description/Notes are this app's primary place credentials would end up pasted, and
+were the pass's priority.
+
+**Verified:** `RegexSensitiveDataDetectorTests` (one case per pattern, a false-positive check
+against ordinary task text, and an index/length round-trip proving a match can be spliced out
+precisely) plus `TaskEditViewModelTests` covering the full pause-detect-resolve flow: no dialog
+when clean, pause-and-raise when flagged, the settings-disabled bypass, and all three prompt
+outcomes (cancel never saves, keep-anyway saves unchanged, remove splices the flagged text out
+before saving).
 
 Potential patterns:
 

@@ -1,6 +1,7 @@
 using DeskTodo.App.ViewModels;
 using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Services;
+using DeskTodo.Application.Settings;
 using DeskTodo.Domain.Entities;
 using DeskTodo.Domain.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -20,6 +21,8 @@ public class TaskEditViewModelTests
     private readonly Mock<IAttachmentService> _attachmentService = new();
     private readonly Mock<IMilestoneService> _milestoneService = new();
     private readonly Mock<IProjectService> _projectService = new();
+    private readonly Mock<ISensitiveDataDetector> _sensitiveDataDetector = new();
+    private readonly Mock<ISettingsService> _settingsService = new();
     private readonly TaskEditViewModel _sut;
 
     public TaskEditViewModelTests()
@@ -30,6 +33,8 @@ public class TaskEditViewModelTests
         _attachmentService.Setup(s => s.GetAttachmentsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Attachment>());
         _milestoneService.Setup(s => s.GetMilestonesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Milestone>());
         _projectService.Setup(s => s.GetProjectsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Project>());
+        _sensitiveDataDetector.Setup(d => d.Detect(It.IsAny<string>())).Returns(Array.Empty<SensitiveDataMatch>());
+        _settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
         _sut = new TaskEditViewModel(
             _taskService.Object,
             _categoryRepository.Object,
@@ -41,6 +46,8 @@ public class TaskEditViewModelTests
             _attachmentService.Object,
             _milestoneService.Object,
             _projectService.Object,
+            _sensitiveDataDetector.Object,
+            _settingsService.Object,
             NullLogger<TaskEditViewModel>.Instance,
             NullLogger<ChecklistItemRowViewModel>.Instance);
     }
@@ -459,5 +466,112 @@ public class TaskEditViewModelTests
         _sut.StartTimerCommand.Execute(null);
 
         Assert.True(raised);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WithNoSensitiveData_SavesDirectly_WithoutRaisingTheWarning()
+    {
+        var task = MakeTask();
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        await _sut.LoadAsync(task.Id);
+        var raised = false;
+        _sut.SensitiveDataDetected += (_, _) => raised = true;
+
+        await _sut.SaveCommand.ExecuteAsync(null);
+
+        Assert.False(raised);
+        _taskService.Verify(s => s.UpdateTaskAsync(It.IsAny<TaskItem>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WithSensitiveData_PausesTheSave_AndRaisesSensitiveDataDetected()
+    {
+        var task = MakeTask();
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        await _sut.LoadAsync(task.Id);
+        _sut.Notes = "password: hunter22";
+        _sensitiveDataDetector.Setup(d => d.Detect("password: hunter22"))
+            .Returns([new SensitiveDataMatch("Password/Secret", "password: hunter22", 0, 18)]);
+        IReadOnlyList<TaskFieldSensitiveMatch>? raisedMatches = null;
+        _sut.SensitiveDataDetected += (_, matches) => raisedMatches = matches;
+
+        await _sut.SaveCommand.ExecuteAsync(null);
+
+        Assert.NotNull(raisedMatches);
+        Assert.Single(raisedMatches);
+        Assert.Equal("Notes", raisedMatches![0].FieldName);
+        _taskService.Verify(s => s.UpdateTaskAsync(It.IsAny<TaskItem>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenWarningsAreDisabledInSettings_SkipsTheCheckEntirely()
+    {
+        var task = MakeTask();
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        await _sut.LoadAsync(task.Id);
+        _sut.Notes = "password: hunter22";
+        _settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings { SensitiveDataWarningsEnabled = false });
+        _sensitiveDataDetector.Setup(d => d.Detect(It.IsAny<string>())).Returns([new SensitiveDataMatch("Password/Secret", "x", 0, 1)]);
+        var raised = false;
+        _sut.SensitiveDataDetected += (_, _) => raised = true;
+
+        await _sut.SaveCommand.ExecuteAsync(null);
+
+        Assert.False(raised);
+        _taskService.Verify(s => s.UpdateTaskAsync(It.IsAny<TaskItem>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ResolveSensitiveDataPromptAsync_WhenCancelled_NeverSaves()
+    {
+        var task = MakeTask();
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        await _sut.LoadAsync(task.Id);
+
+        await _sut.ResolveSensitiveDataPromptAsync(SensitiveDataPromptResult.Cancelled);
+
+        _taskService.Verify(s => s.UpdateTaskAsync(It.IsAny<TaskItem>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ResolveSensitiveDataPromptAsync_KeepAnyway_SavesTheOriginalTextUnchanged()
+    {
+        var task = MakeTask();
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        await _sut.LoadAsync(task.Id);
+        _sut.Notes = "password: hunter22";
+
+        await _sut.ResolveSensitiveDataPromptAsync(new SensitiveDataPromptResult(ShouldSave: true, RemoveFlagged: false, DontWarnAgain: false));
+
+        _taskService.Verify(s => s.UpdateTaskAsync(It.Is<TaskItem>(t => t.Notes == "password: hunter22"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ResolveSensitiveDataPromptAsync_Remove_SplicesTheFlaggedTextOutBeforeSaving()
+    {
+        var task = MakeTask();
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        await _sut.LoadAsync(task.Id);
+        _sut.Notes = "before password: hunter22 after";
+        _sensitiveDataDetector.Setup(d => d.Detect("before password: hunter22 after"))
+            .Returns([new SensitiveDataMatch("Password/Secret", "password: hunter22", 7, 18)]);
+        await _sut.SaveCommand.ExecuteAsync(null);
+
+        await _sut.ResolveSensitiveDataPromptAsync(new SensitiveDataPromptResult(ShouldSave: true, RemoveFlagged: true, DontWarnAgain: false));
+
+        Assert.Equal("before  after", _sut.Notes);
+        _taskService.Verify(s => s.UpdateTaskAsync(It.Is<TaskItem>(t => t.Notes == "before  after"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ResolveSensitiveDataPromptAsync_DontWarnAgain_PersistsTheSetting()
+    {
+        var task = MakeTask();
+        _taskService.Setup(s => s.GetTaskAsync(task.Id, It.IsAny<CancellationToken>())).ReturnsAsync(task);
+        await _sut.LoadAsync(task.Id);
+
+        await _sut.ResolveSensitiveDataPromptAsync(new SensitiveDataPromptResult(ShouldSave: true, RemoveFlagged: false, DontWarnAgain: true));
+
+        _settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => !a.SensitiveDataWarningsEnabled), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

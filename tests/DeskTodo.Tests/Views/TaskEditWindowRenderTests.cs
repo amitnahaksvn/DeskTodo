@@ -4,6 +4,7 @@ using DeskTodo.App.ViewModels;
 using DeskTodo.App.Views;
 using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Services;
+using DeskTodo.Application.Settings;
 using DeskTodo.Domain.Entities;
 using DeskTodo.Domain.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -48,6 +49,10 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
             milestoneService.Setup(s => s.GetMilestonesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Milestone>());
             var projectService = new Mock<IProjectService>();
             projectService.Setup(s => s.GetProjectsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Project>());
+            var sensitiveDataDetector = new Mock<ISensitiveDataDetector>();
+            sensitiveDataDetector.Setup(d => d.Detect(It.IsAny<string>())).Returns(Array.Empty<SensitiveDataMatch>());
+            var settingsService = new Mock<ISettingsService>();
+            settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
             var viewModel = new TaskEditViewModel(
                 taskService,
                 categoryRepository.Object,
@@ -59,6 +64,8 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
                 attachmentService.Object,
                 milestoneService.Object,
                 projectService.Object,
+                sensitiveDataDetector.Object,
+                settingsService.Object,
                 NullLogger<TaskEditViewModel>.Instance,
                 NullLogger<ChecklistItemRowViewModel>.Instance);
 
@@ -114,6 +121,10 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
             milestoneService.Setup(s => s.GetMilestonesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Milestone>());
             var projectService = new Mock<IProjectService>();
             projectService.Setup(s => s.GetProjectsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Project>());
+            var sensitiveDataDetector = new Mock<ISensitiveDataDetector>();
+            sensitiveDataDetector.Setup(d => d.Detect(It.IsAny<string>())).Returns(Array.Empty<SensitiveDataMatch>());
+            var settingsService = new Mock<ISettingsService>();
+            settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
             var viewModel = new TaskEditViewModel(
                 taskService,
                 categoryRepository.Object,
@@ -125,6 +136,8 @@ public class TaskEditWindowRenderTests(HeadlessSessionFixture fixture)
                 attachmentService.Object,
                 milestoneService.Object,
                 projectService.Object,
+                sensitiveDataDetector.Object,
+                settingsService.Object,
                 NullLogger<TaskEditViewModel>.Instance,
                 NullLogger<ChecklistItemRowViewModel>.Instance);
             await viewModel.LoadAsync(task.Id);

@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="320"
+        x:Class="DeskTodo.App.Views.SensitiveDataWarningWindow"
+        Title="Potential secret detected"
+        Width="420" Height="320"
+        MinWidth="380" MinHeight="260"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="Height"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 76 — warns before saving text that looks like a credential. -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Potential secret detected" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+        <TextBlock Grid.Row="1" Text="This task's text appears to contain a credential. Everything below was found only on this device — nothing was sent anywhere to check."
+                   FontSize="12" Foreground="{DynamicResource DialogBodyTextBrush}" TextWrapping="Wrap" Margin="0,8,0,10" />
+
+        <ScrollViewer Grid.Row="2" MaxHeight="130">
+            <ItemsControl x:Name="MatchesItemsControl">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding}" FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <CheckBox Grid.Row="3" x:Name="DontWarnAgainCheckBox" Content="Don't warn me again" FontSize="12" Margin="0,10,0,0" />
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+            <Button Content="Cancel" Click="OnCancelClick" Padding="14,8" />
+            <Button Content="Keep Anyway" Click="OnKeepAnywayClick" Padding="14,8" />
+            <Button Content="Remove" Click="OnRemoveClick" Padding="14,8"
+                    Background="{DynamicResource DangerBackgroundBrush}" Foreground="{DynamicResource DangerTextBrush}" />
+        </StackPanel>
+    </Grid>
+
+</Window>

@@ -27,6 +27,7 @@ public partial class TaskEditWindow : Window
             viewModel.HistoryRequested += OnHistoryRequested;
             viewModel.VersionsRequested += OnVersionsRequested;
             viewModel.RelationshipsGraphRequested += OnRelationshipsGraphRequested;
+            viewModel.SensitiveDataDetected += OnSensitiveDataDetected;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             RefreshNotesPreview(viewModel);
         }
@@ -41,6 +42,7 @@ public partial class TaskEditWindow : Window
             viewModel.HistoryRequested -= OnHistoryRequested;
             viewModel.VersionsRequested -= OnVersionsRequested;
             viewModel.RelationshipsGraphRequested -= OnRelationshipsGraphRequested;
+            viewModel.SensitiveDataDetected -= OnSensitiveDataDetected;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -100,6 +102,18 @@ public partial class TaskEditWindow : Window
         var graphWindow = new TaskGraphWindow { DataContext = graphViewModel };
         await graphViewModel.LoadAsync(viewModel.TaskId);
         await graphWindow.ShowDialog(this);
+    }
+
+    /// <summary>Feature 76, Roadmap-39-100.md — <see cref="TaskEditViewModel.SaveAsync"/> paused the save when it found credential-shaped text; this shows the warning and reports the user's choice back so the ViewModel can finish (or abandon) the save.</summary>
+    private async void OnSensitiveDataDetected(object? sender, IReadOnlyList<TaskFieldSensitiveMatch> matches)
+    {
+        if (DataContext is not TaskEditViewModel viewModel)
+        {
+            return;
+        }
+
+        var result = await SensitiveDataWarningWindow.ShowAsync(this, matches);
+        await viewModel.ResolveSensitiveDataPromptAsync(result);
     }
 
     private void OnNewChecklistItemKeyDown(object? sender, KeyEventArgs e)

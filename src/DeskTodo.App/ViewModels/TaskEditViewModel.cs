@@ -40,9 +40,12 @@ public sealed partial class TaskEditViewModel : ViewModelBase
     private readonly IAttachmentService _attachmentService;
     private readonly IMilestoneService _milestoneService;
     private readonly IProjectService _projectService;
+    private readonly ISensitiveDataDetector _sensitiveDataDetector;
+    private readonly ISettingsService _settingsService;
     private readonly ILogger<TaskEditViewModel> _logger;
     private readonly ILogger<ChecklistItemRowViewModel> _checklistItemLogger;
     private Guid _taskId;
+    private bool _skipSensitiveDataCheckOnce;
 
     public TaskEditViewModel(
         ITaskService taskService,
@@ -55,6 +58,8 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         IAttachmentService attachmentService,
         IMilestoneService milestoneService,
         IProjectService projectService,
+        ISensitiveDataDetector sensitiveDataDetector,
+        ISettingsService settingsService,
         ILogger<TaskEditViewModel> logger,
         ILogger<ChecklistItemRowViewModel> checklistItemLogger)
     {
@@ -68,6 +73,8 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         _attachmentService = attachmentService;
         _milestoneService = milestoneService;
         _projectService = projectService;
+        _sensitiveDataDetector = sensitiveDataDetector;
+        _settingsService = settingsService;
         _logger = logger;
         _checklistItemLogger = checklistItemLogger;
     }
@@ -526,6 +533,72 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         }
     }
 
+    /// <summary>Raised when <see cref="SaveAsync"/> finds credential-shaped text and pauses the save to ask the user what to do — <c>TaskEditWindow</c> shows the dialog and reports back via <see cref="ResolveSensitiveDataPromptAsync"/>, the same "ViewModel shouldn't own a Window" split as every other cross-window flow in this app.</summary>
+    public event EventHandler<IReadOnlyList<TaskFieldSensitiveMatch>>? SensitiveDataDetected;
+
+    private IReadOnlyList<TaskFieldSensitiveMatch> _pendingSensitiveDataMatches = [];
+
+    private IReadOnlyList<TaskFieldSensitiveMatch> FindSensitiveDataMatches()
+    {
+        var matches = new List<TaskFieldSensitiveMatch>();
+        matches.AddRange(_sensitiveDataDetector.Detect(Title).Select(m => new TaskFieldSensitiveMatch("Title", m)));
+        matches.AddRange(_sensitiveDataDetector.Detect(Description).Select(m => new TaskFieldSensitiveMatch("Description", m)));
+        matches.AddRange(_sensitiveDataDetector.Detect(Notes).Select(m => new TaskFieldSensitiveMatch("Notes", m)));
+        return matches;
+    }
+
+    /// <summary>Splices every flagged span out of whichever field(s) it was found in — working from the end of each field backwards so earlier matches' indices stay valid as later ones are removed.</summary>
+    private void RemoveFlaggedSensitiveData()
+    {
+        Title = RemoveMatches(Title, "Title");
+        Description = RemoveMatches(Description, "Description");
+        Notes = RemoveMatches(Notes, "Notes");
+
+        string RemoveMatches(string text, string fieldName)
+        {
+            foreach (var flagged in _pendingSensitiveDataMatches.Where(f => f.FieldName == fieldName).OrderByDescending(f => f.Match.Index))
+            {
+                if (flagged.Match.Index >= 0 && flagged.Match.Index + flagged.Match.Length <= text.Length)
+                {
+                    text = text.Remove(flagged.Match.Index, flagged.Match.Length);
+                }
+            }
+
+            return text;
+        }
+    }
+
+    /// <summary>Called by <c>TaskEditWindow</c> once the user answers the sensitive-data warning dialog.</summary>
+    public async Task ResolveSensitiveDataPromptAsync(SensitiveDataPromptResult result)
+    {
+        if (!result.ShouldSave)
+        {
+            return;
+        }
+
+        if (result.DontWarnAgain)
+        {
+            try
+            {
+                var settings = await _settingsService.LoadAsync();
+                settings.SensitiveDataWarningsEnabled = false;
+                await _settingsService.SaveAsync(settings);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to persist 'don't warn again' for the sensitive data detector");
+            }
+        }
+
+        if (result.RemoveFlagged)
+        {
+            RemoveFlaggedSensitiveData();
+        }
+
+        _skipSensitiveDataCheckOnce = true;
+        await SaveAsync();
+    }
+
     [RelayCommand]
     private async Task SaveAsync()
     {
@@ -534,6 +607,32 @@ public sealed partial class TaskEditViewModel : ViewModelBase
         {
             return;
         }
+
+        if (!_skipSensitiveDataCheckOnce)
+        {
+            try
+            {
+                var settings = await _settingsService.LoadAsync();
+                if (settings.SensitiveDataWarningsEnabled)
+                {
+                    var matches = FindSensitiveDataMatches();
+                    if (matches.Count > 0)
+                    {
+                        _pendingSensitiveDataMatches = matches;
+                        SensitiveDataDetected?.Invoke(this, matches);
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fail open: a detector/settings-load error shouldn't block the user from saving
+                // their own work.
+                _logger.LogError(ex, "Sensitive data check failed before saving task {TaskId}; saving anyway", _taskId);
+            }
+        }
+
+        _skipSensitiveDataCheckOnce = false;
 
         try
         {

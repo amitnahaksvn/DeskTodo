@@ -452,6 +452,7 @@ public partial class WidgetWindow : Window
             ["Settings"] = viewModel.OpenSettingsCommand,
             ["Undo"] = viewModel.UndoCommand,
             ["Redo"] = viewModel.RedoCommand,
+            ["TogglePrivacyMode"] = viewModel.TogglePrivacyModeCommand,
         };
 
         var overrides = App.Services is { } services
@@ -762,6 +763,9 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("Focus Contexts", viewModel.OpenContextsCommand),
             new CommandPaletteEntry("Keyboard Shortcuts", viewModel.OpenKeyboardShortcutsCommand),
             new CommandPaletteEntry("Meeting Mode", viewModel.OpenMeetingModeCommand),
+            new CommandPaletteEntry("Toggle Privacy Mode", viewModel.TogglePrivacyModeCommand),
+            new CommandPaletteEntry("Enter Presentation Mode", viewModel.EnterPresentationModeCommand),
+            new CommandPaletteEntry("Exit Presentation Mode", viewModel.ExitPresentationModeCommand),
         ]);
 
         var paletteWindow = new CommandPaletteWindow { DataContext = paletteViewModel };

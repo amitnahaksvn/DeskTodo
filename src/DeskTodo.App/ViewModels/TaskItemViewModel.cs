@@ -134,6 +134,17 @@ public sealed partial class TaskItemViewModel : ViewModelBase
     [ObservableProperty]
     public partial string Title { get; set; }
 
+    /// <summary>Feature 75 (Roadmap-39-100.md) — set by <see cref="WidgetViewModel.TogglePrivacyModeCommand"/> on every row, not persisted on this row itself.</summary>
+    [ObservableProperty]
+    public partial bool IsPrivacyModeEnabled { get; set; }
+
+    /// <summary>What the row's title <c>TextBlock</c> actually binds to — <see cref="Title"/> masked with block characters while Privacy Mode is on. <see cref="EditingTitle"/> (the rename textbox) is unaffected — masking only the read display, never what's actually being typed.</summary>
+    public string DisplayTitle => IsPrivacyModeEnabled ? new string('▓', Math.Clamp(Title.Length, 3, 24)) : Title;
+
+    partial void OnTitleChanged(string value) => OnPropertyChanged(nameof(DisplayTitle));
+
+    partial void OnIsPrivacyModeEnabledChanged(bool value) => OnPropertyChanged(nameof(DisplayTitle));
+
     [ObservableProperty]
     public partial bool IsCompleted { get; set; }
 

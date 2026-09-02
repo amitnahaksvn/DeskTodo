@@ -46,6 +46,46 @@ public class TaskItemViewModelTests
     }
 
     [Fact]
+    public void DisplayTitle_WithPrivacyModeOff_IsThePlainTitle()
+    {
+        var taskRepository = new Mock<ITaskRepository>();
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>(), Mock.Of<ITaskVersionRepository>());
+        var sut = new TaskItemViewModel(CreateTask(completed: false), taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { }, Mock.Of<IUndoRedoService>());
+
+        Assert.Equal("Morning Exercise", sut.DisplayTitle);
+    }
+
+    [Fact]
+    public void DisplayTitle_WithPrivacyModeOn_IsMasked()
+    {
+        var taskRepository = new Mock<ITaskRepository>();
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>(), Mock.Of<ITaskVersionRepository>());
+        var sut = new TaskItemViewModel(CreateTask(completed: false), taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { }, Mock.Of<IUndoRedoService>())
+        {
+            IsPrivacyModeEnabled = true,
+        };
+
+        Assert.Equal("Morning Exercise".Length, sut.DisplayTitle.Length);
+        Assert.DoesNotContain("Morning", sut.DisplayTitle);
+        Assert.All(sut.DisplayTitle, c => Assert.Equal('▓', c));
+    }
+
+    [Fact]
+    public void DisplayTitle_TogglingPrivacyModeOff_RestoresThePlainTitle()
+    {
+        var taskRepository = new Mock<ITaskRepository>();
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>(), Mock.Of<ITaskVersionRepository>());
+        var sut = new TaskItemViewModel(CreateTask(completed: false), taskService, NullLogger<TaskItemViewModel>.Instance, () => { }, _ => { }, Mock.Of<IUndoRedoService>())
+        {
+            IsPrivacyModeEnabled = true,
+        };
+
+        sut.IsPrivacyModeEnabled = false;
+
+        Assert.Equal("Morning Exercise", sut.DisplayTitle);
+    }
+
+    [Fact]
     public async Task ToggleCompleteCommand_OnIncompleteTask_CompletesIt()
     {
         var task = CreateTask(completed: false);
