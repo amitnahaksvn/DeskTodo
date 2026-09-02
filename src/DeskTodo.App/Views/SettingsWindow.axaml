@@ -191,6 +191,30 @@
                 </StackPanel>
             </StackPanel>
 
+            <!-- Feature 97 (Roadmap-39-100.md) — bound to 127.0.0.1 only; takes effect on the next restart. -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Local REST API" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Text="Let local tools read/write tasks over HTTP" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="Bound to 127.0.0.1 only, never exposed beyond this machine. Takes effect after restarting DeskTodo."
+                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding LocalApiEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                </Grid>
+                <StackPanel Spacing="6" IsVisible="{Binding LocalApiEnabled}" Margin="0,4,0,0">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="Port" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                        <NumericUpDown Grid.Column="1" Value="{Binding LocalApiPort}" Minimum="1024" Maximum="65535" Width="140" />
+                    </Grid>
+                    <TextBlock Text="Bearer token" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding LocalApiToken}" IsReadOnly="True" FontFamily="monospace" FontSize="11" />
+                        <Button Grid.Column="1" Content="Regenerate" Command="{Binding RegenerateLocalApiTokenCommand}" Margin="6,0,0,0" />
+                    </Grid>
+                </StackPanel>
+            </StackPanel>
+
             <StackPanel Spacing="6">
                 <TextBlock Text="Data" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                 <Button Content="Import / Export tasks…" Click="OnImportExportClick" HorizontalAlignment="Left" />

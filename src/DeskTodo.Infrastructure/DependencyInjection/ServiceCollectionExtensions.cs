@@ -3,6 +3,7 @@ using DeskTodo.Application.Events;
 using DeskTodo.Application.Options;
 using DeskTodo.Application.Services;
 using DeskTodo.Application.Updates;
+using DeskTodo.Infrastructure.Api;
 using DeskTodo.Infrastructure.Data;
 using DeskTodo.Infrastructure.ImportExport;
 using DeskTodo.Infrastructure.Repositories;
@@ -116,6 +117,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IWebhookDeliveryClient, WebhookDeliveryClient>();
         services.AddScoped<IWebhookService, WebhookService>();
         services.AddSingleton<IWebhookDispatcher, WebhookDispatcher>();
+        services.AddScoped<ILocalApiRequestHandler, LocalApiRequestHandler>();
+        services.AddHostedService<LocalApiServer>();
 
         return services;
     }

@@ -711,4 +711,78 @@ public class SettingsViewModelTests
 
         settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.Theme == "Dark"), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task LoadAsync_PopulatesLocalApiFields()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AppSettings { LocalApiEnabled = true, LocalApiPort = 9999, LocalApiToken = "existing-token" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+
+        await sut.LoadAsync();
+
+        Assert.True(sut.LocalApiEnabled);
+        Assert.Equal(9999, sut.LocalApiPort);
+        Assert.Equal("existing-token", sut.LocalApiToken);
+    }
+
+    [Fact]
+    public async Task SaveAsync_TogglingLocalApiOn_WithNoExistingToken_GeneratesOne()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.LocalApiEnabled = true;
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        Assert.False(string.IsNullOrEmpty(sut.LocalApiToken));
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.LocalApiEnabled && !string.IsNullOrEmpty(a.LocalApiToken)), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveAsync_TogglingLocalApiOn_WithAnExistingToken_KeepsIt()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AppSettings { LocalApiToken = "keep-me" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.LocalApiEnabled = true;
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.LocalApiToken == "keep-me"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegenerateLocalApiTokenCommand_ReplacesTheToken()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AppSettings { LocalApiToken = "old-token" });
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+
+        sut.RegenerateLocalApiTokenCommand.Execute(null);
+
+        Assert.NotEqual("old-token", sut.LocalApiToken);
+        Assert.False(string.IsNullOrEmpty(sut.LocalApiToken));
+    }
+
+    [Fact]
+    public async Task SaveAsync_PersistsTheChosenPort()
+    {
+        var settingsService = new Mock<ISettingsService>();
+        settingsService.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new AppSettings());
+        var sut = new SettingsViewModel(settingsService.Object, CreateAutoStartService(), CreateStubUpdateCheckService(), NullLogger<SettingsViewModel>.Instance);
+        await sut.LoadAsync();
+        sut.LocalApiPort = 12345;
+
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        settingsService.Verify(s => s.SaveAsync(It.Is<AppSettings>(a => a.LocalApiPort == 12345), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

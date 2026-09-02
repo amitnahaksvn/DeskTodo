@@ -3644,11 +3644,58 @@ Support signing webhook payloads.
 
 ---
 
-# Feature 97 — Local REST API
+# Feature 97 — Local REST API ✅ Delivered, scoped to Tasks/Projects (2026-09-02)
 
 ## Objective
 
 Allow external applications to interact with the desktop app.
+
+**Delivered via a plain `System.Net.HttpListener`, not embedded ASP.NET Core/Kestrel.** This is a
+small, low-traffic local API for a desktop app — the BCL's own HTTP server needs no new package
+dependency, no `FrameworkReference`, and no separate DI container to bridge into. `LocalApiServer`
+is a `BackgroundService` registered exactly like everything else in this app's existing generic
+`IHost` (`Program.cs` already calls `host.Start()`/`host.StopAsync()`, which now start/stop this
+too, with no changes to that startup code needed), resolving `ITaskService`/`IProjectService`
+through one `IServiceScope` per request — the same "create a scope, don't capture scoped
+dependencies directly" pattern `WebhookDispatcher` (Feature 96) already established for a
+singleton needing scoped services.
+
+**Security, matching this feature's own spec exactly:**
+- **Bind to localhost by default** — enforced structurally, not just by a default setting: the
+  listener prefix is always `http://127.0.0.1:{port}/`; there is no configuration path in this
+  pass that can widen it to `0.0.0.0` or a hostname.
+- **Require authentication / Use API tokens** — every request needs `Authorization: Bearer <token>`,
+  checked with a constant-time comparison (`LocalApiAuthenticator`, same reasoning as `PinHasher`'s
+  PIN check, Phase 29).
+- **Version endpoints** — the `/api/v1/` prefix.
+- Off by default (`AppSettings.LocalApiEnabled`, opt-in) — same "never silently required" posture
+  as Phase 29's PIN Lock, since this opens a network listener even though it's localhost-only.
+  Settings gained a "Local REST API" section: enable toggle, port, and the bearer token (shown for
+  copy, with a Regenerate button) — auto-generated the first time the toggle is turned on with none
+  set yet. **Takes effect on the next app restart** — the listener starts once at app startup and
+  isn't re-evaluated live while running; this is a real, documented limitation, not an oversight.
+
+**Endpoints implemented:** `GET/POST /api/v1/tasks`, `GET/PUT/DELETE /api/v1/tasks/{id}`,
+`GET/POST /api/v1/projects` — the "Example endpoints" list's core set. `GET /api/v1/tasks`
+supports an optional `?date=YYYY-MM-DD` filter. `DELETE` calls the same soft-delete
+`ITaskService.DeleteTaskAsync` every other delete path in this app uses — a deleted task is still
+fetchable by `GET /tasks/{id}` afterward (recoverable via Trash, Feature 46), matching the rest of
+the app's convention rather than special-casing "gone" semantics just for this API.
+
+**Deliberately not built:** the "Additional APIs" (`/search`, `/views`, `/goals`, `/milestones`,
+`/tags`, `/events`) — Tasks and Projects prove the pattern; extending it to the rest is
+straightforward, additive follow-up, not attempted in the same pass as the pattern itself.
+Permission scopes (the token is all-or-nothing, no read-only vs. read-write distinction) and a
+live settings-reload path (see "takes effect on next restart" above) are the other two named
+scope cuts.
+
+**Verified:** `LocalApiAuthenticatorTests` (pure token-comparison logic) and
+`LocalApiRequestHandlerTests` (routing/validation against mocked `ITaskService`/`IProjectService`,
+no real sockets) cover every route and edge case quickly; `LocalApiServerTests` is a small,
+genuine end-to-end round trip — a real `HttpListener` bound to a real localhost port, a real
+`HttpClient`, and real `TaskService`/`ProjectService` backed by a real SQLite database — proving
+auth, routing, and persistence all actually work together, not just each in isolation. Plus
+`SettingsViewModelTests` for the enable/port/token load-save-regenerate flow.
 
 ## Example endpoints
 

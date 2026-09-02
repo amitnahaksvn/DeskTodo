@@ -102,6 +102,17 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial string PinErrorMessage { get; set; } = string.Empty;
 
+    /// <summary>See <see cref="AppSettings.LocalApiEnabled"/>. Takes effect on the next app restart — the listener is started once, at app startup, not re-evaluated live while running.</summary>
+    [ObservableProperty]
+    public partial bool LocalApiEnabled { get; set; }
+
+    [ObservableProperty]
+    public partial int LocalApiPort { get; set; } = 47291;
+
+    /// <summary>Shown for copy-to-clipboard; regenerated (not editable by hand) via <see cref="RegenerateLocalApiTokenCommand"/>. Auto-generated on first save if <see cref="LocalApiEnabled"/> is turned on with none set yet.</summary>
+    [ObservableProperty]
+    public partial string? LocalApiToken { get; set; }
+
     /// <summary>Phase 30's Auto-update system, scoped to an on-demand check — see <see cref="IUpdateCheckService"/>'s doc comment. The running assembly's version, read once at load, not a network call.</summary>
     [ObservableProperty]
     public partial string AppVersion { get; set; } = string.Empty;
@@ -193,6 +204,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
         NewPin = string.Empty;
         ConfirmPin = string.Empty;
         PinErrorMessage = string.Empty;
+        LocalApiEnabled = _loaded.LocalApiEnabled;
+        LocalApiPort = _loaded.LocalApiPort;
+        LocalApiToken = _loaded.LocalApiToken;
         AppVersion = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "1.0.0.0";
         UpdateStatusMessage = string.Empty;
         AvailableUpdateUrl = null;
@@ -266,6 +280,12 @@ public sealed partial class SettingsViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void RegenerateLocalApiToken() => LocalApiToken = GenerateLocalApiToken();
+
+    private static string GenerateLocalApiToken() =>
+        Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+
+    [RelayCommand]
     private async Task SaveAsync()
     {
         try
@@ -274,6 +294,15 @@ public sealed partial class SettingsViewModel : ViewModelBase
             {
                 return;
             }
+
+            _loaded.LocalApiEnabled = LocalApiEnabled;
+            _loaded.LocalApiPort = LocalApiPort;
+            if (LocalApiEnabled && string.IsNullOrEmpty(LocalApiToken))
+            {
+                LocalApiToken = GenerateLocalApiToken();
+            }
+
+            _loaded.LocalApiToken = LocalApiToken;
 
             _loaded.AccentColorHex = AccentColorHex;
             _loaded.Theme = Theme;

@@ -193,4 +193,23 @@ public sealed class AppSettings
 
     /// <summary>Feature 76's Sensitive Data Detector — set to false by the warning dialog's "Don't Warn Again", global rather than per-task since task content differs every time there'd be nothing stable to key a per-task suppression on.</summary>
     public bool SensitiveDataWarningsEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Feature 97's Local REST API — opt-in, off by default (same "never silently required"
+    /// posture as Phase 29's PIN Lock), since it opens a network listener even though it's bound
+    /// to localhost only.
+    /// </summary>
+    public bool LocalApiEnabled { get; set; }
+
+    public int LocalApiPort { get; set; } = 47291;
+
+    /// <summary>
+    /// The bearer token external tools authenticate with. Stored as plain text (not hashed) —
+    /// unlike the PIN Lock's PBKDF2 hash, this token must be readable back to show/copy in
+    /// Settings, and this app's local data is already unencrypted-at-rest (Phase 29's own
+    /// documented security model), so a plaintext token alongside the plaintext SQLite database
+    /// is no weaker a link. Null until the API is enabled for the first time, at which point one
+    /// is generated.
+    /// </summary>
+    public string? LocalApiToken { get; set; }
 }
