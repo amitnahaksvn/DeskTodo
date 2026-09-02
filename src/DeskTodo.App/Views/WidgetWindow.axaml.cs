@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -8,6 +9,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DeskTodo.App.ViewModels;
+using DeskTodo.Application.Abstractions;
 using DeskTodo.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -78,10 +80,11 @@ public partial class WidgetWindow : Window
             viewModel.AchievementsRequested += OnAchievementsRequested;
             viewModel.DistractionLogRequested += OnDistractionLogRequested;
             viewModel.ContextsRequested += OnContextsRequested;
+            viewModel.KeyboardShortcutsRequested += OnKeyboardShortcutsRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
-            RegisterKeyboardShortcuts(viewModel);
+            _ = RegisterKeyboardShortcutsAsync(viewModel);
         }
 
         // The header's running-session indicator binds directly to the DI-singleton
@@ -344,6 +347,73 @@ public partial class WidgetWindow : Window
         await contextsWindow.ShowDialog(this);
     }
 
+    /// <summary>Feature 77, Roadmap-39-100.md. Re-registers keyboard shortcuts afterward, since a rebind may have just changed one.</summary>
+    private async void OnKeyboardShortcutsRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null || DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var shortcutsViewModel = App.Services.GetRequiredService<KeyboardShortcutsViewModel>();
+        var shortcutsWindow = new KeyboardShortcutsWindow { DataContext = shortcutsViewModel };
+        await shortcutsWindow.ShowDialog(this);
+
+        KeyBindings.Clear();
+        await RegisterKeyboardShortcutsAsync(viewModel);
+    }
+
+    /// <summary>Feature 83, Roadmap-39-100.md — same "sync the flyout's list on open" pattern as <c>GridWindow.OnViewsFlyoutOpened</c>.</summary>
+    private async void OnViewsFlyoutOpened(object? sender, EventArgs e)
+    {
+        if (DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var views = await viewModel.GetSavedViewsAsync();
+        SavedViewsListBox.ItemsSource = views.Select(v => v.Name).ToList();
+    }
+
+    private async void OnApplyViewClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not WidgetViewModel viewModel || SavedViewsListBox.SelectedItem is not string name)
+        {
+            return;
+        }
+
+        await viewModel.ApplyViewAsync(name);
+    }
+
+    private async void OnDeleteViewClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not WidgetViewModel viewModel || SavedViewsListBox.SelectedItem is not string name)
+        {
+            return;
+        }
+
+        await viewModel.DeleteSavedViewAsync(name);
+        var views = await viewModel.GetSavedViewsAsync();
+        SavedViewsListBox.ItemsSource = views.Select(v => v.Name).ToList();
+    }
+
+    private async void OnSaveViewClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not WidgetViewModel viewModel)
+        {
+            return;
+        }
+
+        var name = NewWidgetViewNameTextBox.Text ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        await viewModel.SaveCurrentViewAsync(name);
+        NewWidgetViewNameTextBox.Text = string.Empty;
+    }
+
     /// <summary>
     /// Phase 28's app-wide keyboard shortcuts, added programmatically rather than declared
     /// as static <c>KeyBinding</c>s in XAML — Avalonia's <c>KeyGesture</c> string parser has
@@ -351,20 +421,37 @@ public partial class WidgetWindow : Window
     /// string can't correctly mean Cmd on macOS and Ctrl on Windows/Linux at once. Choosing
     /// the modifier explicitly per-OS here is what's actually verified to press correctly on
     /// each platform, rather than assumed from an unverified gesture string.
+    ///
+    /// As of Feature 77 (Roadmap-39-100.md), each binding's combo is read from
+    /// <c>AppSettings.KeyboardShortcutOverrides</c> (falling back to
+    /// <see cref="KeyboardShortcutDefinition.All"/>'s own default) rather than hardcoded here —
+    /// this is now async (settings must load first), unlike before this feature existed.
     /// </summary>
-    private void RegisterKeyboardShortcuts(WidgetViewModel viewModel)
+    private async Task RegisterKeyboardShortcutsAsync(WidgetViewModel viewModel)
     {
         var modifier = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
 
-        KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.K, modifier), Command = viewModel.OpenCommandPaletteCommand });
-        KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.F, modifier), Command = viewModel.ToggleSearchBarCommand });
-        KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.OemComma, modifier), Command = viewModel.OpenSettingsCommand });
+        var commandsByCommandId = new Dictionary<string, ICommand>
+        {
+            ["CommandPalette"] = viewModel.OpenCommandPaletteCommand,
+            ["ToggleSearch"] = viewModel.ToggleSearchBarCommand,
+            ["Settings"] = viewModel.OpenSettingsCommand,
+            ["Undo"] = viewModel.UndoCommand,
+            ["Redo"] = viewModel.RedoCommand,
+        };
 
-        // Feature 43's Undo/Redo Engine. Redo is Cmd/Ctrl+Shift+Z everywhere (not Ctrl+Y,
-        // Windows' own convention) — a single cross-platform gesture is simpler than another
-        // OS-conditional branch, and Shift+Z is already widely recognized on Windows too.
-        KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.Z, modifier), Command = viewModel.UndoCommand });
-        KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.Z, modifier | KeyModifiers.Shift), Command = viewModel.RedoCommand });
+        var overrides = App.Services is { } services
+            ? (await services.GetRequiredService<ISettingsService>().LoadAsync()).KeyboardShortcutOverrides
+            : [];
+
+        foreach (var definition in KeyboardShortcutDefinition.All)
+        {
+            var combo = overrides.GetValueOrDefault(definition.CommandId, definition.DefaultCombo);
+            if (KeyboardShortcutDefinition.TryParseGesture(combo, modifier) is { } gesture)
+            {
+                KeyBindings.Add(new KeyBinding { Gesture = gesture, Command = commandsByCommandId[definition.CommandId] });
+            }
+        }
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -453,6 +540,7 @@ public partial class WidgetWindow : Window
             viewModel.AchievementsRequested -= OnAchievementsRequested;
             viewModel.DistractionLogRequested -= OnDistractionLogRequested;
             viewModel.ContextsRequested -= OnContextsRequested;
+            viewModel.KeyboardShortcutsRequested -= OnKeyboardShortcutsRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -657,6 +745,7 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("Achievements", viewModel.OpenAchievementsCommand),
             new CommandPaletteEntry("Distraction Log", viewModel.OpenDistractionLogCommand),
             new CommandPaletteEntry("Focus Contexts", viewModel.OpenContextsCommand),
+            new CommandPaletteEntry("Keyboard Shortcuts", viewModel.OpenKeyboardShortcutsCommand),
         ]);
 
         var paletteWindow = new CommandPaletteWindow { DataContext = paletteViewModel };

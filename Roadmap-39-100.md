@@ -2458,13 +2458,50 @@ Never transmit the content externally just to perform detection.
 
 ---
 
-# Feature 77 — Keyboard Shortcut Manager
+# Feature 77 — Keyboard Shortcut Manager ✅ Delivered (2026-09-02)
 
 ## Objective
 
 Allow users to customize application shortcuts.
 
 > **Note:** DeskTodo already registers a fixed set of shortcuts in code (Phase 28, `RegisterKeyboardShortcuts` — Cmd/Ctrl+K/F/,), specifically because Avalonia's XAML `KeyGesture` has no OS-conditional Cmd/Ctrl translation. This entry's customizable version needs to preserve that same per-OS modifier resolution while adding user-editable bindings on top.
+
+**Delivered.** `KeyboardShortcutDefinition` (new, `DeskTodo.App.ViewModels`) is the single static
+source of truth for the app's rebindable commands (Undo, Redo, Command Palette, Find/Search,
+Settings — the same set `RegisterKeyboardShortcuts` already wired in Phase 28), each with a
+`CommandId`, `DisplayName`, `Scope`, and `DefaultCombo` string (e.g. `"Mod+Z"`). `TryParseGesture`
+resolves a combo against the caller-supplied platform modifier (`KeyModifiers.Meta` on macOS,
+`Control` elsewhere — same resolution `WidgetWindow.axaml.cs` already used for the fixed set),
+and `TryFormatCombo` is its inverse for turning a captured keypress back into a storable combo
+string, refusing one that isn't built on the platform modifier at all. `AppSettings.KeyboardShortcutOverrides`
+(`Dictionary<string,string>`, `CommandId` → combo) persists only the deltas from default, so a
+user who never touches shortcuts stores nothing extra.
+
+**What shipped:**
+- `KeyboardShortcutsViewModel` — loads every definition alongside its effective combo (override or
+  default), flags conflicts (two commands resolving to the same combo), and supports per-shortcut
+  rebind/reset plus export/import of the whole override set as JSON (`JavaScriptEncoder.UnsafeRelaxedJsonEscaping`
+  — the default encoder unicode-escapes `+`, which is illegible in a combo string meant to be
+  read and pasted back).
+- `KeyboardShortcutsWindow` — reachable from the tray menu and Command Palette; a row's "Edit"
+  button puts the window in "press a key" capture mode, `KeyDown` on the window forwards the
+  captured gesture back to the ViewModel.
+- `WidgetWindow.axaml.cs`'s shortcut registration became `RegisterKeyboardShortcutsAsync`, reading
+  `AppSettings.KeyboardShortcutOverrides` and resolving each definition through `TryParseGesture`
+  instead of hardcoding `KeyGesture`s; re-runs (clearing and re-registering `KeyBindings`) whenever
+  the Keyboard Shortcuts window closes, so a rebind takes effect immediately without an app restart.
+
+**Deliberately not built:** per-scope shortcuts (Task Editor/Calendar/Grid scopes beyond
+`Global`/`Application`) — the fixed set this app already had was all global `KeyBindings` on the
+one widget window, so there was no existing per-scope wiring to generalize; and a
+visual "press ESC to cancel" affordance beyond the window's existing Cancel button.
+
+**Verified:** `KeyboardShortcutDefinitionTests` (parse/format round-trips, platform-modifier
+enforcement, no duplicate `CommandId`s, every default combo parses) and
+`KeyboardShortcutsViewModelTests` (load/conflict-detection/rebind/reset/export/import, including
+the malformed-JSON-import path) — both fully offline, no mocks needed beyond `ISettingsService`.
+742/744 tests passing (the 2 failures are the pre-existing macOS-only Carbon API tests, unrelated
+to this feature), zero-warning build.
 
 ## Model
 
@@ -2498,11 +2535,21 @@ Grid
 
 ---
 
-# Feature 78 — Mouse Gesture Manager
+# Feature 78 — Mouse Gesture Manager ⬜ Deferred (2026-09-02)
 
 ## Objective
 
 Allow configurable mouse gestures.
+
+**Deferred, not built.** Unlike keyboard shortcuts, gesture capture needs a low-level global mouse
+hook per OS (Win32 hook, macOS `CGEventTap`/Carbon, X11/Wayland on Linux) — a genuinely new
+cross-platform input subsystem, not an incremental extension of anything DeskTodo already has (the
+existing `MacGlobalHotkeyService`, itself macOS-only and already the source of this repo's one
+pre-existing test flakiness, shows how much per-OS surface even *keyboard* global capture already
+costs). Building it well enough to be safe (avoiding false-positive gesture recognition while a
+user is doing ordinary right-click-drag work) is a project of its own scope, not a same-pass
+addition alongside 60 other features. The "Architecture" note below (gestures resolve to
+registered commands, not direct UI calls) stays the right design for whenever this is picked up.
 
 Example:
 
@@ -2522,11 +2569,20 @@ This keeps gestures compatible with the Command Palette and shortcut manager.
 
 ---
 
-# Feature 79 — Macro / Automation Recorder
+# Feature 79 — Macro / Automation Recorder ⬜ Deferred (2026-09-02)
 
 ## Objective
 
 Allow users to automate repetitive application workflows.
+
+**Deferred, not built — blocked on Feature 40's own deferred piece.** "Record semantic commands,
+not raw UI coordinates" (this feature's own explicit design decision, above) requires exactly the
+`IAppCommand` registry (Name/Description/CanExecute/Execute) that Feature 40 (Command Palette)
+already identified and deliberately deferred, since `WidgetWindow` today builds its command list
+ad hoc from `WidgetViewModel`'s methods rather than through any registered, invokable-by-name
+command object a recorder could capture and replay. Building a macro recorder against today's
+structure would mean recording direct method calls, not "semantic commands" — the opposite of
+what this feature calls for. Left for a pass that builds the registry first.
 
 Example:
 
@@ -2617,13 +2673,22 @@ Use a flexible value storage strategy that does not require schema migrations wh
 
 ---
 
-# Feature 81 — Custom Task Types
+# Feature 81 — Custom Task Types ⬜ Deferred (2026-09-02)
 
 ## Objective
 
 Allow users to define task categories with different behavior.
 
 > **Note:** DeskTodo already has a fixed `TaskType` enum (Task/Event/Reminder/Note/Meeting, Phase 8). This entry replaces that closed set with a user-definable one — a real breaking change to the existing type system, not an additive feature; needs a migration plan for existing tasks' types.
+
+**Deferred, not built — the note above is the reason.** Every place in this codebase that
+switches on `TaskType` (icon/color selection, filtering, default-priority logic) assumes a closed,
+compile-time-known set. Replacing it with a user-definable table means either a breaking data
+migration (existing tasks' `TaskType` enum values need to map onto rows in a new table) or running
+two parallel type systems at once, and deciding which is a product call this pass can't
+responsibly make unilaterally — the same class of decision that already deferred Feature 49
+(Goal → Project → Task Mapping) above. Left for a deliberate pass with that migration path chosen
+explicitly.
 
 Examples:
 
@@ -2652,11 +2717,20 @@ Potential settings:
 
 ---
 
-# Feature 82 — Custom Status Workflow
+# Feature 82 — Custom Status Workflow ⬜ Deferred (2026-09-02)
 
 ## Objective
 
 Allow users to define lifecycle states.
+
+**Deferred, not built.** Same shape of problem as Feature 81: DeskTodo's `TaskStatus` is a fixed
+enum (`NotStarted`/`InProgress`/`Completed`, etc.) that the entire app — filters, sort options,
+the widget's status dropdown, completion-rate analytics (Feature 51's Project Health Score, Feature
+55's Time Estimation Accuracy) — already assumes is closed and small. Making it user-definable
+(named workflow states, `WorkflowTransition` rules, per-transition required fields/checklist/
+approval/comment gates) is a genuine data-model and UI redesign, not an additive feature, and
+would need every one of those existing consumers re-architected around a table-driven status set
+instead of an enum. Left for a deliberate pass, same reasoning as Feature 81.
 
 Example:
 
@@ -2701,13 +2775,37 @@ Optional restrictions:
 
 ---
 
-# Feature 83 — Saved Views
+# Feature 83 — Saved Views ✅ Delivered, scoped down (2026-09-02)
 
 ## Objective
 
 Save complex query configurations.
 
 > **Note:** DeskTodo already has this, scoped to the grid view (Phase 20, `GridSavedView` — filters, sort, columns, layout, persisted in `AppSettings.GridSavedViews`). This entry is the same concept generalized beyond the grid; reuse `GridSavedView`'s shape rather than inventing a parallel one if extending it to other surfaces (Calendar, Planner tabs).
+
+**Delivered, scoped to the widget's own filter bar.** `WidgetSavedView` (new,
+`DeskTodo.Application.Settings`) mirrors `GridSavedView`'s shape (`Name`, `SearchText`,
+`CategoryId`, `TagId`, `ProjectId`, `StatusFilter`, `SortOption`, all persisted in the new
+`AppSettings.WidgetSavedViews` list) rather than inventing a parallel model, per the note above.
+`WidgetViewModel` gained `GetSavedViewsAsync`/`SaveCurrentViewAsync`/`DeleteSavedViewAsync`/`ApplyViewAsync`,
+matching `GridViewModel`'s existing saved-view method shapes and case-insensitive
+overwrite-on-same-name semantics. `ApplyViewAsync` sets `SearchText`/`SelectedCategoryFilter`/
+`SelectedTagFilter`/`SelectedProjectFilter`/`SelectedStatusFilter`/`SelectedSortOption` directly —
+each already triggers `RefreshVisibleTasks()` via its own `OnXChanged` partial method, so applying
+a view updates the visible task list with no extra refresh call needed. A new "Views" button and
+flyout in `WidgetWindow.axaml`'s search bar (`SavedViewsListBox` + Apply/Delete, plus a name field
+and Save button) mirrors `GridWindow.axaml`'s existing Views flyout.
+
+**Deliberately not built:** Group and Columns (the widget has no grouping concept and a fixed,
+non-configurable column set, unlike the grid) — the spec's `SavedView` model's `Group`/`Columns`/
+`Layout` fields don't apply to this surface; and extending saved views to the Calendar/Planner
+tabs, which have no filter bar to save state from in the first place.
+
+**Verified:** `WidgetViewModelTests` covers save (including the blank-name no-op and
+same-name-overwrite cases), list, delete, and apply (including applying an unknown name being a
+no-op) against a shared mutable `AppSettings` instance so save-then-read round trips are actually
+exercised, not just mock call assertions. 742/744 tests passing (2 pre-existing macOS-only
+failures, unrelated), zero-warning build.
 
 Example:
 
@@ -2753,11 +2851,21 @@ Scope
 
 ---
 
-# Feature 84 — View Sharing Templates
+# Feature 84 — View Sharing Templates ⬜ Deferred (2026-09-02)
 
 ## Objective
 
 Export and import saved views.
+
+**Deferred, not built.** This is a natural follow-on to Feature 83 (Saved Views, delivered this
+pass) rather than a blocked feature, but a versioned exchange format ("version compatibility" and
+"conflict handling" are explicit requirements above) is a real forward-compatibility commitment —
+once a `version` field ships in an exported file, every future change to `GridSavedView`/
+`WidgetSavedView`'s shape has to keep reading old versions correctly. Making that commitment
+without a second concrete consumer of it yet (no team-sharing or multi-machine sync story exists
+in this single-user desktop app today — Cloud Sync is itself already deferred, Phase 31) risks
+locking in a format for a use case that hasn't been validated. Left for a deliberate pass once
+there's a real need to export a view somewhere the app that saved it can't already read it back.
 
 ## Format
 

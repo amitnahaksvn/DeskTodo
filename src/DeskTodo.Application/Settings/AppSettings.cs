@@ -178,4 +178,16 @@ public sealed class AppSettings
     /// window's cost section only renders once this is set.
     /// </summary>
     public decimal? HourlyRate { get; set; }
+
+    /// <summary>Feature 83's Saved Views, generalized from the grid (<see cref="GridSavedViews"/>) to the widget's own day-list search/filter/sort bar — see <see cref="Settings.WidgetSavedView"/>.</summary>
+    public List<WidgetSavedView> WidgetSavedViews { get; set; } = [];
+
+    /// <summary>
+    /// Feature 77's Keyboard Shortcut Manager — user overrides of the app's default shortcuts,
+    /// keyed by a stable command id (e.g. "CommandPalette") to an OS-neutral combo string (e.g.
+    /// "Mod+K", where "Mod" resolves to Cmd on macOS / Ctrl elsewhere, matching
+    /// <c>WidgetWindow.RegisterKeyboardShortcuts</c>'s existing per-OS modifier handling).
+    /// Empty means "every shortcut is at its built-in default" — no entry needed for that case.
+    /// </summary>
+    public Dictionary<string, string> KeyboardShortcutOverrides { get; set; } = [];
 }

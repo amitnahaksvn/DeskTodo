@@ -1028,6 +1028,89 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenContexts() => ContextsRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised from the Command Palette (Feature 77, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? KeyboardShortcutsRequested;
+
+    [RelayCommand]
+    private void OpenKeyboardShortcuts() => KeyboardShortcutsRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Feature 83's Saved Views, generalized from the grid (<c>GridViewModel.GetSavedViewsAsync</c>) to this widget's own search/filter/sort bar.</summary>
+    public async Task<IReadOnlyList<WidgetSavedView>> GetSavedViewsAsync(CancellationToken cancellationToken = default)
+    {
+        var settings = await _settingsService.LoadAsync(cancellationToken);
+        return settings.WidgetSavedViews;
+    }
+
+    /// <summary>Saves the widget's current search/filter/sort state as one named preset, overwriting any existing preset with the same name (case-insensitive) — same semantics as <c>GridViewModel.SaveCurrentViewAsync</c>.</summary>
+    public async Task SaveCurrentViewAsync(string name, CancellationToken cancellationToken = default)
+    {
+        var trimmedName = name.Trim();
+        if (string.IsNullOrEmpty(trimmedName))
+        {
+            return;
+        }
+
+        try
+        {
+            var settings = await _settingsService.LoadAsync(cancellationToken);
+            settings.WidgetSavedViews.RemoveAll(v => string.Equals(v.Name, trimmedName, StringComparison.OrdinalIgnoreCase));
+            settings.WidgetSavedViews.Add(new WidgetSavedView
+            {
+                Name = trimmedName,
+                SearchText = string.IsNullOrEmpty(SearchText) ? null : SearchText,
+                CategoryId = SelectedCategoryFilter.Id,
+                TagId = SelectedTagFilter.Id,
+                ProjectId = SelectedProjectFilter.Id,
+                StatusFilter = SelectedStatusFilter.ToString(),
+                SortOption = SelectedSortOption.ToString(),
+            });
+            await _settingsService.SaveAsync(settings, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save widget view '{Name}'", trimmedName);
+        }
+    }
+
+    public async Task DeleteSavedViewAsync(string name, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var settings = await _settingsService.LoadAsync(cancellationToken);
+            settings.WidgetSavedViews.RemoveAll(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+            await _settingsService.SaveAsync(settings, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete widget view '{Name}'", name);
+        }
+    }
+
+    /// <summary>Applies a saved view's search/filter/sort state — plain data-bound ViewModel state, so setting it here is immediately reflected in the UI, same as <c>GridViewModel.ApplyViewAsync</c>'s filter-bar half.</summary>
+    public async Task ApplyViewAsync(string name, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var settings = await _settingsService.LoadAsync(cancellationToken);
+            var view = settings.WidgetSavedViews.FirstOrDefault(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (view is null)
+            {
+                return;
+            }
+
+            SearchText = view.SearchText ?? string.Empty;
+            SelectedCategoryFilter = Categories.FirstOrDefault(c => c.Id == view.CategoryId) ?? CategoryFilterOption.All;
+            SelectedTagFilter = Tags.FirstOrDefault(t => t.Id == view.TagId) ?? TagFilterOption.All;
+            SelectedProjectFilter = Projects.FirstOrDefault(p => p.Id == view.ProjectId) ?? ProjectFilterOption.All;
+            SelectedStatusFilter = Enum.TryParse<TaskStatusFilter>(view.StatusFilter, out var statusFilter) ? statusFilter : TaskStatusFilter.All;
+            SelectedSortOption = Enum.TryParse<TaskSortOption>(view.SortOption, out var sortOption) ? sortOption : TaskSortOption.Manual;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to apply widget view '{Name}'", name);
+        }
+    }
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try

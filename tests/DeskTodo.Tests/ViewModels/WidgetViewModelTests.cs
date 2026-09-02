@@ -1119,6 +1119,126 @@ public class WidgetViewModelTests
         Assert.Equal("https://example.com/article", created.Description);
     }
 
+    private static Mock<ISettingsService> CreateMutableSettingsService(AppSettings settings)
+    {
+        var mock = new Mock<ISettingsService>();
+        mock.Setup(s => s.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
+        return mock;
+    }
+
+    private static WidgetViewModel CreateSut(ISettingsService settingsService)
+    {
+        var taskRepository = new Mock<ITaskRepository>();
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        taskRepository.Setup(r => r.GetByDateAsync(today, It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var taskService = new TaskService(taskRepository.Object, Mock.Of<ITaskHistoryRepository>(), Mock.Of<ITaskVersionRepository>());
+        return new WidgetViewModel(taskService, CreateEmptyCategoryRepository(), CreateEmptyProjectService(), CreateEmptyTagService(), CreateEmptyTemplateService(), settingsService, CreateDefaultNotificationService(), TimeProvider.System, NullLogger<WidgetViewModel>.Instance, NullLogger<TaskItemViewModel>.Instance, Mock.Of<IUndoRedoService>(), Mock.Of<IDuplicateDetectionService>());
+    }
+
+    [Fact]
+    public async Task SaveCurrentViewAsync_PersistsTheCurrentFilterAndSortState()
+    {
+        var settings = new AppSettings();
+        using var sut = CreateSut(CreateMutableSettingsService(settings).Object);
+        sut.SearchText = "urgent";
+        sut.SelectedStatusFilter = TaskStatusFilter.Completed;
+        sut.SelectedSortOption = TaskSortOption.DueDate;
+
+        await sut.SaveCurrentViewAsync("My View");
+
+        var saved = Assert.Single(settings.WidgetSavedViews);
+        Assert.Equal("My View", saved.Name);
+        Assert.Equal("urgent", saved.SearchText);
+        Assert.Equal(TaskStatusFilter.Completed.ToString(), saved.StatusFilter);
+        Assert.Equal(TaskSortOption.DueDate.ToString(), saved.SortOption);
+    }
+
+    [Fact]
+    public async Task SaveCurrentViewAsync_WithAnExistingNameSameCaseInsensitive_OverwritesRatherThanDuplicates()
+    {
+        var settings = new AppSettings();
+        using var sut = CreateSut(CreateMutableSettingsService(settings).Object);
+        await sut.SaveCurrentViewAsync("My View");
+        sut.SearchText = "changed";
+
+        await sut.SaveCurrentViewAsync("my view");
+
+        var saved = Assert.Single(settings.WidgetSavedViews);
+        Assert.Equal("changed", saved.SearchText);
+    }
+
+    [Fact]
+    public async Task SaveCurrentViewAsync_WithABlankName_DoesNothing()
+    {
+        var settings = new AppSettings();
+        using var sut = CreateSut(CreateMutableSettingsService(settings).Object);
+
+        await sut.SaveCurrentViewAsync("   ");
+
+        Assert.Empty(settings.WidgetSavedViews);
+    }
+
+    [Fact]
+    public async Task GetSavedViewsAsync_ReturnsThePersistedViews()
+    {
+        var settings = new AppSettings();
+        using var sut = CreateSut(CreateMutableSettingsService(settings).Object);
+        await sut.SaveCurrentViewAsync("View A");
+        await sut.SaveCurrentViewAsync("View B");
+
+        var views = await sut.GetSavedViewsAsync();
+
+        Assert.Equal(2, views.Count);
+        Assert.Contains(views, v => v.Name == "View A");
+        Assert.Contains(views, v => v.Name == "View B");
+    }
+
+    [Fact]
+    public async Task DeleteSavedViewAsync_RemovesTheNamedView()
+    {
+        var settings = new AppSettings();
+        using var sut = CreateSut(CreateMutableSettingsService(settings).Object);
+        await sut.SaveCurrentViewAsync("View A");
+        await sut.SaveCurrentViewAsync("View B");
+
+        await sut.DeleteSavedViewAsync("View A");
+
+        var view = Assert.Single(settings.WidgetSavedViews);
+        Assert.Equal("View B", view.Name);
+    }
+
+    [Fact]
+    public async Task ApplyViewAsync_RestoresTheSavedFilterAndSortState()
+    {
+        var settings = new AppSettings();
+        using var sut = CreateSut(CreateMutableSettingsService(settings).Object);
+        sut.SearchText = "urgent";
+        sut.SelectedStatusFilter = TaskStatusFilter.Completed;
+        sut.SelectedSortOption = TaskSortOption.DueDate;
+        await sut.SaveCurrentViewAsync("My View");
+        sut.SearchText = string.Empty;
+        sut.SelectedStatusFilter = TaskStatusFilter.All;
+        sut.SelectedSortOption = TaskSortOption.Manual;
+
+        await sut.ApplyViewAsync("My View");
+
+        Assert.Equal("urgent", sut.SearchText);
+        Assert.Equal(TaskStatusFilter.Completed, sut.SelectedStatusFilter);
+        Assert.Equal(TaskSortOption.DueDate, sut.SelectedSortOption);
+    }
+
+    [Fact]
+    public async Task ApplyViewAsync_WithAnUnknownName_DoesNothing()
+    {
+        var settings = new AppSettings();
+        using var sut = CreateSut(CreateMutableSettingsService(settings).Object);
+        sut.SearchText = "unchanged";
+
+        await sut.ApplyViewAsync("Does Not Exist");
+
+        Assert.Equal("unchanged", sut.SearchText);
+    }
+
     // Pins LocalTimeZone to UTC so GetLocalNow() == GetUtcNow() exactly — otherwise these
     // tests' chosen date/time literals could land on a different calendar date depending on
     // the machine's local timezone (WidgetViewModel.Today() calls GetLocalNow(), matching
