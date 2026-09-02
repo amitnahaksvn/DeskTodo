@@ -23,5 +23,18 @@ public sealed class Milestone
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// Feature 50 (Roadmap-39-100.md) — optional: a milestone that belongs to a specific
+    /// <see cref="Entities.Project"/>'s checkpoint sequence. Null means a standalone milestone
+    /// not tied to any one project, the shape this entity already had before Feature 50 — that
+    /// existing usage keeps working unchanged.
+    /// </summary>
+    public Guid? ProjectId { get; set; }
+
+    public Project? Project { get; set; }
+
+    /// <summary>Position within <see cref="ProjectId"/>'s checkpoint sequence (e.g. "1. Architecture complete, 2. MVP complete, ..."). Meaningless when <see cref="ProjectId"/> is null.</summary>
+    public int Order { get; set; }
+
     public ICollection<TaskItem> Tasks { get; set; } = [];
 }

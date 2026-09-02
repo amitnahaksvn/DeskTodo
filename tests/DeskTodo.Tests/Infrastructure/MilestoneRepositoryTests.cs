@@ -94,4 +94,34 @@ public class MilestoneRepositoryTests : IDisposable
     {
         await _sut.DeleteAsync(Guid.NewGuid());
     }
+
+    [Fact]
+    public async Task AddAsync_WithAProjectIdAndOrder_PersistsBoth()
+    {
+        var project = new Project { Name = "Mobile App", ColorHex = "#3B82F6" };
+        await new ProjectRepository(_fixture.ContextFactory).AddAsync(project);
+        var milestone = new Milestone { Title = "MVP complete", ProjectId = project.Id, Order = 1 };
+
+        await _sut.AddAsync(milestone);
+        var fetched = await _sut.GetByIdAsync(milestone.Id);
+
+        Assert.Equal(project.Id, fetched!.ProjectId);
+        Assert.Equal(1, fetched.Order);
+    }
+
+    [Fact]
+    public async Task WhenItsProjectIsDeleted_TheMilestoneSurvives_WithProjectIdSetToNull()
+    {
+        var project = new Project { Name = "Mobile App", ColorHex = "#3B82F6" };
+        var projectRepository = new ProjectRepository(_fixture.ContextFactory);
+        await projectRepository.AddAsync(project);
+        var milestone = new Milestone { Title = "MVP complete", ProjectId = project.Id };
+        await _sut.AddAsync(milestone);
+
+        await projectRepository.DeleteAsync(project.Id);
+
+        var fetched = await _sut.GetByIdAsync(milestone.Id);
+        Assert.NotNull(fetched);
+        Assert.Null(fetched.ProjectId);
+    }
 }

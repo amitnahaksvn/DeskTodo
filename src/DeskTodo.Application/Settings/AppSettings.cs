@@ -160,4 +160,22 @@ public sealed class AppSettings
     /// themed resources for that to actually affect until this phase.
     /// </summary>
     public string Theme { get; set; } = "System";
+
+    /// <summary>
+    /// Feature 54's Capacity Planning — how many hours per day the user actually has available
+    /// for planned work. Deliberately a single number, not the spec's fuller
+    /// <c>CapacityProfile</c> (working days/holidays/breaks/timezone) — one global daily figure
+    /// is enough to compute Feature 53's workload heatmap and Feature 51's health-score
+    /// "capacity" factor without needing a calendar-of-exceptions UI. Defaults to 8 (a standard
+    /// workday).
+    /// </summary>
+    public double WorkingHoursPerDay { get; set; } = 8.0;
+
+    /// <summary>
+    /// Feature 56's Task Cost Tracking — an hourly rate applied to estimated/actual minutes to
+    /// compute a cost. Null (the default) means cost tracking is off entirely, per the spec's
+    /// own "keep this optional, many users won't need monetary tracking" note — the Analytics
+    /// window's cost section only renders once this is set.
+    /// </summary>
+    public decimal? HourlyRate { get; set; }
 }

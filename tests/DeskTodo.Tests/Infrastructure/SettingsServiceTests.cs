@@ -47,6 +47,8 @@ public class SettingsServiceTests : IDisposable
             HiddenGridColumns = ["Notes", "Due"],
             GridColumnsFrozen = false,
             GridSavedViews = [new GridSavedView { Name = "Compact", HiddenColumns = ["Category", "Notes"] }],
+            WorkingHoursPerDay = 6.5,
+            HourlyRate = 125.50m,
         };
 
         await sut.SaveAsync(settings);
@@ -66,6 +68,8 @@ public class SettingsServiceTests : IDisposable
         Assert.Single(loaded.GridSavedViews);
         Assert.Equal("Compact", loaded.GridSavedViews[0].Name);
         Assert.Equal(settings.GridSavedViews[0].HiddenColumns, loaded.GridSavedViews[0].HiddenColumns);
+        Assert.Equal(settings.WorkingHoursPerDay, loaded.WorkingHoursPerDay);
+        Assert.Equal(settings.HourlyRate, loaded.HourlyRate);
     }
 
     [Fact]

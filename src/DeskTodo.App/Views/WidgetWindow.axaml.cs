@@ -72,6 +72,7 @@ public partial class WidgetWindow : Window
             viewModel.ActivityTimelineRequested += OnActivityTimelineRequested;
             viewModel.DatabaseMaintenanceRequested += OnDatabaseMaintenanceRequested;
             viewModel.WorkSessionHistoryRequested += OnWorkSessionHistoryRequested;
+            viewModel.PlanningInsightsRequested += OnPlanningInsightsRequested;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             ApplyMiniWidgetModeSize(viewModel.IsMiniWidgetMode);
             _ = viewModel.LoadTasksAsync();
@@ -260,6 +261,19 @@ public partial class WidgetWindow : Window
         await sessionHistoryWindow.ShowDialog(this);
     }
 
+    /// <summary>Features 51/52/53/55/56, Roadmap-39-100.md.</summary>
+    private async void OnPlanningInsightsRequested(object? sender, EventArgs e)
+    {
+        if (App.Services is null)
+        {
+            return;
+        }
+
+        var insightsViewModel = App.Services.GetRequiredService<PlanningInsightsViewModel>();
+        var insightsWindow = new PlanningInsightsWindow { DataContext = insightsViewModel };
+        await insightsWindow.ShowDialog(this);
+    }
+
     /// <summary>
     /// Phase 28's app-wide keyboard shortcuts, added programmatically rather than declared
     /// as static <c>KeyBinding</c>s in XAML — Avalonia's <c>KeyGesture</c> string parser has
@@ -363,6 +377,7 @@ public partial class WidgetWindow : Window
             viewModel.ActivityTimelineRequested -= OnActivityTimelineRequested;
             viewModel.DatabaseMaintenanceRequested -= OnDatabaseMaintenanceRequested;
             viewModel.WorkSessionHistoryRequested -= OnWorkSessionHistoryRequested;
+            viewModel.PlanningInsightsRequested -= OnPlanningInsightsRequested;
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -561,6 +576,7 @@ public partial class WidgetWindow : Window
             new CommandPaletteEntry("Activity Timeline", viewModel.OpenActivityTimelineCommand),
             new CommandPaletteEntry("Database Maintenance", viewModel.OpenDatabaseMaintenanceCommand),
             new CommandPaletteEntry("Work Session History", viewModel.OpenWorkSessionHistoryCommand),
+            new CommandPaletteEntry("Planning Insights", viewModel.OpenPlanningInsightsCommand),
         ]);
 
         var paletteWindow = new CommandPaletteWindow { DataContext = paletteViewModel };

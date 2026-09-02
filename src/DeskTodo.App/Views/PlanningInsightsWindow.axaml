@@ -1,0 +1,105 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="620"
+        x:Class="DeskTodo.App.Views.PlanningInsightsWindow"
+        x:DataType="vm:PlanningInsightsViewModel"
+        Title="Planning Insights"
+        Width="460" Height="620"
+        MinWidth="420" MinHeight="420"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Features 51, 52, 53, 55, 56 — one window, five read-only reports over existing task data. -->
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Planning Insights" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="18">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Project Health" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <ItemsControl ItemsSource="{Binding ProjectHealth}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ProjectHealthOption">
+                                <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,6">
+                                    <StackPanel Spacing="2">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding ProjectName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Status}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding ReasonsDisplay}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="No active projects" IsVisible="{Binding !ProjectHealth.Count}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Deadline Risk" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <ItemsControl ItemsSource="{Binding DeadlineRisks}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DeadlineRiskOption">
+                                <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,6">
+                                    <StackPanel Spacing="2">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                            <TextBlock Grid.Column="1" Text="{Binding RiskLevel}" FontSize="11" Foreground="{DynamicResource DangerTextBrush}" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding Reason}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="No tasks at risk" IsVisible="{Binding !DeadlineRisks.Count}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Workload (next 7 days)" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <ItemsControl ItemsSource="{Binding Workload}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:WorkloadDayOption">
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                                    <TextBlock Grid.Column="0" Text="{Binding DateDisplay}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    <!-- IsOverloaded is already reflected in HoursDisplay's own "OVERLOAD" suffix, so no separate color converter is needed here. -->
+                                    <TextBlock Grid.Column="1" Text="{Binding HoursDisplay}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Estimation Accuracy" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <ItemsControl ItemsSource="{Binding EstimationAccuracy}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:EstimationAccuracyOption">
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                                    <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">
+                                        <Run Text="{Binding GroupName}" /><Run Text=" (" /><Run Text="{Binding SampleSize}" /><Run Text=")" />
+                                    </TextBlock>
+                                    <TextBlock Grid.Column="1" Text="{Binding AccuracyDisplay}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="Not enough estimated/actual data yet" IsVisible="{Binding !EstimationAccuracy.Count}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                </StackPanel>
+
+                <StackPanel Spacing="6" IsVisible="{Binding CostSummaryDisplay, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="Cost" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Text="{Binding CostSummaryDisplay}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="2" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

@@ -7,7 +7,12 @@ public interface IMilestoneService
 {
     Task<IReadOnlyList<Milestone>> GetMilestonesAsync(CancellationToken cancellationToken = default);
 
-    Task<Milestone> CreateMilestoneAsync(string title, string? description, DateOnly? targetDate, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// <paramref name="projectId"/> is Feature 50's project checkpoint linkage — when given, the
+    /// new milestone is appended to the end of that project's existing <see cref="Milestone.Order"/>
+    /// sequence; null (the default) creates a standalone milestone, same as before Feature 50.
+    /// </summary>
+    Task<Milestone> CreateMilestoneAsync(string title, string? description, DateOnly? targetDate, Guid? projectId = null, CancellationToken cancellationToken = default);
 
     Task UpdateMilestoneAsync(Guid milestoneId, string title, string? description, DateOnly? targetDate, CancellationToken cancellationToken = default);
 

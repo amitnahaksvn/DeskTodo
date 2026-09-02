@@ -10,13 +10,22 @@ public sealed class MilestoneService(IMilestoneRepository milestoneRepository) :
     public Task<IReadOnlyList<Milestone>> GetMilestonesAsync(CancellationToken cancellationToken = default) =>
         milestoneRepository.GetAllAsync(cancellationToken);
 
-    public async Task<Milestone> CreateMilestoneAsync(string title, string? description, DateOnly? targetDate, CancellationToken cancellationToken = default)
+    public async Task<Milestone> CreateMilestoneAsync(string title, string? description, DateOnly? targetDate, Guid? projectId = null, CancellationToken cancellationToken = default)
     {
+        var order = 0;
+        if (projectId is { } id)
+        {
+            var existing = await milestoneRepository.GetAllAsync(cancellationToken);
+            order = existing.Where(m => m.ProjectId == id).Select(m => m.Order).DefaultIfEmpty(-1).Max() + 1;
+        }
+
         var milestone = new Milestone
         {
             Title = title.Trim(),
             Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
             TargetDate = targetDate,
+            ProjectId = projectId,
+            Order = order,
         };
         await milestoneRepository.AddAsync(milestone, cancellationToken);
         return milestone;

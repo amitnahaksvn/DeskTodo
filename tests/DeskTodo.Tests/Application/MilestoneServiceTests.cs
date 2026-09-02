@@ -49,6 +49,44 @@ public class MilestoneServiceTests
     }
 
     [Fact]
+    public async Task CreateMilestoneAsync_WithNoProjectId_LeavesOrderAtZero()
+    {
+        var milestone = await _sut.CreateMilestoneAsync("Standalone", null, null);
+
+        Assert.Null(milestone.ProjectId);
+        Assert.Equal(0, milestone.Order);
+    }
+
+    [Fact]
+    public async Task CreateMilestoneAsync_WithAProjectId_AppendsToTheEndOfThatProjectsOrder()
+    {
+        var projectId = Guid.NewGuid();
+        var otherProjectId = Guid.NewGuid();
+        _milestoneRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
+        [
+            new Milestone { Title = "First", ProjectId = projectId, Order = 0 },
+            new Milestone { Title = "Second", ProjectId = projectId, Order = 1 },
+            new Milestone { Title = "Unrelated", ProjectId = otherProjectId, Order = 5 },
+        ]);
+
+        var milestone = await _sut.CreateMilestoneAsync("Third", null, null, projectId);
+
+        Assert.Equal(projectId, milestone.ProjectId);
+        Assert.Equal(2, milestone.Order);
+    }
+
+    [Fact]
+    public async Task CreateMilestoneAsync_AsTheFirstMilestoneInAProject_StartsAtOrderZero()
+    {
+        var projectId = Guid.NewGuid();
+        _milestoneRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+
+        var milestone = await _sut.CreateMilestoneAsync("First", null, null, projectId);
+
+        Assert.Equal(0, milestone.Order);
+    }
+
+    [Fact]
     public async Task UpdateMilestoneAsync_UpdatesFields()
     {
         var milestone = new Milestone { Title = "Ship v1" };

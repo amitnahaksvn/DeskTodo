@@ -86,7 +86,7 @@ public class MilestonesViewModelTests
 
         await _sut.AddMilestoneCommand.ExecuteAsync(null);
 
-        _milestoneService.Verify(s => s.CreateMilestoneAsync("Ship v1", null, new DateOnly(2026, 9, 1), It.IsAny<CancellationToken>()), Times.Once);
+        _milestoneService.Verify(s => s.CreateMilestoneAsync("Ship v1", null, new DateOnly(2026, 9, 1), null, It.IsAny<CancellationToken>()), Times.Once);
         Assert.Equal(string.Empty, _sut.NewMilestoneTitle);
         Assert.Null(_sut.NewMilestoneTargetDate);
         Assert.Single(_sut.Milestones);
@@ -97,7 +97,7 @@ public class MilestonesViewModelTests
     {
         await _sut.AddMilestoneCommand.ExecuteAsync(null);
 
-        _milestoneService.Verify(s => s.CreateMilestoneAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _milestoneService.Verify(s => s.CreateMilestoneAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<DateOnly?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

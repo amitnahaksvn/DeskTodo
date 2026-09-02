@@ -992,6 +992,12 @@ public sealed partial class WidgetViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenWorkSessionHistory() => WorkSessionHistoryRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Raised from the Command Palette (Features 51/52/53/55/56, Roadmap-39-100.md). Same "ViewModel shouldn't construct Views" reasoning as <see cref="SettingsRequested"/>.</summary>
+    public event EventHandler? PlanningInsightsRequested;
+
+    [RelayCommand]
+    private void OpenPlanningInsights() => PlanningInsightsRequested?.Invoke(this, EventArgs.Empty);
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try

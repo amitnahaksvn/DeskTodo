@@ -42,7 +42,7 @@ The existing application already contains (Phases 1–38, see `IMPLEMENTATION.md
 
 The features below therefore intentionally focus on capabilities that are not already represented by those phases.
 
-**Status:** planning only, except where noted — nothing in this document was implemented as of when it was written. See `IMPLEMENTATION.md`'s roadmap table for a one-line link to this file and its live status. **Features 39 (Task Inbox), 41 (NL Quick Add), 42 (Task History), 43 (Undo/Redo), 44 (Task Versioning), 45 (Archive Vault), 46 (Trash), 47 (Smart Duplicate Detection), 61 (Activity Timeline), 65 (Work Session History), 67 (Local Backup Manager), 68 (Backup Restore Simulator), 69 (Database Maintenance Center) and 70 (Data Integrity Checker) have since been delivered, and 40 (Command Palette) partially — see each feature's own section below for what shipped.**
+**Status:** planning only, except where noted — nothing in this document was implemented as of when it was written. See `IMPLEMENTATION.md`'s roadmap table for a one-line link to this file and its live status. **Features 39 (Task Inbox), 41 (NL Quick Add), 42 (Task History), 43 (Undo/Redo), 44 (Task Versioning), 45 (Archive Vault), 46 (Trash), 47 (Smart Duplicate Detection), 50 (Milestone Tracking), 51 (Project Health Score), 52 (Deadline Risk Detection), 53 (Workload Heatmap), 54 (Capacity Planning), 55 (Time Estimation Accuracy), 56 (Task Cost Tracking), 61 (Activity Timeline), 65 (Work Session History), 67 (Local Backup Manager), 68 (Backup Restore Simulator), 69 (Database Maintenance Center) and 70 (Data Integrity Checker) have since been delivered, 40 (Command Palette) partially, and 49 (Goal → Project → Task Mapping) explicitly deferred — see each feature's own section below for what shipped or why.**
 
 ---
 
@@ -1005,11 +1005,23 @@ Task A
 
 ---
 
-# Feature 49 — Goal → Project → Task Mapping
+# Feature 49 — Goal → Project → Task Mapping ⬜ Deferred (2026-09-01)
 
 ## Objective
 
 Introduce a strategic planning hierarchy.
+
+**Deferred, not built — the spec's own note flags exactly why.** This feature's "Goal" (a
+strategic target with `TargetDate`/`Status`/`Progress`/`Priority` that Projects roll up into) is
+a genuinely different shape from DeskTodo's existing `Goal` entity (Phase 21/23 — a daily
+habit-streak, with no target date or project rollup at all). Reconciling the two — rename the
+existing one, add a second entity, or extend the existing one to serve both purposes — is a real
+product/naming decision, not an implementation detail this pass can responsibly guess at:
+picking wrong means either a confusing two-`Goal`-concepts UI or a breaking rename of a
+Phase-21-era entity every existing goal-streak feature (Phase 21's Goals tab, its
+`GetCurrentStreak`) already depends on. Left for a deliberate pass with that decision made
+explicitly, the same way Phase 31 (Cloud Sync) and Phase 33 (Third-party Integrations) are both
+already deferred in `IMPLEMENTATION.md` for their own blocking reasons.
 
 ```text
 Goal
@@ -1066,11 +1078,29 @@ The algorithm should be configurable.
 
 ---
 
-# Feature 50 — Milestone Tracking
+# Feature 50 — Milestone Tracking ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Represent major project checkpoints.
+
+**Delivered by extending the existing `Milestone` entity, per this feature's own note, rather
+than a second parallel shape.** Two new columns — `ProjectId` (nullable `SetNull` FK, mirroring
+`TaskItem.ProjectId`'s own pattern) and `Order` (int) — let a milestone optionally belong to a
+project's checkpoint sequence; `IMilestoneService.CreateMilestoneAsync` gained an optional
+`projectId` parameter that auto-appends the new milestone to the end of that project's existing
+order. A milestone created with no `projectId` (every milestone before this feature, and any
+created without one going forward) behaves exactly as it always did — standalone, `Order`
+meaningless.
+
+**Deliberately not built:** a dedicated drag-to-reorder UI for a project's milestone sequence
+(creation appends to the end; reordering existing ones needs its own pass), and surfacing
+milestones on "project timeline"/"calendar" views from the spec's own UI list — Feature 51's
+Project Health section is the one new place a project's milestones show up in this pass.
+
+**Verified:** real EF Core/SQLite tests for the `ProjectId`/`Order` persistence and the `SetNull`
+survival behavior when a linked project is deleted, plus service-level tests for the
+append-to-end-of-order logic (including the very first milestone in a project starting at 0).
 
 > **Note:** DeskTodo already has a `Milestone` entity (Phase 21, target-date deliverables tasks can link to). This entry adds ordering within a project and richer status — check for overlap before building a second `Milestone` shape.
 
@@ -1112,11 +1142,28 @@ Display milestones:
 
 ---
 
-# Feature 51 — Project Health Score
+# Feature 51 — Project Health Score ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Provide an automatic project health assessment.
+
+**Delivered, with a documented (not hardcoded-and-hidden) formula, per the spec's own "do not
+make the exact formula hardcoded" instruction.** `IPlanningAnalyticsService.GetProjectHealthAsync`
+scores each non-archived project starting at 100, subtracting 2 points per percent of its tasks
+overdue and 5 points per blocked task, floored at 0 — Critical &lt; 50, Warning &lt; 80, else
+Healthy, "Unknown" for a project with no tasks at all. Each report carries human-readable
+reasons ("7 overdue task(s)", "2 blocked task(s)"), matching the spec's own "Warning — Reasons:
+..." example shape. Shown in the new Planning Insights window.
+
+**Deliberately scoped down from the full factor list:** "recent activity" and "workload" aren't
+folded into the score itself — each needs its own cross-project query this pass keeps out of the
+health-score hot path — Deadline Risk (Feature 52) and the Workload Heatmap (Feature 53) cover
+that ground as their own dedicated sections in the same window instead. The exact point weights
+(2/5/50/80) are a documented default in the implementation, not user-configurable yet.
+
+**Verified:** mocked service-level tests for the Unknown/Healthy/Critical cases, the reasons
+text, and archived-project exclusion.
 
 ## Inputs
 
@@ -1170,11 +1217,28 @@ Reasons:
 
 ---
 
-# Feature 52 — Deadline Risk Detection
+# Feature 52 — Deadline Risk Detection ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Identify tasks likely to miss deadlines before they become overdue.
+
+**Delivered, as a simpler heuristic than the spec's fuller capacity-aware model (see below).**
+`IPlanningAnalyticsService.GetDeadlineRisksAsync` flags a blocked incomplete task as High risk
+outright (it can't even start), and otherwise compares remaining estimated effort
+(`EstimatedMinutes - ActualMinutes`) against the time left until the due date: remaining ≥ time
+left is High, ≥ half the time left is Medium, else not flagged at all (Low risk isn't shown —
+only High/Medium are actionable enough to surface). Shown in the new Planning Insights window.
+
+**Deliberately not built:** the "available working hours per remaining day" capacity-aware model
+— Feature 54's capacity profile is one global daily figure (`AppSettings.WorkingHoursPerDay`),
+not a per-task allocation across remaining days, so this compares remaining estimate against
+wall-clock time left rather than working-hours-available. Historical completion speed and the
+"Suggested action" buttons (Reschedule/Increase capacity/Split task/etc.) aren't built — the
+window shows the risk and its reason, not one-click remediation.
+
+**Verified:** mocked service-level tests for completed/no-due-date exclusion, a genuinely tight
+deadline scoring High, and plenty-of-time-left scoring below the reporting threshold.
 
 ## Inputs
 
@@ -1219,13 +1283,29 @@ Change priority
 
 ---
 
-# Feature 53 — Workload Heatmap
+# Feature 53 — Workload Heatmap ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Visualize planned work across time.
 
 > **Note:** DeskTodo already has a 12-week completion heat map (Phase 24 Analytics — task-count based, GitHub-contribution-graph style). This entry is a different axis: planned *hours* vs. available *capacity*, not completed-task count.
+
+**Delivered, as a 7-day list rather than a calendar-grid heatmap (see below).**
+`IPlanningAnalyticsService.GetWorkloadForecastAsync` sums each day's incomplete tasks'
+`EstimatedMinutes` and compares against `AppSettings.WorkingHoursPerDay`, flagging
+`IsOverloaded` exactly like the spec's own "11h / 8h OVERLOAD" example. Shown as a 7-day list in
+the new Planning Insights window (today plus the next six days), each row showing "planned /
+capacity" with an OVERLOAD suffix when over.
+
+**Deliberately not built:** the calendar-heatmap visual and click-a-day-to-see-contributing-tasks
+interaction — a color-graded grid is meaningfully more UI work than a list for the same
+information, and this pass prioritized the other four features sharing this window; a 7-day
+window (not a full month/quarter) since that's the planning-relevant horizon most tasks' due
+dates fall within.
+
+**Verified:** a mocked service-level test confirming the per-day sum and the overload threshold
+in both directions (over and under capacity).
 
 ## Calculation
 
@@ -1258,11 +1338,27 @@ Clicking a day should show the tasks contributing to the workload.
 
 ---
 
-# Feature 54 — Capacity Planning
+# Feature 54 — Capacity Planning ✅ Delivered, scoped down (2026-09-01)
 
 ## Objective
 
 Allow users to define how much time they actually have available.
+
+**Delivered as one setting, not the spec's fuller `CapacityProfile`.** A new
+`AppSettings.WorkingHoursPerDay` (default 8) is the single global figure Feature 53's workload
+heatmap and Feature 51's health score both read. This is deliberately not the spec's richer model
+(working days/holidays/breaks/timezone/personal-unavailable-periods) — those need a
+calendar-of-exceptions UI (which days are holidays, which hours are blocked out) that's a
+meaningfully bigger feature on its own; one number covers the "am I planning too much per day"
+question the other features actually need answered.
+
+**Deliberately not built:** everything in the spec's `CapacityProfile` beyond
+`WorkingHoursPerDay` — `WorkingDays`, `BreakMinutes`, `Timezone`, `HolidayCalendar` are all still
+open for a future pass.
+
+**Verified:** covered indirectly — `SettingsServiceTests` already round-trips every `AppSettings`
+field including new ones, and `PlanningAnalyticsServiceTests` exercises the value being read
+correctly by the workload/health calculations that consume it.
 
 ## Capacity Inputs
 
@@ -1300,11 +1396,24 @@ Negative values indicate overload.
 
 ---
 
-# Feature 55 — Time Estimation Accuracy
+# Feature 55 — Time Estimation Accuracy ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Learn whether task estimates are realistic.
+
+**Delivered, grouped by Category rather than the spec's "Bug/Meeting/Documentation" task-type
+buckets.** `IPlanningAnalyticsService.GetEstimationAccuracyAsync` computes an Overall accuracy
+percent (averaged per-task `Estimated/Actual × 100`, not summed, so one outlier task can't
+dominate) plus one entry per `Category`, across every task with both `EstimatedMinutes` and
+`ActualMinutes` set. Category is this app's closest existing dimension to the spec's example
+breakdown — there's no task-type-as-work-classification concept (`TaskType` is Task/Event/
+Reminder/Note/Meeting, an activity kind, not a work-classification like "Bug"/"Documentation").
+Shown in the new Planning Insights window.
+
+**Verified:** mocked service-level tests confirming the no-data case, and per-category accuracy
+math against a small constructed set (100%, 50%, 100% across two categories → overall computed
+from all three, category breakdown per group).
 
 > **Note:** DeskTodo already has `TaskItem.EstimatedMinutes` and `ActualMinutes` (Phase 23 Time Tracking). This entry is the analytics layer on top of fields that already exist — no new schema needed for the raw numbers, only for the aggregated accuracy report.
 
@@ -1341,11 +1450,23 @@ This becomes useful for future planning.
 
 ---
 
-# Feature 56 — Task Cost Tracking
+# Feature 56 — Task Cost Tracking ✅ Delivered (2026-09-01)
 
 ## Objective
 
 Optionally estimate the financial cost of work.
+
+**Delivered exactly to spec's own scope note.** A single optional `AppSettings.HourlyRate`
+(null by default — cost tracking off) multiplies against the sum of every task's
+`EstimatedMinutes`/`ActualMinutes` (converted to hours) for a global Estimated/Actual cost
+total. The Planning Insights window's Cost section only renders once a rate is configured, per
+the spec's own "keep this optional, many users will not need monetary tracking" instruction.
+
+**Deliberately not built:** a per-task or per-project rate (one global rate only), and a
+currency selector — the total is formatted with `{0:C}`, the current culture's currency format.
+
+**Verified:** mocked service-level tests for the no-rate-configured (null) case and the
+estimated/actual cost math with a configured rate.
 
 ## Inputs
 
