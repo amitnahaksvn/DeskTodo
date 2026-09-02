@@ -3270,11 +3270,47 @@ Generated projects should receive unique IDs and retain a link to the originatin
 
 ---
 
-# Feature 88 — Bulk Edit Rules
+# Feature 88 — Bulk Edit Rules ✅ Delivered (2026-09-02)
 
 ## Objective
 
 Provide powerful multi-task operations.
+
+**Delivered as a new `BulkEditRule` entity** — a name plus an ordered list of AND-ed
+`BulkEditCondition`s (Field/Operator/Value) and `BulkEditAction`s (Type/Value), stored as JSON
+columns (the same pattern Feature 86's `ProjectTemplate` uses). `BulkEditRuleMatcher` is a pure,
+independently-tested static matcher covering exactly this feature's own example
+(`Project = X AND Priority = High AND DueDate < Today`) — six condition fields (Project, Category,
+Priority, DueDate, IsCompleted, TitleContains) with an Equals/NotEquals/LessThan/GreaterThan
+operator set (`DueDate < Today` re-resolves "Today" to the current date every time a rule runs,
+so a saved rule stays relative rather than freezing to its creation date). Six action types
+(SetPriority, AddTag, MoveToProject, SetCategory, MarkCompleted, Delete) reuse the existing
+`ITaskService`/`ITagService` methods rather than writing to the database directly, so a bulk
+completion/deletion goes through the exact same recurrence-generation/soft-delete rules a single
+manual completion/deletion would. **Safety, matching this feature's own spec:** a new "Bulk Edit
+Rules" window (Command Palette) always runs Preview before Apply — showing the matched count and
+a sample of titles — and a rule containing the destructive Delete action cannot be applied until
+an explicit "I understand this rule deletes tasks" checkbox is checked, re-required after every
+apply. One action failing (e.g. `MarkCompleted` on a blocked task) is logged and skipped rather
+than aborting the whole batch, the same "best effort, not all-or-nothing" reasoning
+`TaskGroupService` uses for a deleted member template. Conditions/actions are entered as compact
+`Field | Operator | Value` / `Type | Value` text lines (Project/Category values are resolved by
+name, not a raw id, against the task's real project/category list) — the same compact-line
+approach Feature 86 uses for task/milestone items — and a rule can be run once ad hoc or saved for
+repeated use.
+
+**Deliberately not built:** OR/grouped conditions (the spec's own example is AND-only) and a
+UI condition/value builder with per-field typed inputs (a `ComboBox`/`DatePicker`/etc. per row) —
+the compact text-line format covers the same expressiveness with far less UI surface, at the cost
+of needing exact field/operator names rather than a fully guided form.
+
+**Verified:** `BulkEditRuleMatcherTests` (every field/operator combination, including the
+"Today" re-resolution and "a task with no due date never matches a DueDate condition" edge case),
+`BulkEditRuleRepositoryTests` (real SQLite, JSON round-trip), `BulkEditRuleServiceTests` (every
+action type delegates to the correct existing service method, and one action throwing doesn't
+stop the rest of the batch), and `BulkEditRulesViewModelTests` (line parsing, name-to-id
+resolution, the destructive-action confirmation gate on both the ad hoc Apply and a saved rule's
+Apply).
 
 > **Note:** DeskTodo already has bulk complete/delete on a multi-selection (Phase 28's Batch Actions). This entry is a much larger, rule/condition-based system ("find tasks matching X, apply Y") — a genuinely new capability, not an extension of the existing bulk actions.
 

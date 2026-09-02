@@ -1,0 +1,94 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskTodo.App.ViewModels"
+        xmlns:convCore="using:Avalonia.Data.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="740"
+        x:Class="DeskTodo.App.Views.BulkEditRulesWindow"
+        x:DataType="vm:BulkEditRulesViewModel"
+        Title="Bulk Edit Rules"
+        Width="520" Height="740"
+        MinWidth="440" MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <!-- Roadmap-39-100.md's Feature 88 — rule/condition-based multi-task operations. -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Bulk Edit Rules" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+        <StackPanel Grid.Row="1" Spacing="2" Margin="0,0,0,8">
+            <TextBlock Text="{Binding StatusMessage}" IsVisible="{Binding StatusMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding ErrorMessage, Converter={x:Static convCore:StringConverters.IsNotNullOrEmpty}}"
+                       FontSize="11" Foreground="{DynamicResource DangerTextBrush}" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="2">
+            <StackPanel Spacing="10">
+                <TextBlock Text="Conditions — one per line: Field | Operator | Value (all must match)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                <TextBox Text="{Binding ConditionsText}" AcceptsReturn="True" Height="70" TextWrapping="NoWrap" FontFamily="monospace" FontSize="11"
+                         PlaceholderText="Project | Equals | Website Redesign&#10;Priority | Equals | High&#10;DueDate | LessThan | Today" />
+
+                <TextBlock Text="Fields: Project, Category, Priority, DueDate, IsCompleted, TitleContains — Operators: Equals, NotEquals, LessThan, GreaterThan"
+                           FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+
+                <TextBlock Text="Actions — one per line: Type | Value (applied to every matching task)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                <TextBox Text="{Binding ActionsText}" AcceptsReturn="True" Height="60" TextWrapping="NoWrap" FontFamily="monospace" FontSize="11"
+                         PlaceholderText="SetPriority | Critical&#10;AddTag | overdue&#10;MoveToProject | Recovery" />
+
+                <TextBlock Text="Types: SetPriority, AddTag, MoveToProject, SetCategory, MarkCompleted, Delete"
+                           FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+
+                <CheckBox Content="I understand this rule deletes tasks — confirm before applying" IsChecked="{Binding ConfirmDestructiveAction}" FontSize="11" />
+
+                <Grid ColumnDefinitions="Auto,Auto,Auto">
+                    <Button Grid.Column="0" Content="Preview" Command="{Binding PreviewCommand}" Padding="12,6" Margin="0,0,6,0" />
+                    <Button Grid.Column="1" Content="Apply Now" Command="{Binding ApplyCommand}" Padding="12,6" Margin="0,0,6,0" />
+                    <Button Grid.Column="2" Content="Save as Rule" Command="{Binding SaveRuleCommand}" Padding="12,6" />
+                </Grid>
+                <TextBox PlaceholderText="Rule name (for Save as Rule)" Text="{Binding NewRuleName}" />
+
+                <TextBlock IsVisible="{Binding PreviewCount, Converter={x:Static convCore:ObjectConverters.IsNotNull}}"
+                           FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}">
+                    <Run Text="{Binding PreviewCount}" /><Run Text=" task(s) will be affected" />
+                </TextBlock>
+                <ItemsControl ItemsSource="{Binding PreviewSampleTitles}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="8,0,0,2" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Text="Saved rules" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0" />
+                <ItemsControl ItemsSource="{Binding Rules}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:BulkEditRuleRow">
+                            <Border Background="{DynamicResource SurfaceBackgroundBrush}" CornerRadius="6" Padding="10" Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="*,Auto,Auto">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}">
+                                            <Run Text="{Binding ConditionCount}" /><Run Text=" condition(s), " /><Run Text="{Binding ActionCount}" /><Run Text=" action(s)" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Apply"
+                                            Command="{Binding $parent[ItemsControl].((vm:BulkEditRulesViewModel)DataContext).ApplySavedRuleCommand}"
+                                            CommandParameter="{Binding}" FontSize="10" Padding="8,4" Margin="0,0,4,0" />
+                                    <Button Grid.Column="2" Content="Delete"
+                                            Command="{Binding $parent[ItemsControl].((vm:BulkEditRulesViewModel)DataContext).DeleteRuleCommand}"
+                                            CommandParameter="{Binding Id}" FontSize="10" Padding="8,4" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="3" Content="Close" Click="OnCloseClick" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="16,8" />
+    </Grid>
+
+</Window>

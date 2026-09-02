@@ -55,6 +55,8 @@ public sealed class DeskTodoDbContext(DbContextOptions<DeskTodoDbContext> option
 
     public DbSet<RecurringProjectSchedule> RecurringProjectSchedules => Set<RecurringProjectSchedule>();
 
+    public DbSet<BulkEditRule> BulkEditRules => Set<BulkEditRule>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeskTodoDbContext).Assembly);

@@ -125,6 +125,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRecurringProjectScheduleRepository, RecurringProjectScheduleRepository>();
         services.AddScoped<IRecurringProjectScheduleService, RecurringProjectScheduleService>();
         services.AddHostedService<RecurringProjectGeneratorHostedService>();
+        services.AddScoped<IBulkEditRuleRepository, BulkEditRuleRepository>();
+        services.AddScoped<IBulkEditRuleService, BulkEditRuleService>();
 
         return services;
     }
